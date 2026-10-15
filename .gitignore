@@ -1,0 +1,9 @@
+keys/
+*.pem
+node_modules/
+bin/
+obj/
+dist/
+artifacts/
+*.user
+.vs/

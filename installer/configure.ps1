@@ -1,0 +1,44 @@
+# Install-time (and uninstall-time) helper run by the MSI as a deferred, elevated custom action.
+#  install   : writes host manifest, bridge config, extension update.xml; optionally the ExtensionInstallForcelist policy for detected browsers
+#  -Uninstall: removes only the policy value this installer wrote (value name 7421 whose data starts with the NeoDM extension ID)
+param([Parameter(Mandatory)][string]$Dir, [Parameter(Mandatory)][string]$ExtId, [string]$AppExe, [string]$Version, [int]$Policy = 0, [switch]$Uninstall)
+$ErrorActionPreference = 'Stop'
+$Dir = $Dir.TrimEnd('\', '.')
+$policyName = '7421'
+$browsers = @(
+  @{ Exe = 'chrome.exe'; Key = 'SOFTWARE\Policies\Google\Chrome' },
+  @{ Exe = 'msedge.exe'; Key = 'SOFTWARE\Policies\Microsoft\Edge' },
+  @{ Exe = 'brave.exe';  Key = 'SOFTWARE\Policies\BraveSoftware\Brave' })
+
+if ($Uninstall) {
+  foreach ($b in $browsers) {
+    $list = "HKLM:\$($b.Key)\ExtensionInstallForcelist"
+    if (-not (Test-Path -LiteralPath $list)) { continue }
+    $v = (Get-ItemProperty -LiteralPath $list -ErrorAction SilentlyContinue).$policyName
+    if ($v -and $v.StartsWith("$ExtId;")) { Remove-ItemProperty -LiteralPath $list -Name $policyName }
+    # Drop keys we may have created, but only when empty (never touch other policies).
+    foreach ($k in @($list, "HKLM:\$($b.Key)", "HKLM:\$(Split-Path $b.Key -Parent)")) {
+      if ($k -in 'HKLM:\SOFTWARE\Policies', 'HKLM:\SOFTWARE') { continue }
+      $i = Get-Item -LiteralPath $k -ErrorAction SilentlyContinue
+      if ($i -and $i.ValueCount -eq 0 -and $i.SubKeyCount -eq 0) { Remove-Item -LiteralPath $k }
+    }
+  }
+  return
+}
+
+$utf8 = New-Object Text.UTF8Encoding($false)
+[IO.File]::WriteAllText("$Dir\host\bridge-config.json", (@{ extensionId = $ExtId; appPath = "$Dir\$AppExe" } | ConvertTo-Json), $utf8)
+[IO.File]::WriteAllText("$Dir\host\com.ndm.bridge.json", (@{ name = 'com.ndm.bridge'; description = 'NeoDM native download bridge'; path = "$Dir\host\NDM.NativeHost.exe"; type = 'stdio'; allowed_origins = @("chrome-extension://$ExtId/") } | ConvertTo-Json), $utf8)
+$base = 'file:///' + (($Dir -replace '\\', '/') -replace ' ', '%20') + '/extension'
+$xml = "<?xml version='1.0' encoding='UTF-8'?>`r`n<gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'><app appid='$ExtId'><updatecheck codebase='$base/NeoDM.crx' version='$Version'/></app></gupdate>`r`n"
+[IO.File]::WriteAllText("$Dir\extension\update.xml", $xml, $utf8)
+
+if ($Policy -eq 1) {
+  foreach ($b in $browsers) {
+    $ap = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$($b.Exe)" -ErrorAction SilentlyContinue
+    if (-not $ap -or -not (Test-Path -LiteralPath $ap.'(default)')) { continue }
+    $list = "HKLM:\$($b.Key)\ExtensionInstallForcelist"
+    New-Item -Path $list -Force | Out-Null
+    Set-ItemProperty -LiteralPath $list -Name $policyName -Value "$ExtId;$base/update.xml" -Type String
+  }
+}

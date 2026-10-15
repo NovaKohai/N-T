@@ -1,0 +1,175 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <!-- Defines supplied by build-installer.ps1: AppDir HostDir ExtDir CrxFile AppExe ExtId Version LicenseRtf LicenseTxt IconFile BannerBmp DialogBmp -->
+  <Package Name="NeoDM" Manufacturer="NeoDM" Version="$(Version)" UpgradeCode="6B1F0C7E-4A52-4C0B-9B0E-2D5C7A1E9F31" Scope="perMachine" InstallerVersion="500">
+    <!-- Same UpgradeCode: a newer MSI upgrades in place (old files and registration removed, new ones installed; the user data folder under LOCALAPPDATA is never touched). Older MSIs are refused. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of NeoDM is already installed. Setup cannot replace it with an older version. Uninstall NeoDM first if you really want to go back." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <SummaryInformation Description="NeoDM download manager" />
+
+    <Property Id="ARPCOMMENTS" Value="NeoDM download manager (MIT License)" />
+    <Property Id="ARPPRODUCTICON" Value="NeoDMIcon" />
+    <Property Id="RUN_AT_STARTUP" Value="1" />
+    <Property Id="DESKTOP_SHORTCUT" Value="0" />
+    <Property Id="INSTALL_POLICY" Value="$(PolicyDefault)" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Set up the NeoDM browser extension now" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(LicenseRtf)" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(BannerBmp)" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(DialogBmp)" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="NeoDM">
+        <Directory Id="HostDir" Name="host" />
+        <Directory Id="ExtensionDir" Name="extension">
+          <Directory Id="UnpackedDir" Name="unpacked" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder"><Directory Id="StartMenuDir" Name="NeoDM" /></StandardDirectory>
+    <StandardDirectory Id="DesktopFolder" />
+
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(AppDir)\**"><Exclude Files="$(AppDir)\**\*.pdb" /><Exclude Files="$(AppDir)\$(AppExe)" /></Files>
+      <Component Id="AppExeComp" Guid="{B05E7A63-1D94-4F2C-8E37-4A6C9D0F18B2}">
+        <File Id="AppExeFile" Source="$(AppDir)\$(AppExe)" />
+      </Component>
+    </ComponentGroup>
+    <ComponentGroup Id="HostFiles" Directory="HostDir">
+      <Files Include="$(HostDir)\**"><Exclude Files="$(HostDir)\**\*.pdb" /><Exclude Files="$(HostDir)\bridge-config.json" /><Exclude Files="$(HostDir)\com.ndm.bridge.json" /></Files>
+      <Component Id="HostConfigs" Guid="{0E3C5B7A-6D1F-4B8A-A7E2-91C4D5F60B12}">
+        <File Id="BridgeConfig" Name="bridge-config.json" Source="payload\bridge-config.json" />
+        <File Id="HostManifest" Name="com.ndm.bridge.json" Source="payload\com.ndm.bridge.json" />
+      </Component>
+    </ComponentGroup>
+    <ComponentGroup Id="ExtensionFiles" Directory="ExtensionDir">
+      <Component Id="CrxAndUpdate" Guid="{5A9D2E41-3C7B-4F06-8E1D-72B0A6C34D95}">
+        <File Id="CrxFile" Name="NeoDM.crx" Source="$(CrxFile)" />
+        <File Id="UpdateXml" Name="update.xml" Source="payload\update.xml" />
+      </Component>
+    </ComponentGroup>
+    <ComponentGroup Id="UnpackedFiles" Directory="UnpackedDir">
+      <Files Include="$(ExtDir)\**" />
+    </ComponentGroup>
+    <ComponentGroup Id="Scripts" Directory="INSTALLFOLDER">
+      <Component Id="ScriptFiles" Guid="{C84B1A0F-92D3-4E57-B6A8-0F3E7D215C69}">
+        <File Id="ConfigurePs1" Name="configure.ps1" Source="configure.ps1" />
+        <File Id="InstallExtPs1" Name="install-extension.ps1" Source="install-extension.ps1" />
+        <File Id="LicenseTxt" Name="LICENSE.txt" Source="$(LicenseTxt)" />
+      </Component>
+    </ComponentGroup>
+
+    <Icon Id="NeoDMIcon" SourceFile="$(IconFile)" />
+    <ComponentGroup Id="Shortcuts">
+      <Component Id="StartMenuShortcuts" Directory="StartMenuDir" Guid="{7F2A6C93-1B48-4D5E-9A30-E6D81C4B7F20}">
+        <Shortcut Id="AppShortcut" Name="NeoDM" Target="[#AppExeFile]" WorkingDirectory="INSTALLFOLDER" Icon="NeoDMIcon" />
+        <Shortcut Id="ExtShortcut" Name="Install NeoDM browser extension" Target="[System64Folder]WindowsPowerShell\v1.0\powershell.exe"
+                  Arguments="-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;[#InstallExtPs1]&quot;" Icon="NeoDMIcon" />
+        <RemoveFolder Id="RemoveStartMenuDir" On="uninstall" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\NeoDM" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+      <Component Id="DesktopShortcutComp" Directory="DesktopFolder" Guid="{2D4E8F10-A5B7-4C39-8D62-B1F9037AE5C4}" Condition="DESKTOP_SHORTCUT=1">
+        <Shortcut Id="DesktopLnk" Name="NeoDM" Target="[#AppExeFile]" WorkingDirectory="INSTALLFOLDER" Icon="NeoDMIcon" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\NeoDM" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="Registration" Directory="INSTALLFOLDER">
+      <Component Id="Startup" Guid="{9B3F7D25-0E6A-4A18-B4C1-5D2A8E70F396}" Condition="RUN_AT_STARTUP=1">
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run" Name="NeoDM" Type="string" Value="&quot;[#AppExeFile]&quot;" KeyPath="yes" />
+      </Component>
+      <Component Id="TorrentAssoc" Guid="{3E7B1D58-92A4-4C6F-B0D3-5A8E2F94C701}">
+        <!-- magnet: links and .torrent files. Registered through Capabilities / Open with, so Windows still lets the user pick any default and uninstall removes everything. -->
+        <RegistryValue Root="HKLM" Key="SOFTWARE\NeoDM\Capabilities" Name="ApplicationName" Type="string" Value="NeoDM" KeyPath="yes" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\NeoDM\Capabilities" Name="ApplicationDescription" Type="string" Value="NeoDM download manager" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\NeoDM\Capabilities\URLAssociations" Name="magnet" Type="string" Value="NeoDM.Magnet" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\NeoDM\Capabilities\FileAssociations" Name=".torrent" Type="string" Value="NeoDM.Torrent" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\RegisteredApplications" Name="NeoDM" Type="string" Value="SOFTWARE\NeoDM\Capabilities" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\NeoDM.Magnet" Type="string" Value="URL:Magnet link" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\NeoDM.Magnet" Name="URL Protocol" Type="string" Value="" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\NeoDM.Magnet\DefaultIcon" Type="string" Value="[#AppExeFile],0" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\NeoDM.Magnet\shell\open\command" Type="string" Value="&quot;[#AppExeFile]&quot; &quot;%1&quot;" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\NeoDM.Torrent" Type="string" Value="Torrent file" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\NeoDM.Torrent\DefaultIcon" Type="string" Value="[#AppExeFile],0" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\NeoDM.Torrent\shell\open\command" Type="string" Value="&quot;[#AppExeFile]&quot; &quot;%1&quot;" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\.torrent\OpenWithProgids" Name="NeoDM.Torrent" Type="string" Value="" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\Applications\$(AppExe)\shell\open\command" Type="string" Value="&quot;[#AppExeFile]&quot; &quot;%1&quot;" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Classes\Applications\$(AppExe)\SupportedTypes" Name=".torrent" Type="string" Value="" />
+      </Component>
+      <Component Id="NmhChrome" Guid="{41C8E6B2-7F0D-4953-A2E4-8B6D19C3F507}">
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Google\Chrome\NativeMessagingHosts\com.ndm.bridge" Type="string" Value="[#HostManifest]" KeyPath="yes" />
+      </Component>
+      <Component Id="NmhEdge" Guid="{D2706A9E-5B13-4C8F-91A7-3E4F8C0B6D18}">
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Microsoft\Edge\NativeMessagingHosts\com.ndm.bridge" Type="string" Value="[#HostManifest]" KeyPath="yes" />
+      </Component>
+      <Component Id="NmhBrave" Guid="{68A1D3F4-C9E2-4B70-8F55-A0B72E1D9C36}">
+        <RegistryValue Root="HKLM" Key="SOFTWARE\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.ndm.bridge" Type="string" Value="[#HostManifest]" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Generates host manifest / bridge-config / update.xml for the chosen install dir; optional forcelist policy (INSTALL_POLICY=1). -->
+    <CustomAction Id="Configure" DllEntry="WixQuietExec64" BinaryRef="Wix4UtilCA_X64" Execute="deferred" Impersonate="no" Return="check" />
+    <SetProperty Id="Configure" Sequence="execute" Before="Configure" Condition="NOT REMOVE~=&quot;ALL&quot;"
+      Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[INSTALLFOLDER]configure.ps1&quot; -Dir &quot;[INSTALLFOLDER].&quot; -AppExe &quot;$(AppExe)&quot; -ExtId $(ExtId) -Version $(Version) -Policy [INSTALL_POLICY]" />
+    <CustomAction Id="Unconfigure" DllEntry="WixQuietExec64" BinaryRef="Wix4UtilCA_X64" Execute="deferred" Impersonate="no" Return="ignore" />
+    <SetProperty Id="Unconfigure" Sequence="execute" Before="Unconfigure" Condition="REMOVE~=&quot;ALL&quot;"
+      Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[INSTALLFOLDER]configure.ps1&quot; -Dir &quot;[INSTALLFOLDER].&quot; -ExtId $(ExtId) -Uninstall" />
+    <InstallExecuteSequence>
+      <Custom Action="Configure" After="InstallFiles" Condition="NOT REMOVE~=&quot;ALL&quot;" />
+      <Custom Action="Unconfigure" Before="RemoveFiles" Condition="REMOVE~=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+
+    <!-- Running app: closed automatically before any file is touched (no prompt, no manual step). Runs as an immediate action before
+         InstallValidate so it is also in effect before the old version is removed during an in-place upgrade. Open downloads are
+         interrupted and can be resumed. Silent and interactive installs behave the same. -->
+    <CustomAction Id="StopNeoDM" DllEntry="WixQuietExec64" BinaryRef="Wix4UtilCA_X64" Execute="immediate" Return="ignore" />
+    <SetProperty Id="StopNeoDM" Sequence="execute" Before="StopNeoDM" Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command &quot;Get-Process -Name NeoDM,NDM.NativeHost -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 2; exit 0&quot;" />
+
+    <!-- Launch NeoDM after install AND upgrade (not uninstall), exactly once, never elevated: the elevated installer asks the user's own
+         Explorer shell to start it, so it runs with the normal user token in the interactive session. NO_LAUNCH=1 or a SYSTEM-account
+         deployment (no interactive user) skips it. -->
+    <CustomAction Id="LaunchNeoDM" Directory="INSTALLFOLDER" Return="asyncNoWait" Impersonate="yes"
+      ExeCommand="&quot;[WindowsFolder]explorer.exe&quot; &quot;[INSTALLFOLDER]$(AppExe)&quot;" />
+    <InstallExecuteSequence>
+      <Custom Action="StopNeoDM" Before="InstallValidate" Condition="VersionNT &gt; 400" />
+      <Custom Action="LaunchNeoDM" After="InstallFinalize" Condition="NOT REMOVE~=&quot;ALL&quot; AND NOT (NO_LAUNCH=&quot;1&quot;) AND NOT (UserSID=&quot;S-1-5-18&quot;)" />
+    </InstallExecuteSequence>
+
+    <CustomAction Id="LaunchExtSetup" Directory="INSTALLFOLDER" Return="asyncNoWait"
+      ExeCommand="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;[INSTALLFOLDER]install-extension.ps1&quot;" />
+
+    <Feature Id="Main" Title="NeoDM" Level="1" AllowAdvertise="no" ConfigurableDirectory="INSTALLFOLDER">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentGroupRef Id="HostFiles" />
+      <ComponentGroupRef Id="ExtensionFiles" />
+      <ComponentGroupRef Id="UnpackedFiles" />
+      <ComponentGroupRef Id="Scripts" />
+      <ComponentGroupRef Id="Shortcuts" />
+      <ComponentGroupRef Id="Registration" />
+    </Feature>
+
+    <ui:WixUI Id="WixUI_InstallDir" />
+    <UI>
+      <Dialog Id="ExtOptionsDlg" Width="370" Height="270" Title="NeoDM Setup">
+        <Control Id="Title" Type="Text" X="15" Y="10" Width="340" Height="20" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}Browser extension" />
+        <Control Id="Body" Type="Text" X="20" Y="45" Width="330" Height="70" Transparent="yes" NoPrefix="yes"
+                 Text="NeoDM always installs the extension files (NeoDM.crx and an unpacked copy) in the install folder. After setup you can load the unpacked copy from your browser's extensions page (Developer mode, Load unpacked)." />
+        <Control Id="PolicyBox" Type="CheckBox" X="20" Y="125" Width="330" Height="18" Property="POLICY_CHECK" CheckBoxValue="1"
+                 Text="Also install through browser policy (Chrome, Edge, Brave)" />
+        <Control Id="PolicyNote" Type="Text" X="38" Y="146" Width="312" Height="60" Transparent="yes" NoPrefix="yes"
+                 Text="The classic CRX/policy way. Browsers only accept it on domain-joined or managed PCs; elsewhere they block it and show a warning. The browsers will show 'Managed by your organization'. Leave unchecked unless you know you need it." />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)" />
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ExtOptionsDlg" Order="6" Condition="NOT Installed" />
+      <Publish Dialog="ExtOptionsDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" />
+      <Publish Dialog="ExtOptionsDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="ExtOptionsDlg" Control="Next" Property="INSTALL_POLICY" Value="1" Order="1" Condition="POLICY_CHECK = 1" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ExtOptionsDlg" Order="5" Condition="NOT Installed" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchExtSetup" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+    </UI>
+  </Package>
+</Wix>

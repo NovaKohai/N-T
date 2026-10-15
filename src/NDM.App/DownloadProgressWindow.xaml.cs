@@ -1,0 +1,182 @@
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Shapes;
+using System.Windows.Threading;
+using NDM.Core;
+
+namespace NDM.App;
+
+/// <summary>Per-download window: status, speed limiter, completion options and per-connection telemetry. Closing it never touches the transfer.</summary>
+public partial class DownloadProgressWindow : Window
+{
+    private readonly DownloadManager manager;
+    private readonly string id;
+    private readonly JobCompletionStore? store;
+    private readonly AppSettings? settings;
+    private readonly DispatcherTimer timer;
+    private bool loading = true, removing;
+    public DownloadRow Row { get; }
+    public DownloadProgressWindow(DownloadManager manager, string id, JobCompletionStore? store = null, AppSettings? settings = null)
+    {
+        this.manager = manager; this.id = id; this.store = store; this.settings = settings;
+        var job = manager.Jobs.FirstOrDefault(j => j.Id == id) ?? throw new ArgumentException("Download no longer exists.", nameof(id));
+        Row = new DownloadRow(job);
+        InitializeComponent(); DataContext = Row;
+        foreach (var kind in JobCompletionOptions.PowerChoices) TurnOffKind.Items.Add(new ComboBoxItem { Content = JobCompletionOptions.PowerLabel(kind), Tag = kind });
+        LimitCheck.IsChecked = job.SpeedLimitBytesPerSecond.HasValue;
+        LimitInput.Text = job.SpeedLimitBytesPerSecond is { } limit ? Math.Max(1, limit / 1024).ToString() : "";
+        LoadOptions();
+        loading = false;
+        Limit_Toggled(this, new RoutedEventArgs()); ApplyOptionRules();
+        timer = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Background, (_, _) => Refresh(), Dispatcher);
+        Closed += (_, _) => timer.Stop();
+        PreviewKeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) { e.Handled = true; Close(); } };
+        Refresh();
+    }
+    private void LoadOptions()
+    {
+        var o = store?.Get(id) ?? new JobCompletionOptions { ShowDialog = settings?.ShowCompletionDialog ?? true };
+        SaveToText.Text = Row.FilePath;
+        ShowDialogBox.IsChecked = o.ShowDialog; ExitAppBox.IsChecked = o.ExitApp; TurnOffBox.IsChecked = o.TurnOff; ForceBox.IsChecked = o.Force;
+        TurnOffKind.SelectedItem = TurnOffKind.Items.Cast<ComboBoxItem>().First(i => (CompletionActionKind)i.Tag == o.PowerAction);
+    }
+    private JobCompletionOptions ReadOptions() => new()
+    {
+        ShowDialog = ShowDialogBox.IsChecked == true, ExitApp = ExitAppBox.IsChecked == true, TurnOff = TurnOffBox.IsChecked == true, Force = ForceBox.IsChecked == true,
+        PowerAction = (TurnOffKind.SelectedItem as ComboBoxItem)?.Tag is CompletionActionKind k ? k : CompletionActionKind.Shutdown
+    };
+    private void ApplyOptionRules()
+    {
+        var o = ReadOptions(); bool open = !Row.IsComplete && store is not null;
+        ShowDialogBox.IsEnabled = open;
+        ExitAppBox.IsEnabled = TurnOffBox.IsEnabled = open && o.ActionsEnabled;
+        TurnOffKind.IsEnabled = open && o.PowerKindEnabled;
+        ForceBox.IsEnabled = open && o.ForceEnabled;
+    }
+    private void Options_Changed(object sender, RoutedEventArgs e)
+    {
+        if (loading) return;
+        var o = ReadOptions();
+        if (o.Force && !CompletionActionInfo.UsesForce(o.PowerAction)) { o.Force = false; loading = true; ForceBox.IsChecked = false; loading = false; } // force only exists for Shut down / Restart
+        ApplyOptionRules();
+        store?.Set(id, o);
+        if (store?.LastError is { } error) Notice.Text = error;
+    }
+    private void HideTab_Click(object sender, RoutedEventArgs e) => Tabs.SelectedIndex = -1;
+    private void Details_Click(object sender, RoutedEventArgs e)
+    {
+        bool show = DetailsPane.Visibility != Visibility.Visible;
+        DetailsPane.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        DetailsButton.Content = show ? "<< Hide details" : "Show details >>";
+    }
+    private void Refresh()
+    {
+        var job = manager.Jobs.FirstOrDefault(j => j.Id == id);
+        if (job is null)
+        {
+            if (!removing) Notice.Text = "This download was removed. Closing this window has no effect on other downloads.";
+            PauseButton.IsEnabled = CancelButton.IsEnabled = ApplyLimitButton.IsEnabled = false; LimitCheck.IsEnabled = LimitInput.IsEnabled = false;
+            timer.Stop(); return;
+        }
+        bool changed = Row.Update(job);
+        Title = Row.FileName;
+        UrlText.Text = Row.Url; UrlText.ToolTip = Row.Url;
+        StatusText.Text = Row.IsComplete ? "Complete" : Row.Status switch
+        {
+            "Connecting" => "Checking address: " + Row.Url,
+            "Failed" => "Failed" + (string.IsNullOrWhiteSpace(Row.Error) ? "" : " — " + Row.Error),
+            var s => s
+        };
+        SizeText.Text = Row.TotalBytes > 0 ? $"{DownloadRow.FormatBytes(Row.TotalBytes)} ({Row.TotalBytes:N0} bytes)" : Row.IsComplete ? DownloadRow.FormatBytes(Row.DownloadedBytes) : "(unknown)";
+        DownloadedText.Text = DownloadRow.FormatBytes(Row.DownloadedBytes) + (Row.TotalBytes > 0 ? $" ({Row.Percent})" : "");
+        RateText.Text = Row.Status == "Downloading" ? DownloadRow.FormatBytes(Row.Speed) + "/sec" : "0 Bytes/sec";
+        TimeLeftText.Text = Row.IsComplete ? "Done" : Row.RemainingTime is not null && Row.Status == "Downloading" ? DownloadRow.FormatTime(Row.RemainingTime.Value) : "(unknown)";
+        ResumeText.Text = Row.ResumeSupported switch { true => "Yes", false => "No", _ => "(unknown)" };
+        OverallBar.Value = Row.IsComplete ? 100 : Row.Progress;
+        if (changed || ConnectionList.ItemsSource is null) { ConnectionList.ItemsSource = Row.ConnectionRows; DrawSegments(); }
+        bool done = Row.IsComplete;
+        PauseButton.Visibility = CancelButton.Visibility = done ? Visibility.Collapsed : Visibility.Visible;
+        OpenButton.Visibility = FolderButton.Visibility = CloseButton.Visibility = done ? Visibility.Visible : Visibility.Collapsed;
+        OpenButton.IsEnabled = done && File.Exists(Row.FilePath);
+        PauseButton.Content = Row.CanResume ? "Resume" : "Pause";
+        PauseButton.IsEnabled = Row.CanPause || Row.CanResume;
+        SpeedTab.IsEnabled = !done;
+        if (done) { ApplyOptionRules(); OptionsNote.Text = "This download is complete; completion options no longer apply."; }
+    }
+    private void DrawSegments()
+    {
+        SegmentBar.Children.Clear();
+        double width = SegmentBar.ActualWidth, height = SegmentBar.ActualHeight;
+        long total = Row.TotalBytes > 0 ? Row.TotalBytes : Row.Segments.Sum(s => s.Length);
+        if (width <= 0 || total <= 0) return;
+        var fill = (Brush?)TryFindResource("AccentBrush") ?? Brushes.SteelBlue; var edge = (Brush?)TryFindResource("BorderBrush") ?? Brushes.Gray;
+        foreach (var s in Row.Segments)
+        {
+            double x = width * s.Start / total, w = Math.Max(s.DownloadedBytes > 0 ? 1 : 0, width * Math.Min(s.DownloadedBytes, s.Length) / total);
+            var bar = new Rectangle { Width = w, Height = height, Fill = fill }; Canvas.SetLeft(bar, x); SegmentBar.Children.Add(bar);
+            var start = new Rectangle { Width = 1, Height = height, Fill = edge }; Canvas.SetLeft(start, x); SegmentBar.Children.Add(start);
+        }
+    }
+    private void SegmentBar_SizeChanged(object sender, SizeChangedEventArgs e) => DrawSegments();
+    private void Limit_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (LimitInput is null) return;
+        LimitInput.IsEnabled = LimitCheck.IsChecked == true;
+    }
+    private void ApplyLimit_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!manager.Jobs.Any(j => j.Id == id && j.Status != "Completed")) throw new InvalidOperationException();
+            if (LimitCheck.IsChecked == true)
+            {
+                var bytes = DownloadDialogValidation.ParseSpeed(LimitInput.Text) ?? throw new FormatException("Enter the limit in KiB/s, or untick the box for unlimited.");
+                manager.SetSpeedLimit(id, bytes); LimitMessage.Text = $"Limit applied: {bytes / 1024:N0} KiB/s."; // ParseSpeed already returns bytes/second
+            }
+            else { manager.SetSpeedLimit(id, null); LimitMessage.Text = "Limit removed: this download runs at full speed."; }
+        }
+        catch (FormatException ex) { LimitMessage.Text = ex.Message; }
+        catch (Exception) { LimitMessage.Text = "The limit could not be applied. Check the queue and try again."; }
+    }
+    private void Pause_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var job = manager.Jobs.FirstOrDefault(j => j.Id == id);
+            if (job is null || job.Status == "Completed") { Refresh(); return; }
+            var row = new DownloadRow(job);
+            if (row.CanResume) manager.Resume(id); else if (row.CanPause) manager.Pause(id);
+            Refresh();
+        }
+        catch { Notice.Text = "Could not save the change. Check the queue and try again."; }
+    }
+    private async void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        var job = manager.Jobs.FirstOrDefault(j => j.Id == id);
+        if (job is null) { Refresh(); return; }
+        var dialog = new RemoveConfirmWindow(new[] { RemoveActions.Describe(new DownloadRow(job)) }) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        removing = true;
+        try
+        {
+            var summary = await RemoveActions.ExecuteAsync(manager, new NoTorrentFeature(), new[] { Row }, dialog.DeleteFiles);
+            store?.Remove(id);
+            if (summary.NeedsAttention) MessageBox.Show(this, summary.Describe(dialog.DeleteFiles), "Cancel download", MessageBoxButton.OK, MessageBoxImage.Warning);
+            Close();
+        }
+        catch (Exception) { removing = false; Notice.Text = "The download could not be cancelled. Check the queue and try again."; }
+    }
+    private void Open_Click(object sender, RoutedEventArgs e)
+    {
+        try { if (File.Exists(Row.FilePath) && DownloadFileActions.ConfirmOpen(this, Row.FileName)) DownloadFileActions.Open(Row.FilePath); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception) { Notice.Text = "Windows could not open this file."; }
+    }
+    private void Folder_Click(object sender, RoutedEventArgs e)
+    {
+        try { DownloadFileActions.OpenFolder(Row.FilePath); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception) { Notice.Text = "Windows could not open the folder."; }
+    }
+    private void Close_Click(object sender, RoutedEventArgs e) => Close(); // View only; never cancels the job.
+}

@@ -1,0 +1,11 @@
+<Project>
+  <!-- Single source of truth for the product version (see docs/VERSIONING.md). Used by the app, the native host,
+       the installer (build-installer.ps1) and the extension manifest (synced by build.ps1). -->
+  <PropertyGroup>
+    <Version>1.2.1</Version>
+    <AssemblyVersion>1.2.1.0</AssemblyVersion>
+    <FileVersion>1.2.1.0</FileVersion>
+    <InformationalVersion>1.2.1</InformationalVersion>
+    <IncludeSourceRevisionInformation>false</IncludeSourceRevisionInformation>
+  </PropertyGroup>
+</Project>

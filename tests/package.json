@@ -1,0 +1,10 @@
+{
+  "name": "ndm-extension-tests",
+  "private": true,
+  "scripts": {
+    "test": "node --test extension-tests.cjs extension-advanced-tests.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}
