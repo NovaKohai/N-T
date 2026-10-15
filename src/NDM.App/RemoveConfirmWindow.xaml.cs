@@ -5,7 +5,7 @@ namespace NDM.App;
 /// <summary>One entry in the remove confirmation: what it is and what exists on disk for it.</summary>
 public sealed record RemoveItem(string Name, string Detail, int DiskFiles, bool IsTorrent);
 
-/// <summary>Themed, Windows 11 style confirmation for removing downloads. The delete-from-disk option is always opt-in per dialog.</summary>
+/// <summary>Themed confirmation for removing downloads. The delete-from-disk option is always opt-in per dialog.</summary>
 public partial class RemoveConfirmWindow : Window
 {
     private readonly IReadOnlyList<RemoveItem> _items;

@@ -6,7 +6,7 @@
 
 **A free, open source download manager for Windows.**
 
-Fast segmented downloads, a clean Windows 11 interface, torrents, and browser integration for Chrome, Edge and Brave.
+Fast segmented downloads, a clean modern interface, torrents, and browser integration for Chrome, Edge and Brave.
 
 [![Latest release](https://img.shields.io/github/v/release/unlimitedera/NeoDM?style=flat-square&color=00695c)](https://github.com/unlimitedera/NeoDM/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
@@ -69,7 +69,7 @@ NeoDM is an open source project created by **unlimitedera**.
 - Safe file names: unsafe characters are sanitised and name collisions never overwrite existing files.
 
 ### Interface
-- Modern Windows 11 style, with light and dark themes.
+- Clean, modern interface with light and dark themes.
 - Compact menus and toolbar, sortable download list, and a sidebar with filters (All, Downloading, Paused, Completed, Failed, Queued, Scheduled).
 - A separate **Torrents** section (All torrents, Downloading, Seeding, Completed).
 - Search, bulk URL import, Pause all / Resume all, Remove completed.
@@ -242,7 +242,7 @@ Version and release notes follow `docs/VERSIONING.md`: every change bumps the ve
 | 1.2.1 | 2026-10-15 | Fixed an installer error (2762); running NeoDM is now closed automatically during install and upgrade. |
 | 1.2.0 | 2026-10-15 | Torrents section, torrent file selection fix, category folders on by default, installer icon, auto-launch, in-place upgrades. |
 | 1.1.0 | 2026-10-15 | Torrents, proxy, remove-with-delete dialog, right-click menu, category folders, tabbed progress window, completion actions, installer, About window. |
-| 1.0.0 | 2026-09-20 | Initial release: queue, segmented engine, Windows 11 interface, browser extension with media ribbon, tray. |
+| 1.0.0 | 2026-09-20 | Initial release: queue, segmented engine, modern interface, browser extension with media ribbon, tray. |
 
 See `CHANGELOG.md` for details.
 

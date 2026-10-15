@@ -53,6 +53,6 @@ and the project uses [Semantic Versioning](https://semver.org/). The rule for ke
 ### Added
 - Download queue with pause, resume, retry and scheduling.
 - Segmented download engine with dynamic segmentation and resume.
-- Windows 11 style interface with light and dark themes.
+- Modern interface with light and dark themes.
 - Chrome, Edge and Brave extension with a media ribbon for detected audio and video.
 - System tray integration and start with Windows.

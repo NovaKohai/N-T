@@ -1,7 +1,7 @@
 # NDM desktop design
 
 ## Design Decision Summary
-- **What:** an original Windows 11 productivity workspace for the existing .NET 8 WPF download manager. All artwork and code are original.
+- **What:** an original, modern productivity workspace for the existing .NET 8 WPF download manager. All artwork and code are original.
 - **Surface:** **Operate** primary; live transfer inspection is secondary. The queue is the workspace, not a dashboard.
 - **Why:** familiar menu → command toolbar → status navigation → sortable table puts frequent actions next to actual download data. There are no hero cards, invented statistics or demo jobs.
 
