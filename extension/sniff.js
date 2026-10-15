@@ -1,13 +1,41 @@
 /* NeoDM media sniffing logic. Pure functions, shared by the service worker (importScripts) and the tests. */
 (function (scope) {
-  const MIN_SIZE = 512 * 1024;
+  const MIN_SIZE = 512 * 1024, IMAGE_MIN_SIZE = 64 * 1024;
+  /** File-type groups the user can switch on/off (popup). Images exclude GIF, which is its own group. */
+  const TYPE_IDS = ['video', 'audio', 'image', 'gif', 'archive', 'program', 'document', 'other'];
+  const DEFAULT_TYPES = { video: true, audio: true, image: false, gif: false, archive: true, program: true, document: true, other: true };
+  const EXT_TYPES = {
+    video: 'mp4 mkv webm avi mov flv wmv m4v mpg mpeg 3gp ogv ts', audio: 'mp3 m4a aac flac wav ogg oga opus wma weba mid midi',
+    image: 'jpg jpeg png bmp webp svg ico tif tiff avif heic heif', gif: 'gif', archive: 'zip rar 7z tar gz tgz bz2 xz zst iso cab img',
+    program: 'exe msi msix appx apk dmg pkg deb rpm bat cmd jar ps1 appimage', document: 'pdf doc docx xls xlsx ppt pptx txt rtf odt ods odp csv epub mobi md json xml html htm',
+  };
+  const TYPE_BY_EXT = {}; for (const [type, list] of Object.entries(EXT_TYPES)) for (const e of list.split(' ')) TYPE_BY_EXT[e] = type;
+  /** Type group of a download from its file name or URL (extension first), then its MIME type. Unknown = 'other'. */
+  function typeOfFile(nameOrUrl, mime) {
+    let path = String(nameOrUrl || '');
+    try { if (/^https?:/i.test(path)) path = decodeURIComponent(new URL(path).pathname); } catch {}
+    const m = /\.([a-z0-9]{1,8})$/i.exec(path.split(/[?#]/)[0]);
+    if (m && TYPE_BY_EXT[m[1].toLowerCase()]) return TYPE_BY_EXT[m[1].toLowerCase()];
+    const t = String(mime || '').toLowerCase();
+    if (t === 'image/gif') return 'gif';
+    if (t.startsWith('video/')) return 'video'; if (t.startsWith('audio/')) return 'audio'; if (t.startsWith('image/')) return 'image';
+    if (/zip|rar|7z|tar|gzip/.test(t)) return 'archive'; if (/msdownload|msi|executable|x-apple-diskimage/.test(t)) return 'program';
+    if (/pdf|msword|officedocument|text\//.test(t)) return 'document';
+    return 'other';
+  }
+  /** Type group of a sniffed media-list item. */
+  const typeOfItem = item => item.kind === 'gif' ? 'gif' : item.kind === 'image' ? 'image' : item.kind === 'audio' ? 'audio' : 'video';
+  const withDefaults = stored => { const out = { ...DEFAULT_TYPES }; for (const id of TYPE_IDS) if (stored && typeof stored[id] === 'boolean') out[id] = stored[id]; return out; };
+  /** Session pause state { all: bool, hosts: [hostname] } -> is NeoDM paused for this page/host? */
+  const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
+  const isPaused = (state, ...urls) => !!state && (state.all === true || urls.some(u => { const h = hostOf(u); return h && Array.isArray(state.hosts) && state.hosts.includes(h); }));
   // YouTube itags: formats that carry audio AND video in one file (progressive/muxed) -> label.
   const MUXED = { 5: '240p', 6: '270p', 13: '176p', 17: '144p', 18: '360p', 22: '720p', 34: '360p', 35: '480p', 36: '240p', 37: '1080p', 38: '3072p', 43: '360p', 44: '480p', 45: '720p', 46: '1080p', 59: '480p', 78: '480p' };
   const AUDIO_ITAGS = new Set([139, 140, 141, 171, 172, 249, 250, 251, 256, 258, 325, 328, 338, 380, 599, 600]);
   const VIDEO_ITAGS = { 133: '240p', 134: '360p', 135: '480p', 136: '720p', 137: '1080p', 160: '144p', 242: '240p', 243: '360p', 244: '480p', 247: '720p', 248: '1080p', 264: '1440p', 266: '2160p', 271: '1440p', 278: '144p', 298: '720p', 299: '1080p', 302: '720p', 303: '1080p', 308: '1440p', 313: '2160p', 394: '144p', 395: '240p', 396: '360p', 397: '480p', 398: '720p', 399: '1080p', 400: '1440p', 401: '2160p' };
   const MANIFEST_TYPES = /mpegurl|dash|vnd\.apple/i;
   const SEGMENT_TYPES = /^video\/(mp2t|iso\.segment)|^audio\/(aac|x-aac)$/i; // HLS/DASH segments, never a whole file
-  const EXT_BY_MIME = { 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/x-matroska': '.mkv', 'video/quicktime': '.mov', 'video/ogg': '.ogv', 'video/x-flv': '.flv', 'video/3gpp': '.3gp', 'audio/mp4': '.m4a', 'audio/x-m4a': '.m4a', 'audio/mpeg': '.mp3', 'audio/mp3': '.mp3', 'audio/webm': '.weba', 'audio/ogg': '.ogg', 'audio/wav': '.wav', 'audio/x-wav': '.wav', 'audio/flac': '.flac', 'audio/opus': '.opus' };
+  const EXT_BY_MIME = { 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/x-matroska': '.mkv', 'video/quicktime': '.mov', 'video/ogg': '.ogv', 'video/x-flv': '.flv', 'video/3gpp': '.3gp', 'audio/mp4': '.m4a', 'audio/x-m4a': '.m4a', 'audio/mpeg': '.mp3', 'audio/mp3': '.mp3', 'audio/webm': '.weba', 'audio/ogg': '.ogg', 'audio/wav': '.wav', 'audio/x-wav': '.wav', 'audio/flac': '.flac', 'audio/opus': '.opus', 'image/gif': '.gif', 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/avif': '.avif', 'image/svg+xml': '.svg', 'image/bmp': '.bmp' };
 
   const header = (headers, name) => { const h = (headers || []).find(x => x.name && x.name.toLowerCase() === name); return h ? String(h.value || '') : ''; };
   const isHttp = value => { try { const u = new URL(value); return (u.protocol === 'http:' || u.protocol === 'https:') && !u.username && !u.password; } catch { return false; } };
@@ -43,6 +71,11 @@
     let u; try { u = new URL(details.url); } catch { return null; }
     if (/\.(m3u8|mpd|ts|m4s)$/i.test(u.pathname)) return null;
     const type = header(details.responseHeaders, 'content-type').split(';')[0].trim().toLowerCase();
+    if (/^image\//.test(type) && !MANIFEST_TYPES.test(type)) {
+      const size = totalSize(details.statusCode, details.responseHeaders);
+      if (size < IMAGE_MIN_SIZE) return null;
+      return { id: u.href, url: u.href, kind: type === 'image/gif' ? 'gif' : 'image', track: 'file', complete: true, size, quality: '', mime: type, source: 'net' };
+    }
     if (!/^(video|audio)\//.test(type) || MANIFEST_TYPES.test(type) || SEGMENT_TYPES.test(type)) return null;
     if (isGoogleVideo(u)) {
       const g = describeGoogle(u); if (!g) return null;
@@ -83,7 +116,7 @@
   function extensionFor(item) {
     if (EXT_BY_MIME[item.mime]) return EXT_BY_MIME[item.mime];
     try { const m = /\.([a-z0-9]{2,5})$/i.exec(new URL(item.url).pathname); if (m) return '.' + m[1].toLowerCase(); } catch {}
-    return item.kind === 'audio' ? '.m4a' : '.mp4';
+    return item.kind === 'audio' ? '.m4a' : item.kind === 'gif' ? '.gif' : item.kind === 'image' ? '.jpg' : '.mp4';
   }
   /**
    * Suggested file name sent as optional `fileName`. For URLs with a real file name we leave the choice to the app (empty)
@@ -100,6 +133,6 @@
     return Array.from(stem).slice(0, 255 - ext.length - suffix.length - quality.length).join('') + quality + suffix + ext;
   }
 
-  scope.NeoSniff = { MIN_SIZE, classify, fromDom, merge, safeName, suggestedName, extensionFor, isHttp };
+  scope.NeoSniff = { TYPE_IDS, DEFAULT_TYPES, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused, MIN_SIZE, IMAGE_MIN_SIZE, classify, fromDom, merge, safeName, suggestedName, extensionFor, isHttp };
   if (typeof module !== 'undefined') module.exports = scope.NeoSniff;
 })(globalThis);

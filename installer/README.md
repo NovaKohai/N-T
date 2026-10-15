@@ -35,3 +35,6 @@ Chrome, Edge and Brave refuse to auto-install a non-store extension on a PC that
 
 ## Installer extension page
 The wizard has a "Browser extension" page with an unchecked box "Also install through browser policy". Checking it is the same as `INSTALL_POLICY=1` (classic CRX/policy way; only effective on managed PCs). The unpacked folder and NeoDM.crx are always installed.
+
+## Updates
+NeoDM can update itself from GitHub releases by running this MSI (`msiexec /i <msi> /passive`, elevated). The installer already closes the running NeoDM and starts the new one, which is what makes the in-app update seamless. `build-installer.ps1` also writes `artifacts\NeoDM-Setup-<version>.msi` and `artifacts\SHA256SUMS.txt`; upload both to the release. The package is not Authenticode-signed: the updater relies on the SHA-256 in `SHA256SUMS.txt` from the same release (see `docs/UPDATES.md`). The only network traffic the app starts itself is the check to api.github.com and, on request, the download from github.com; the checkbox in Options > General turns the checks off.

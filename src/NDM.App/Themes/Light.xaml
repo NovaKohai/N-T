@@ -13,4 +13,8 @@
   <SolidColorBrush x:Key="SuccessBrush" Color="#19733F"/>
   <SolidColorBrush x:Key="WarningBrush" Color="#8D5E00"/>
   <SolidColorBrush x:Key="ErrorBrush" Color="#B42332"/>
+  <SolidColorBrush x:Key="DisabledInkBrush" Color="#757F87"/>
+  <SolidColorBrush x:Key="ThumbBrush" Color="#BBC4CB"/>
+  <SolidColorBrush x:Key="ThumbHoverBrush" Color="#939FA8"/>
+  <SolidColorBrush x:Key="ThumbPressedBrush" Color="#6C7983"/>
 </ResourceDictionary>

@@ -355,18 +355,16 @@ internal static class CompletionActionTests
         Click(F<Button>("SaveButton"));
         Check(F<TextBlock>("ErrorText").Text.Length > 0 && !File.Exists(Path.Combine(state, "settings.json")) && settings.SessionCompletionAction == CompletionActionKind.None, "Invalid run-program path blocks saving with an inline error");
         F<TextBox>("RunProgramPath").Text = Path.Combine(Environment.SystemDirectory, "whoami.exe"); F<TextBox>("RunProgramArguments").Text = "/all";
-        F<CheckBox>("FinishRemember").IsChecked = false;
         Click(F<Button>("SaveButton"));
-        Check(settings.SessionCompletionAction == CompletionActionKind.Restart && settings.CompletionAction == CompletionActionKind.None && settings.CompletionForceClose && settings.RunProgramEnabled && settings.RunProgramArguments == "/all", "Saving applies the session choice; without Remember nothing is stored as the default");
+        Check(settings.SessionCompletionAction == CompletionActionKind.Restart && settings.CompletionAction == CompletionActionKind.Restart && settings.CompletionForceClose && settings.RunProgramEnabled && settings.RunProgramArguments == "/all", "Saving in Options applies the choice now and stores it permanently as the default (no Remember checkbox in Options)");
         var disk = AppSettings.Load(state);
-        Check(disk.SessionCompletionAction == CompletionActionKind.None && disk.CompletionForceClose && disk.RunProgramPath.EndsWith("whoami.exe"), "Persisted file reloads to Do nothing for next session but keeps other options");
+        Check(disk.SessionCompletionAction == CompletionActionKind.Restart && disk.CompletionForceClose && disk.RunProgramPath.EndsWith("whoami.exe"), "Persisted file reloads with the chosen action for the next session and keeps other options");
 
         var w2 = new SettingsWindow(settings, state);
-        w2.FindName("FinishRemember");
-        ((CheckBox)w2.FindName("FinishRemember")).IsChecked = true;
+        Check(w2.FindName("FinishRemember") is null, "Options window has no Remember checkbox");
         Click((Button)w2.FindName("SaveButton"));
         disk = AppSettings.Load(state);
-        Check(disk.CompletionAction == CompletionActionKind.Restart && disk.SessionCompletionAction == CompletionActionKind.Restart, "Remember stores the action for future sessions");
+        Check(disk.CompletionAction == CompletionActionKind.Restart && disk.SessionCompletionAction == CompletionActionKind.Restart, "Options always stores the action for future sessions");
     }
 
     static void EndToEnd(string root)

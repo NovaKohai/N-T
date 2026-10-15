@@ -53,7 +53,7 @@ internal static class OptionsTests
         {
             var defaults = AppSettings.Load(Path.Combine(root, "missing"));
             Check(defaults.MaxSegments == 8 && defaults.MaxConcurrentDownloads == 3 && defaults.RetryCount == 3 && defaults.RequestTimeoutSeconds == 30, "Missing settings preserve startup defaults");
-            Check(defaults.EnableDynamicSegmentation && defaults.ShowCompletionDialog && !defaults.PlayCompletionSound && defaults.Theme == "Light", "Boolean and theme defaults");
+            Check(defaults.EnableDynamicSegmentation && defaults.ShowCompletionDialog && defaults.PlayCompletionSound && defaults.Theme == "Light", "Boolean and theme defaults");
             Check(new DownloadOptions().MaxSegments == 4 && OptionsHelper.CreateDownloadOptions(defaults).MaxSegments == 8, "Core default four unchanged; application startup uses eight");
             var state = Path.Combine(root, "state"); Directory.CreateDirectory(state);
             var path = Path.Combine(state, "settings.json");

@@ -75,7 +75,7 @@ test('file names: sanitized title + extension, track suffix, host-safe character
 const clip = response('https://files.example/clip.mp4', 'video/mp4', 6 * MB);
 test('worker: sniffed items persist in session storage, set badge, notify the tab, and survive a worker restart', async () => {
   const b = makeBackground(); b.hooks.headers(clip); b.hooks.headers(clip); await tick();
-  assert.deepEqual(json(b.hooks['headers:args']), [{ urls: ['http://*/*', 'https://*/*'], types: ['media', 'xmlhttprequest', 'other', 'object'] }, ['responseHeaders']]);
+  assert.deepEqual(json(b.hooks['headers:args']), [{ urls: ['http://*/*', 'https://*/*'], types: ['media', 'xmlhttprequest', 'other', 'object', 'image'] }, ['responseHeaders']]);
   const stored = json(b.sessionData['neodm.media.7']); assert.equal(stored.items.length, 1); assert.equal(stored.items[0].size, 6 * MB);
   assert.equal(b.sentToTabs.length, 1, 'identical repeat does not re-notify'); assert.equal(b.sentToTabs[0].msg.type, 'neodm-media'); assert.equal(b.badge.at(-1).text, '1');
   const restarted = makeBackground({ sessionData: b.sessionData });

@@ -3,6 +3,29 @@
 All notable changes to NeoDM are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.3.0] - 2026-10-15
+
+### Fixed
+- Browser capture now starts the download only in NeoDM. Before, the browser download was paused and cancelled only after NeoDM had acknowledged it, so it could keep going (or leave a file) while the options dialog was open. Now the extension cancels and erases the browser download (partial file, finished file and history entry) the moment it is created, and only then asks NeoDM. Chosen approach: `downloads.onCreated` plus `cancel` / `removeFile` / `erase`; no extra permission and no `onDeterminingFilename` or blocking `webRequest`, which would not make the cancel any earlier.
+- Pressing Cancel in NeoDM's capture dialog now discards the download on purpose (the app reply carries `cancelled`). If NeoDM is unreachable or fails, the extension restarts the browser download from the same URL so nothing is lost.
+- The capture dialog and the progress window of a captured download now open in front of the browser and every other window: foreground rights are passed from the native host to the app, then the window attaches to the foreground input queue, goes topmost briefly and, if Windows still refuses, the taskbar button flashes. The dialog is no longer owned by a minimised main window.
+- Dark mode: menus and right-click menus no longer show white border or inner lines; menu items, separators, check marks, highlight and disabled text are fully themed in both themes.
+- Dark mode: the sidebar and every other list, text box, combo box popup and grid use a thin themed scroll bar (rounded thumb, transparent track, hover and pressed states) instead of the Windows one.
+- Dark mode: drop-down lists, combo boxes, tooltips and column headers are no longer bright white with unreadable text; hover, selected and disabled states have at least 4.5:1 text contrast (3:1 for disabled text), checked by tests for both themes.
+- Scroll bars no longer touch or cover text boxes at the right edge of Options (all five tabs), Add download, the capture dialog, speed/schedule, Properties, progress and completion windows; content keeps a gutter wider than the scroll bar. Windows are limited to the usable screen area so nothing is clipped at 100%, 125% or 150% display scaling, and tall windows scroll instead of running off the screen.
+- Options no longer has "Remember this choice for future sessions": what you pick under "When all downloads finish" in Options is saved permanently. The remember choice stays where a choice is temporary: the "Options on completion" tab of a download (unremembered per-download choices are no longer written to disk).
+
+### Changed
+- Completion sound is on by default. Existing settings are switched on once (settings schema 3); after that your choice in Options is kept. Each download can override it in its "Options on completion" tab (new "Play sound when done"), and a download muted there stays silent.
+- Extension: capture of browser downloads is on by default for new installs and, once, for existing users who never chose (an explicit off is kept). The extension version follows the app (1.3.0).
+
+### Added
+- Extension: file-type preferences in the popup (Video, Audio, Images, GIF, Archives, Programs/installers, Documents, Other). They apply to the media ribbon and to download capture. Default: Video, Audio, Archives, Programs, Documents, Other on; Images and GIF off. Images and GIFs are only detected while ticked.
+- Extension: session pause for "this site" or "all sites" (kept in `storage.session`, so it resets when the browser closes). While paused neither capture nor the ribbon trigger; the popup shows the state and has a one-click re-enable.
+- Self-updater: NeoDM checks GitHub (`api.github.com/repos/unlimitedera/NeoDM/releases/latest`) 20 seconds after start and then every 24 hours, at most once per 12 hours across restarts, silently when offline or rate limited. A themed update window shows the release notes, "View full changelog" and "Release page" links and the buttons Update now, Remind me later and Skip this version. Update now downloads `NeoDM-Setup-*.msi`, verifies it against the release's `SHA256SUMS.txt` (refusing a mismatch, a missing entry or a file that is not an MSI) and runs `msiexec /i <msi> /passive` elevated; the installer closes and restarts NeoDM. Proxy settings from Options are used. See `docs/UPDATES.md`.
+- Help > Check for updates, an About window with the GitHub repository link, the version and a "Check for updates" button, and Options > General > "Check for updates automatically" (on by default) with a way to forget a skipped version.
+- `build-installer.ps1` also writes a versioned `NeoDM-Setup-<version>.msi` and `SHA256SUMS.txt` next to the MSI, ready to publish as a release the updater can use.
+
 ## [1.2.1] - 2026-10-15
 
 ### Fixed

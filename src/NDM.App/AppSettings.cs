@@ -16,10 +16,14 @@ public sealed class AppSettings
     public bool EnableDynamicSegmentation { get; set; } = true;
     public bool ShowCompletionDialog { get; set; } = true;
     public bool ShowProgressForCapturedDownloads { get; set; } = true;
-    public bool PlayCompletionSound { get; set; } = false;
-    /// <summary>Settings schema marker. 2 = category folders default to on (a persisted false from the old default is switched once on load).</summary>
+    public bool PlayCompletionSound { get; set; } = true;
+    // Updates: the only network traffic NeoDM starts by itself is the release check (api.github.com) and the download of the update the user accepts.
+    public bool CheckForUpdates { get; set; } = true;
+    public DateTimeOffset? LastUpdateCheckUtc { get; set; }
+    public string SkippedUpdateVersion { get; set; } = "";
+    /// <summary>Settings schema marker. 2 = category folders default to on; 3 = completion sound defaults to on (a persisted false from the old default is switched once on load). Both migrations run once; later explicit choices carry the new marker.</summary>
     public int SettingsSchema { get; set; } = CurrentSchema;
-    public const int CurrentSchema = 2;
+    public const int CurrentSchema = 3;
     public bool EnableCategoryFolders { get; set; } = true;
     public string ProgramsFolder { get; set; } = "Programs";
     public string CompressedFolder { get; set; } = "Compressed";
@@ -79,6 +83,7 @@ public sealed class AppSettings
                 catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException) { }
             }
             if (settings.SettingsSchema < 2) settings.EnableCategoryFolders = true; // one-time switch; explicit choices saved afterwards carry schema 2
+            if (settings.SettingsSchema < 3) settings.PlayCompletionSound = true; // one-time: the old default was off
             settings.SettingsSchema = CurrentSchema;
             if (string.IsNullOrWhiteSpace(settings.DownloadDirectory) || !Path.IsPathFullyQualified(settings.DownloadDirectory)) settings.DownloadDirectory = new AppSettings().DownloadDirectory;
             else if (string.Equals(Path.GetFileName(settings.DownloadDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)), "New Download Manager", StringComparison.OrdinalIgnoreCase)) settings.DownloadDirectory = new AppSettings().DownloadDirectory;
@@ -99,7 +104,7 @@ public sealed class AppSettings
             settings.TorrentDownloadDirectory = (settings.TorrentDownloadDirectory ?? "").Trim();
             if (settings.TorrentDownloadDirectory.Length > 0 && !Path.IsPathFullyQualified(settings.TorrentDownloadDirectory)) settings.TorrentDownloadDirectory = "";
             if (!Enum.IsDefined(settings.CompletionAction)) settings.CompletionAction = CompletionActionKind.None;
-            settings.RunProgramPath ??= ""; settings.RunProgramArguments ??= "";
+            settings.RunProgramPath ??= ""; settings.RunProgramArguments ??= ""; settings.SkippedUpdateVersion ??= "";
             settings.SessionCompletionAction = settings.CompletionRemember ? settings.CompletionAction : CompletionActionKind.None;
             return settings;
         }
@@ -130,6 +135,7 @@ public sealed class AppSettings
         ProxyType = source.ProxyType; ProxyHost = source.ProxyHost; ProxyPort = source.ProxyPort; ProxyUsername = source.ProxyUsername;
         ProxyPasswordProtected = source.ProxyPasswordProtected; ProxyResolveHostsThroughProxy = source.ProxyResolveHostsThroughProxy;
         ProxyForDownloads = source.ProxyForDownloads; ProxyForPeers = source.ProxyForPeers; ProxyForTrackers = source.ProxyForTrackers;
+        CheckForUpdates = source.CheckForUpdates; LastUpdateCheckUtc = source.LastUpdateCheckUtc; SkippedUpdateVersion = source.SkippedUpdateVersion;
         SessionCompletionAction = source.SessionCompletionAction;
         AdditionalSettings = source.AdditionalSettings;
     }

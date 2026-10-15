@@ -5,22 +5,6 @@
       <Setter Property="MinHeight" Value="30"/>
       <Setter Property="Margin" Value="0,0,4,0"/>
     </Style>
-    <Style TargetType="Menu">
-      <Setter Property="Background" Value="{DynamicResource CanvasBrush}"/>
-      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
-    </Style>
-    <Style TargetType="MenuItem">
-      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
-      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
-    </Style>
-    <Style TargetType="GridViewColumnHeader">
-      <Setter Property="Background" Value="{DynamicResource SidebarBrush}"/>
-      <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-      <Setter Property="Padding" Value="8,6"/>
-      <Setter Property="HorizontalContentAlignment" Value="Left"/>
-      <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
-    </Style>
     <Style TargetType="ListViewItem">
       <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
       <Setter Property="MinHeight" Value="30"/>
@@ -82,6 +66,7 @@
       </MenuItem>
       <MenuItem Header="_Help">
         <MenuItem Header="Keyboard _shortcuts" Click="Help_Click"/>
+        <MenuItem Header="_Check for updates…" Click="CheckUpdates_Click"/>
         <MenuItem Header="_About NeoDM" Click="About_Click"/>
       </MenuItem>
     </Menu>

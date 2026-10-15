@@ -89,7 +89,7 @@ public partial class MainWindow : Window
     {
         _manager = manager; _settings = settings; _saveSettings = saveSettings; _enableTray = enableTray; _torrents = torrents ?? new NoTorrentFeature();
         _completion = new CompletionController(manager.Jobs, id => _manager.Jobs.FirstOrDefault(j => j.Id == id), () => _settings.ShowCompletionDialog || JobCompletion.AnyShowDialog,
-            PresentCompletion, action => Dispatcher.BeginInvoke(action), job => { if (_settings.PlayCompletionSound) System.Media.SystemSounds.Asterisk.Play(); RunJobCompletion(job); });
+            PresentCompletion, action => Dispatcher.BeginInvoke(action), OnJobCompleted);
         _finishTrigger = new QueueFinishTrigger(manager.Jobs.Select(ToQueueJob)) { IgnoreScheduled = settings.CompletionIgnoreScheduled };
         FinishActions = new CompletionActionRunner(settings, power ?? new SystemPowerActions(), new CountdownPrompt(), saveSettings,
             () => System.Media.SystemSounds.Asterisk.Play(), OpenDownloadsFolder, () => { _exitRequested = _exitWithoutPrompt = true; Close(); });
@@ -193,8 +193,7 @@ public partial class MainWindow : Window
         if (_closed) return;
         Show();
         WindowState = WindowState.Normal;
-        Topmost = true; Topmost = false; // Foreground-lock workaround: second launches may only be allowed to flash otherwise.
-        Activate();
+        WindowActivation.BringToFront(this); // foreground-lock workaround included
         if (_trayIcon is not null) _trayIcon.Visibility = Visibility.Collapsed;
     }
     /// <summary>--tray start: no window, tray icon visible, everything keeps running.</summary>
@@ -226,6 +225,13 @@ public partial class MainWindow : Window
         dialog.Show(); // Deliberately modeless; never block transfers, test loops or the main window.
     }
     /// <summary>Runs this download's own completion action (Exit NeoDM / turn off computer) once, behind the same countdown/cancel safety as the queue action.</summary>
+    /// <summary>Plays the completion sound (never for a download muted in its own options) and runs the download's own completion action.</summary>
+    public Action PlayCompletionSound { get; set; } = () => { try { System.Media.SystemSounds.Asterisk.Play(); } catch (Exception) { } };
+    public void OnJobCompleted(DownloadJob job)
+    {
+        if (CompletionSound.ShouldPlay(_settings, JobCompletion.Get(job.Id))) PlayCompletionSound();
+        RunJobCompletion(job);
+    }
     internal void RunJobCompletion(DownloadJob job)
     {
         if (_closed || JobCompletion.Get(job.Id) is not { HasAction: true } o) return;
@@ -516,8 +522,7 @@ public partial class MainWindow : Window
         if (window.WindowState == WindowState.Minimized && foreground) window.WindowState = WindowState.Normal;
         if (foreground)
         {
-            window.Topmost = true; window.Activate(); // Briefly above the browser, then back to a normal window.
-            var w = window; w.Dispatcher.BeginInvoke(new Action(() => w.Topmost = false), DispatcherPriority.ApplicationIdle);
+            WindowActivation.BringToFront(window); // above the browser and every other window; taskbar flash if Windows refuses
         }
         else window.Activate();
         return window;
@@ -553,6 +558,13 @@ public partial class MainWindow : Window
     private void Refresh_Click(object sender, RoutedEventArgs e) => Refresh(true);
     private void Exit_Click(object sender, RoutedEventArgs e) => Close();
     private void Help_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, "Ctrl+N  Add URL\nCtrl+F  Search\nCtrl+V  Paste URL (outside text inputs)\nF5  Refresh\nEnter  Inspect selected download / open completed file\nDelete  Remove selected entries (confirmation, optional delete from disk)\nAlt  Menu access keys", "Keyboard shortcuts");
+    /// <summary>Set by the application; the Help menu's update check.</summary>
+    public UpdateController? Updates { get; set; }
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        if (Updates is null) { Notice.Text = "Update checks are not available."; return; }
+        Notice.Text = "Checking for updates…"; await Updates.CheckNowAsync(); Notice.Text = "Ready";
+    }
     private void About_Click(object sender, RoutedEventArgs e) => new AboutWindow { Owner = this }.ShowDialog();
     private void Settings_Click(object sender, RoutedEventArgs e)
     {

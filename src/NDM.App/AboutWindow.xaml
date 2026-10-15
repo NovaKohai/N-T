@@ -12,6 +12,7 @@
     <StackPanel Grid.Row="1" Margin="0,18,0,14">
       <TextBlock x:Name="CreatorText" Text="NeoDM is an open source project created by unlimitedera." TextWrapping="Wrap"/>
       <TextBlock x:Name="LicenseText" Text="Released under the MIT License." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+      <TextBlock Margin="0,6,0,0"><Run Text="Source code: "/><Hyperlink x:Name="RepoLink" NavigateUri="https://github.com/unlimitedera/NeoDM" Click="Repo_Click">github.com/unlimitedera/NeoDM</Hyperlink></TextBlock>
     </StackPanel>
     <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8">
       <DockPanel>
@@ -21,8 +22,9 @@
         </ScrollViewer>
       </DockPanel>
     </Border>
-    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+    <Grid Grid.Row="3" Margin="0,16,0,0"><StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center"><Button x:Name="CheckUpdatesButton" Content="Check for _updates" Click="CheckUpdates_Click" MinWidth="140" MinHeight="32"/><TextBlock x:Name="UpdateStatus" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="170" AutomationProperties.LiveSetting="Polite"/></StackPanel>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
       <Button x:Name="CloseButton" Content="_Close" IsDefault="True" IsCancel="True" MinWidth="96" MinHeight="32" Style="{StaticResource PrimaryButton}" Click="Close_Click"/>
-    </StackPanel>
+    </StackPanel></Grid>
   </Grid>
 </Window>

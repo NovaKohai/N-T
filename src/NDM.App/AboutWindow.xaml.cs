@@ -64,6 +64,20 @@ public static class AboutInfo
 
 public partial class AboutWindow : Window
 {
+    /// <summary>The update controller used by the button; null in tests that do not set one up.</summary>
+    public UpdateController? Updates { get; set; } = (Application.Current as App)?.Updates;
+    private void Repo_Click(object sender, RoutedEventArgs e) => UrlOpener.Open(UpdateChecker.RepositoryUrl);
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        if (Updates is null) { UpdateStatus.Text = "Update checks are not available here."; return; }
+        CheckUpdatesButton.IsEnabled = false; UpdateStatus.Text = "Checking…";
+        try
+        {
+            var result = await Updates.CheckNowAsync(text => UpdateStatus.Text = text);
+            if (result?.Outcome == UpdateOutcome.Available) UpdateStatus.Text = "An update is available.";
+        }
+        finally { CheckUpdatesButton.IsEnabled = true; }
+    }
     public AboutWindow()
     {
         InitializeComponent();

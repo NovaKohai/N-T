@@ -8,16 +8,21 @@
   </Window.Resources>
   <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <TabControl x:Name="OptionsTabs" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Padding="18">
-      <TabItem Header="_General"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+      <TabItem Header="_General"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Appearance" Style="{StaticResource SectionTitle}"/>
         <StackPanel Orientation="Horizontal"><RadioButton x:Name="LightTheme" Content="_Light" GroupName="Theme" Margin="0,0,28,0"/><RadioButton x:Name="DarkTheme" Content="_Dark" GroupName="Theme"/></StackPanel>
         <TextBlock Text="Theme changes apply when you save." Style="{StaticResource Muted}" Margin="0,12,0,24"/>
+        <TextBlock Text="Updates" Style="{StaticResource SectionTitle}"/>
+        <CheckBox x:Name="CheckForUpdates" Content="Check for _updates automatically" Margin="0,0,0,6"/>
+        <TextBlock Text="NeoDM contacts api.github.com once a day at most to look for a new release. Nothing is installed without your confirmation." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+        <StackPanel x:Name="SkippedPanel" Orientation="Horizontal" Margin="0,8,0,0" Visibility="Collapsed"><TextBlock x:Name="SkippedText" VerticalAlignment="Center" Style="{StaticResource Muted}"/><Button x:Name="ForgetSkipButton" Content="_Forget skipped version" Click="ForgetSkip_Click" Margin="12,0,0,0"/></StackPanel>
+        <TextBlock x:Name="UpdateGap" Margin="0,0,0,20"/>
         <TextBlock Text="Browser integration" Style="{StaticResource SectionTitle}"/>
         <TextBlock Text="Chrome extension and native host setup are separate. Live browser integration has not been verified on this machine." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <Button Content="Open Chrome extension _setup help" Click="BrowserSetup_Click" HorizontalAlignment="Left" Margin="0,14,0,12"/>
         <TextBlock Text="File types and browser capture preferences are configured independently in the extension's Options. NeoDM does not change those preferences here." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
       </StackPanel></ScrollViewer></TabItem>
-      <TabItem Header="_Save To"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+      <TabItem Header="_Save To"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Default download destination" Style="{StaticResource SectionTitle}"/>
         <Label Content="_Folder" Target="{Binding ElementName=Destination}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox x:Name="Destination" AutomationProperties.Name="Download destination"/><Button Grid.Column="1" Content="_Browse…" Click="Browse_Click" Margin="8,0,0,0"/></Grid>
@@ -35,7 +40,7 @@
         </Grid>
         <TextBlock Text="Use relative paths (e.g., 'Programs') or absolute paths. Files not matching any category go to the base download folder." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
       </StackPanel></ScrollViewer></TabItem>
-      <TabItem Header="_Downloads"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+      <TabItem Header="_Downloads"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <GroupBox x:Name="ConnectionsGroup" Header="Connections" Padding="12,10" Margin="0,0,0,24" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}"><StackPanel>
         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/></Grid.RowDefinitions>
           <Label Content="Maximum _segments per file (1–32)" Target="{Binding ElementName=Segments}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Segments" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Maximum segments"/>
@@ -56,8 +61,6 @@
         <ComboBox x:Name="FinishAction" HorizontalAlignment="Left" MinWidth="260" AutomationProperties.Name="When all downloads finish" SelectionChanged="FinishAction_Changed"/>
         <TextBlock x:Name="FinishDescription" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,12"/>
         <CheckBox x:Name="FinishForce" Content="_Force close apps (turn off and restart only)"/>
-        <CheckBox x:Name="FinishRemember" Content="_Remember this choice for future sessions"/>
-        <TextBlock Text="Without this, the choice applies to the current run of NeoDM only. Cancelling a countdown resets this session to Do nothing." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,-8,0,12"/>
         <CheckBox x:Name="FinishIgnoreScheduled" Content="Act even if a _scheduled download is still waiting"/>
         <CheckBox x:Name="RunProgramEnabled" Content="Also run a _program when downloads finish" Checked="RunProgram_Changed" Unchecked="RunProgram_Changed" Margin="0,0,0,6"/>
         <Grid x:Name="RunProgramGrid" IsEnabled="False" Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -66,7 +69,7 @@
         </Grid>
         <TextBlock Text="Full path first, then arguments below. The program is started directly (no command interpreter). It runs before the action above, and not if a countdown is cancelled." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
       </StackPanel></ScrollViewer></TabItem>
-      <TabItem Header="_Proxy"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+      <TabItem Header="_Proxy"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Proxy server" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
         <Label Content="Proxy _type" Target="{Binding ElementName=ProxyTypeBox}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
         <ComboBox x:Name="ProxyTypeBox" HorizontalAlignment="Left" MinWidth="220" AutomationProperties.Name="Proxy type" SelectionChanged="ProxyType_Changed"/>
@@ -86,7 +89,7 @@
         <StackPanel Orientation="Horizontal"><Button x:Name="ProxyTestButton" Content="Test _connection" Click="ProxyTest_Click" MinWidth="130"/><TextBlock x:Name="ProxyTestResult" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="380" AutomationProperties.LiveSetting="Polite"/></StackPanel>
         <TextBlock x:Name="ProxyRestartNote" Text="HTTP/HTTPS downloads pick up proxy changes the next time NeoDM starts. Torrent changes apply immediately after saving. SOCKS4 is not supported." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,14,0,0"/>
       </StackPanel></ScrollViewer></TabItem>
-      <TabItem x:Name="TorrentsTab" Header="_Torrents"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+      <TabItem x:Name="TorrentsTab" Header="_Torrents"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Torrent downloads" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
         <Label Content="Default save _folder (blank = use the general download folder and category rules)" Target="{Binding ElementName=TorrentFolder}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
         <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox x:Name="TorrentFolder" AutomationProperties.Name="Torrent save folder"/><Button Grid.Column="1" Content="Bro_wse…" Click="BrowseTorrent_Click" Margin="8,0,0,0"/></Grid>

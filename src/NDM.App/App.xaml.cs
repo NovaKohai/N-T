@@ -7,6 +7,7 @@ namespace NDM.App;
 
 public partial class App : Application
 {
+    static App() => WindowSizing.Attach();
     private Mutex? _singleton;
     private bool _ownsMutex;
     private DownloadManager? _manager;
@@ -21,6 +22,8 @@ public partial class App : Application
     private static string InstanceSuffix => StateOverride is null ? "" : "." + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(StateOverride.ToLowerInvariant())))[..12];
     public static string PipeName => NativeBridge.PipeName + InstanceSuffix;
     public AppSettings Settings { get; private set; } = new();
+    /// <summary>Release checks and the update dialog (null until the main window exists).</summary>
+    public UpdateController? Updates { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -53,6 +56,7 @@ public partial class App : Application
             window.JobCompletion.Prune(_manager.Jobs.Select(j => j.Id));
             MainWindow = window;
             window.Closed += (_, _) => Shutdown();
+            SetUpUpdates(window);
             _bridge = new NativeBridge(HandleBrowserDownload, PipeName, HandleControl);
             _bridge.Start();
             if (startup.Tray) window.StartInTray(); else window.Show();
@@ -66,6 +70,23 @@ public partial class App : Application
             MessageBox.Show("NeoDM could not start. Check that your destination and state folders are writable.\n\n" + ex.Message, "NeoDM", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
+    }
+
+    private void SetUpUpdates(MainWindow window)
+    {
+        string version = AboutInfo.Version;
+        var installer = new UpdateInstaller(UpdateInstaller.DefaultDirectory, version, () => Settings.BuildProxy());
+        Updates = new UpdateController(Settings, () => Settings.Save(StateDirectory), version, () => new UpdateChecker(version, () => Settings.BuildProxy()), installer);
+        UpdateWindow? open = null;
+        Updates.ShowAvailable = release =>
+        {
+            if (open is { IsLoaded: true }) { WindowActivation.BringToFront(open); return; }
+            open = new UpdateWindow(release, Updates) { Owner = window is { IsVisible: true, WindowState: not WindowState.Minimized } ? window : null };
+            open.Show();
+        };
+        Updates.ShowMessage = text => MessageBox.Show(window is { IsVisible: true } ? window : null, text, "NeoDM updates", MessageBoxButton.OK, MessageBoxImage.Information);
+        window.Updates = Updates;
+        Updates.Start();
     }
 
     public void ApplyTheme(string theme)
@@ -119,16 +140,20 @@ public partial class App : Application
         {
             try
             {
+                // The browser download is already gone (the extension cancels it before asking), so this dialog must never end up hidden:
+                // it has its own taskbar button, is not owned by a minimised/tray-hidden main window and is brought above the browser when it opens.
                 var dialog = new DownloadOptionsDialog(request.Url, request.FileName, request.Referer, request.Cookie, Settings.DownloadDirectory)
                 {
-                    // A --tray start never showed the main window, and WPF refuses an unshown owner.
-                    Owner = MainWindow is { IsVisible: true } ? MainWindow : null,
-                    ShowInTaskbar = MainWindow is not { IsVisible: true }
+                    // A --tray start never showed the main window, and WPF refuses an unshown owner; an owned dialog would also minimise with it.
+                    Owner = MainWindow is { IsVisible: true, WindowState: not WindowState.Minimized } ? MainWindow : null,
+                    ShowInTaskbar = true
                 };
+                dialog.ContentRendered += (_, _) => WindowActivation.BringToFront(dialog);
 
                 if (dialog.ShowDialog() != true || dialog.Request is null)
                 {
-                    request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "User cancelled the download."));
+                    // The user pressed Cancel: discard on purpose (the extension does not restart the browser download for this reply).
+                    request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in NeoDM.", Cancelled: true));
                     return;
                 }
 
@@ -167,7 +192,7 @@ public partial class App : Application
                         break;
 
                     default:
-                        request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "User cancelled the download."));
+                        request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in NeoDM.", Cancelled: true));
                         return;
                 }
 

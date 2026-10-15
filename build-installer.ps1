@@ -63,3 +63,8 @@ if ($LASTEXITCODE -ne 0) { throw 'wix build failed' }
 Remove-Item -Recurse -Force $payload
 Write-Host "Built $msi (version $version)"
 Write-Host ("SHA256 " + (Get-FileHash -Algorithm SHA256 $msi).Hash)
+# Release assets for the self-updater (docs/UPDATES.md): versioned installer name + SHA256SUMS.txt in "hash *name" form.
+$versioned = Join-Path $out "NeoDM-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $versioned -Force
+$sumLines = @(((Get-FileHash -Algorithm SHA256 $versioned).Hash.ToLowerInvariant()) + ' *' + (Split-Path -Leaf $versioned))
+[IO.File]::WriteAllText((Join-Path $out 'SHA256SUMS.txt'), (($sumLines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false)))
+Write-Host "Release assets: $versioned and SHA256SUMS.txt"

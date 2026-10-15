@@ -7,6 +7,13 @@ using System.Text.Json;
 internal static class Program
 {
     const int Max = 65536;
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")] static extern bool GetNamedPipeServerProcessId(IntPtr pipe, out uint processId);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool AllowSetForegroundWindow(uint processId);
+    /// <summary>The browser (foreground) started this host, so the host may pass the right to take the foreground to the app process that will show the options dialog.</summary>
+    static void AllowAppForeground(NamedPipeClientStream pipe)
+    {
+        try { if (GetNamedPipeServerProcessId(pipe.SafePipeHandle.DangerousGetHandle(), out var pid) && pid != 0) AllowSetForegroundWindow(pid); } catch { }
+    }
     internal record Config(string ExtensionId, string? AppPath);
     static async Task<int> Main(string[] args)
     {
@@ -72,6 +79,7 @@ internal static class Program
             Process.Start(new ProcessStartInfo(app) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(app)! });
             await pipe.ConnectAsync(ct);
         }
+        AllowAppForeground(pipe);
         // The app shows an options dialog and replies only after the user decides (up to 5 minutes); the extension waits 330 s.
         using var decision = new CancellationTokenSource(TimeSpan.FromSeconds(320)); var rt = decision.Token;
         await pipe.WriteAsync(payload, rt); await pipe.WriteAsync(new byte[] {10}, rt); await pipe.FlushAsync(rt);

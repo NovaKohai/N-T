@@ -11,38 +11,43 @@ const EXT_ID = fs.readFileSync(path.join(root, 'tools/extension-id.txt'), 'utf8'
 const idFromDer = der => [...crypto.createHash('sha256').update(der).digest().subarray(0, 16)].map(x => String.fromCharCode(97 + (x >> 4), 97 + (x & 15))).join('');
 
 const item = { id: 7, url: 'https://example.org/a.zip', finalUrl: 'https://example.org/a.zip', state: 'in_progress' };
-function mock(events, overrides = {}) { return { pause: async () => events.push('pause'), search: async () => { events.push('search'); return [{ ...item, paused: true }]; }, cancel: async () => events.push('cancel'), resume: async () => events.push('resume'), ...overrides }; }
+function mock(events, overrides = {}) {
+  return { cancel: async () => events.push('cancel'), search: async () => { events.push('search'); return [{ ...item, state: 'interrupted' }]; }, removeFile: async () => events.push('removeFile'), erase: async () => events.push('erase'), download: async o => events.push('download:' + o.url), pause: async () => events.push('PAUSE'), resume: async () => events.push('RESUME'), ...overrides };
+}
 
-test('durable ACK precedes cancel and pause precedes send', async () => {
-  const events = []; const result = await transfer(item, mock(events), async () => { events.push('send'); events.push('ack'); return { ok: true, id: 'saved' }; }, true);
-  assert.deepEqual(events, ['pause', 'search', 'send', 'ack', 'cancel']); assert.equal(result.ok, true);
+test('capture: browser download is cancelled and erased BEFORE the app is asked; success leaves no browser download', async () => {
+  const events = []; const result = await transfer(item, mock(events), async () => { events.push('send'); return { ok: true, id: 'saved' }; }, true);
+  assert.deepEqual(events, ['cancel', 'search', 'erase', 'send']); assert.equal(result.ok, true);
+  assert.ok(!events.some(e => e.startsWith('download:') || e === 'RESUME'), 'nothing is restarted or resumed after success');
 });
-test('native failure resumes, never cancels', async () => {
-  const events = []; const r = await transfer(item, mock(events), async () => { events.push('send'); throw Error('missing host'); }, true);
-  assert.deepEqual(events, ['pause', 'search', 'send', 'resume']); assert.equal(r.ok, false);
+test('a download that already finished is removed from disk too (file + history)', async () => {
+  const events = []; await transfer(item, mock(events, { search: async () => [{ ...item, state: 'complete', exists: true }] }), async () => ({ ok: true, id: 's' }), true);
+  assert.deepEqual(events, ['cancel', 'removeFile', 'erase', 'send'.slice(0, 0)].filter(Boolean));
 });
-test('user cancelling in the app (error reply -> thrown) resumes the browser download and never cancels it', async () => {
-  const events = []; const r = await transfer(item, mock(events), async () => { events.push('send'); throw new Error('Download cancelled by user'); }, true);
-  assert.deepEqual(events, ['pause', 'search', 'send', 'resume']); assert.equal(r.ok, false);
+test('user pressing Cancel in the app dialog discards the download (no restart)', async () => {
+  const events = []; const r = await transfer(item, mock(events), async () => { events.push('send'); const e = new Error('User cancelled the download.'); e.cancelled = true; throw e; }, true);
+  assert.deepEqual(events, ['cancel', 'search', 'erase', 'send']); assert.equal(r.ok, false); assert.equal(r.cancelled, true); assert.equal(r.restarted, undefined);
 });
-test('negative/malformed ACK resumes browser', async () => {
-  for (const reply of [{ ok: false, error: 'disk full' }, { ok: true }, { ok: true, id: '' }, { ok: 1, id: 'x' }, null]) {
-    const events = []; await transfer(item, mock(events), async () => reply, true); assert.deepEqual(events, ['pause', 'search', 'resume']);
+test('hard failures (app unreachable, error reply, malformed ACK) restart the browser download with the same URL', async () => {
+  for (const send of [async () => { throw Error('missing host'); }, async () => ({ ok: false, error: 'disk full' }), async () => ({ ok: true }), async () => ({ ok: true, id: ' ' }), async () => null]) {
+    const events = []; const r = await transfer(item, mock(events), send, true);
+    assert.deepEqual(events, ['cancel', 'search', 'erase', 'download:https://example.org/a.zip']); assert.equal(r.restarted, true); assert.equal(r.ok, false);
   }
 });
-test('blob/data/FTP, paused, extension and unknown/POST requests untouched', async () => {
-  for (const c of [{ ...item, url: 'blob:https://example.org/1' }, { ...item, url: 'data:text/plain,x' }, { ...item, finalUrl: 'ftp://x/a' }, { ...item, paused: true }, { ...item, byExtensionId: 'other' }, { ...item, state: 'complete' }]) {
+test('if even the restart fails the user gets a message with the URL', async () => {
+  const r = await transfer(item, mock([], { download: async () => { throw Error('x'); } }), async () => { throw Error('down'); }, true);
+  assert.equal(r.ok, false); assert.match(r.error, /example\.org\/a\.zip/);
+});
+test('blob/data/FTP, paused, extension, incognito and unknown/POST requests are untouched (never cancelled)', async () => {
+  for (const c of [{ ...item, url: 'blob:https://example.org/1' }, { ...item, url: 'data:text/plain,x' }, { ...item, finalUrl: 'ftp://x/a' }, { ...item, paused: true }, { ...item, byExtensionId: 'other' }, { ...item, state: 'complete' }, { ...item, incognito: true }]) {
     const events = []; assert.equal((await transfer(c, mock(events), async () => { throw Error('unexpected'); }, true)).skipped, true); assert.deepEqual(events, []);
   }
   const events = []; assert.equal((await transfer(item, mock(events), async () => null, false)).skipped, true); assert.deepEqual(events, []);
 });
-test('pause failure never sends or cancels; completed race resumes safely', async () => {
-  const events = []; await transfer(item, mock(events, { pause: async () => { events.push('pause'); throw Error(); } }), async () => { events.push('send'); }, true); assert.deepEqual(events, ['pause']);
-  const e = []; await transfer(item, mock(e, { search: async () => [{ ...item, state: 'complete' }] }), async () => { e.push('send'); }, true); assert.deepEqual(e, ['pause', 'resume']);
-});
-test('cancel failure preserves browser download and reports failure', async () => {
-  const events = []; const r = await transfer(item, mock(events, { cancel: async () => { events.push('cancel'); throw Error(); } }), async () => ({ ok: true, id: 'saved' }), true);
-  assert.deepEqual(events, ['pause', 'search', 'cancel', 'resume']); assert.equal(r.ok, false);
+test('cancel/search/erase failures are tolerated: the transfer to the app still happens exactly once', async () => {
+  const events = []; const boom = async () => { throw Error(); };
+  const r = await transfer(item, mock(events, { cancel: boom, search: boom, erase: boom }), async () => { events.push('send'); return { ok: true, id: 'saved' }; }, true);
+  assert.deepEqual(events, ['send']); assert.equal(r.ok, true);
 });
 test('HTTP URL and durable ACK validation', () => {
   assert.equal(http('https://x/a'), true);
@@ -144,13 +149,16 @@ test('app-side cancel/decline surfaces as an error (browser download must then c
   const r = await b.message({ action: 'media-download', id: 'https://files.example/clip.mp4' }, b.pageSender());
   assert.equal(r.ok, false); assert.match(r.error, /cancelled/);
 });
-test('capture: slow app decision keeps browser download paused until ACK; cancel reply resumes it', async () => {
-  for (const [reply, expected] of [[{ ok: true, id: 'x' }, ['pause', 'search', 'cancel']], [{ ok: false, error: 'cancelled' }, ['pause', 'search', 'resume']]]) {
-    const b = makeBackground({ settings: { captureEnabled: true }, nativeReply: () => new Promise(r => setImmediate(() => r(reply))) });
-    const events = []; b.chrome.downloads.pause = async () => events.push('pause'); b.chrome.downloads.resume = async () => events.push('resume'); b.chrome.downloads.cancel = async () => events.push('cancel');
-    b.chrome.downloads.search = async () => { events.push('search'); return [{ ...item, paused: true }]; };
+test('service worker capture: erase happens before the (slow) app decision; user cancel discards; unreachable app restarts', async () => {
+  for (const [reply, expected] of [[{ ok: true, id: 'x' }, ['cancel', 'search', 'erase']], [{ ok: false, error: 'cancelled', cancelled: true }, ['cancel', 'search', 'erase']], [{ ok: false, error: 'host down' }, ['cancel', 'search', 'erase', 'download']]]) {
+    const log = []; let b;
+    b = makeBackground({ settings: { captureEnabled: true }, nativeReply: () => new Promise(r => setImmediate(() => { log.push('app-answers'); r(reply); })) });
+    b.chrome.downloads.cancel = async () => log.push('cancel'); b.chrome.downloads.erase = async () => log.push('erase'); b.chrome.downloads.removeFile = async () => log.push('removeFile'); b.chrome.downloads.download = async () => log.push('download');
+    b.chrome.downloads.search = async () => { log.push('search'); return [{ ...item, state: 'interrupted' }]; };
     b.hooks.request({ requestId: 'r', url: item.url, method: 'GET' });
-    await b.hooks.download(item); assert.deepEqual(events, expected);
+    await b.hooks.download(item);
+    assert.deepEqual(log.filter(e => e !== 'app-answers'), expected);
+    assert.ok(log.indexOf('erase') < log.indexOf('app-answers'), 'erased before the app answered');
     assert.equal(b.nativeRequests.length, 1); assert.equal(b.nativeRequests[0].method, 'GET');
   }
 });

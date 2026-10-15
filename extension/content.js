@@ -7,7 +7,7 @@
 
   const fmtSize = n => !n ? '' : n >= 1073741824 ? (n / 1073741824).toFixed(2) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
   function label(i) {
-    const kind = i.track === 'audio-only' ? 'Audio only' : i.track === 'video-only' ? 'Video only (no sound)' : i.kind === 'audio' ? 'Audio' : 'Video';
+    const kind = i.kind === 'gif' ? 'GIF' : i.kind === 'image' ? 'Image' : i.track === 'audio-only' ? 'Audio only' : i.track === 'video-only' ? 'Video only (no sound)' : i.kind === 'audio' ? 'Audio' : 'Video';
     return [kind, i.quality, fmtSize(i.size)].filter(Boolean).join(' · ');
   }
   function build() {

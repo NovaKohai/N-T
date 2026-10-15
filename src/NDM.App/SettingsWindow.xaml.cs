@@ -34,7 +34,8 @@ public partial class SettingsWindow : Window
         FinishAction.ItemsSource = CompletionActionInfo.All.Select(k => new ComboBoxItem { Content = CompletionActionInfo.Label(k), Tag = k }).ToList();
         FinishAction.SelectedIndex = CompletionActionInfo.All.ToList().IndexOf(settings.SessionCompletionAction);
         FinishForce.IsChecked = settings.CompletionForceClose;
-        FinishRemember.IsChecked = settings.CompletionRemember;
+        CheckForUpdates.IsChecked = settings.CheckForUpdates; _skipped = settings.SkippedUpdateVersion;
+        ShowSkipped();
         FinishIgnoreScheduled.IsChecked = settings.CompletionIgnoreScheduled;
         RunProgramEnabled.IsChecked = settings.RunProgramEnabled;
         RunProgramPath.Text = settings.RunProgramPath; RunProgramArguments.Text = settings.RunProgramArguments;
@@ -70,6 +71,9 @@ public partial class SettingsWindow : Window
         SeedKeep.IsChecked = !settings.TorrentStopSeedingAtRatio; SeedStop.IsChecked = settings.TorrentStopSeedingAtRatio;
         TorrentSeedRatio.Text = settings.TorrentSeedRatioLimit.ToString("0.##", CultureInfo.InvariantCulture);
     }
+    private string _skipped = "";
+    private void ShowSkipped() { SkippedPanel.Visibility = _skipped.Length > 0 ? Visibility.Visible : Visibility.Collapsed; SkippedText.Text = "Skipped version: " + _skipped; }
+    private void ForgetSkip_Click(object sender, RoutedEventArgs e) { _skipped = ""; ShowSkipped(); }
     private ProxyKind SelectedProxyKind => (ProxyTypeBox.SelectedItem as ComboBoxItem)?.Tag is ProxyKind k ? k : ProxyKind.None;
     private void ProxyType_Changed(object sender, SelectionChangedEventArgs? e)
     {
@@ -211,9 +215,13 @@ public partial class SettingsWindow : Window
             updated.RunProgramPath = RunProgramPath.Text.Trim(); updated.RunProgramArguments = RunProgramArguments.Text.Trim();
             updated.CompletionForceClose = FinishForce.IsChecked == true;
             updated.CompletionIgnoreScheduled = FinishIgnoreScheduled.IsChecked == true;
-            updated.CompletionRemember = FinishRemember.IsChecked == true;
+            // Options are permanent: the 'When all downloads finish' action chosen here is saved and used from the next start on.
+            // (Temporary choices are made in the menu or in a download's own completion options, which keep their 'Remember' choice.)
+            updated.CompletionRemember = true;
             updated.SessionCompletionAction = SelectedFinish;
-            updated.CompletionAction = updated.CompletionRemember ? SelectedFinish : CompletionActionKind.None;
+            updated.CompletionAction = SelectedFinish;
+            updated.CheckForUpdates = CheckForUpdates.IsChecked == true;
+            updated.SkippedUpdateVersion = _skipped;
             updated.Save(_stateDirectory);
             _settings.CopyFrom(updated);
         }

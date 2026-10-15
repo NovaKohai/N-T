@@ -169,7 +169,7 @@ internal static class UiTests
         {
             File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"EnableCategoryFolders\": false}");
             var old = AppSettings.Load(dir);
-            Check(old.EnableCategoryFolders && old.SettingsSchema == 2, "Old settings.json with persisted false migrates to true once");
+            Check(old.EnableCategoryFolders && old.SettingsSchema == AppSettings.CurrentSchema, "Old settings.json with persisted false migrates to true once");
             old.EnableCategoryFolders = false; old.Save(dir);
             Check(!AppSettings.Load(dir).EnableCategoryFolders, "Explicit opt-out after migration is respected");
         }

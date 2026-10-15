@@ -17,6 +17,7 @@ public partial class DownloadProgressWindow : Window
     private readonly AppSettings? settings;
     private readonly DispatcherTimer timer;
     private bool loading = true, removing;
+    private bool? soundChosen; // null until the user touches the checkbox: until then this download follows the global sound setting
     public DownloadRow Row { get; }
     public DownloadProgressWindow(DownloadManager manager, string id, JobCompletionStore? store = null, AppSettings? settings = null)
     {
@@ -39,18 +40,21 @@ public partial class DownloadProgressWindow : Window
     {
         var o = store?.Get(id) ?? new JobCompletionOptions { ShowDialog = settings?.ShowCompletionDialog ?? true };
         SaveToText.Text = Row.FilePath;
+        soundChosen = o.PlaySound; RememberBox.IsChecked = o.Remember;
+        PlaySoundBox.IsChecked = o.PlaySound ?? settings?.PlayCompletionSound ?? true;
         ShowDialogBox.IsChecked = o.ShowDialog; ExitAppBox.IsChecked = o.ExitApp; TurnOffBox.IsChecked = o.TurnOff; ForceBox.IsChecked = o.Force;
         TurnOffKind.SelectedItem = TurnOffKind.Items.Cast<ComboBoxItem>().First(i => (CompletionActionKind)i.Tag == o.PowerAction);
     }
     private JobCompletionOptions ReadOptions() => new()
     {
+        PlaySound = soundChosen, Remember = RememberBox.IsChecked == true,
         ShowDialog = ShowDialogBox.IsChecked == true, ExitApp = ExitAppBox.IsChecked == true, TurnOff = TurnOffBox.IsChecked == true, Force = ForceBox.IsChecked == true,
         PowerAction = (TurnOffKind.SelectedItem as ComboBoxItem)?.Tag is CompletionActionKind k ? k : CompletionActionKind.Shutdown
     };
     private void ApplyOptionRules()
     {
         var o = ReadOptions(); bool open = !Row.IsComplete && store is not null;
-        ShowDialogBox.IsEnabled = open;
+        ShowDialogBox.IsEnabled = PlaySoundBox.IsEnabled = RememberBox.IsEnabled = open;
         ExitAppBox.IsEnabled = TurnOffBox.IsEnabled = open && o.ActionsEnabled;
         TurnOffKind.IsEnabled = open && o.PowerKindEnabled;
         ForceBox.IsEnabled = open && o.ForceEnabled;
@@ -58,6 +62,7 @@ public partial class DownloadProgressWindow : Window
     private void Options_Changed(object sender, RoutedEventArgs e)
     {
         if (loading) return;
+        if (ReferenceEquals(sender, PlaySoundBox)) soundChosen = PlaySoundBox.IsChecked == true;
         var o = ReadOptions();
         if (o.Force && !CompletionActionInfo.UsesForce(o.PowerAction)) { o.Force = false; loading = true; ForceBox.IsChecked = false; loading = false; } // force only exists for Shut down / Restart
         ApplyOptionRules();

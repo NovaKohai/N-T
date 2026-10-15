@@ -125,8 +125,10 @@ internal static partial class ManageTests
             Click(pw, "HideTabButton");
             Check(tabs.SelectedIndex == -1, "Hide tab collapses the tab content");
             tabs.SelectedIndex = 0;
+            Check(new JobCompletionStore(storePath).Get(a.Id) is null, "Per-job options are memory-only until Remember is ticked");
+            Set(Field<CheckBox>(pw, "RememberBox"), true);
             var saved = new JobCompletionStore(storePath).Get(a.Id);
-            Check(saved is { ShowDialog: false, TurnOff: true, PowerAction: CompletionActionKind.Restart, Force: true, ExitApp: false }, "Per-job options are persisted to app state and reload");
+            Check(saved is { ShowDialog: false, TurnOff: true, PowerAction: CompletionActionKind.Restart, Force: true, ExitApp: false }, "Remembered per-job options are persisted to app state and reload");
             kind.SelectedIndex = 3; Check(!force.IsChecked!.Value && new JobCompletionStore(storePath).Get(a.Id)!.Force == false, "Force is cleared when the action cannot take it");
             kind.SelectedIndex = 1; Set(force, true);
 

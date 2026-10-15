@@ -12,6 +12,10 @@ public sealed class JobCompletionOptions
     public bool TurnOff { get; set; }
     [JsonConverter(typeof(JsonStringEnumConverter))] public CompletionActionKind PowerAction { get; set; } = CompletionActionKind.Shutdown;
     public bool Force { get; set; }
+    /// <summary>Per-download 'Play sound when done'. null = follow the global setting; a value is this download's own choice.</summary>
+    public bool? PlaySound { get; set; }
+    /// <summary>'Remember this choice for future sessions': only remembered choices are written to disk; the others last until NeoDM exits.</summary>
+    public bool Remember { get; set; }
 
     public static readonly IReadOnlyList<CompletionActionKind> PowerChoices = new[] { CompletionActionKind.Shutdown, CompletionActionKind.Restart, CompletionActionKind.Sleep, CompletionActionKind.Hibernate, CompletionActionKind.Lock };
     public static string PowerLabel(CompletionActionKind kind) => kind switch
@@ -25,6 +29,12 @@ public sealed class JobCompletionOptions
     public bool ForceEnabled => PowerKindEnabled && CompletionActionInfo.UsesForce(PowerAction);
     public bool HasAction => ActionsEnabled && (ExitApp || TurnOff);
     public JobCompletionOptions Clone() => (JobCompletionOptions)MemberwiseClone();
+}
+
+/// <summary>Decides whether the completion sound plays for a finished job: the job's own choice wins, otherwise the global setting.</summary>
+public static class CompletionSound
+{
+    public static bool ShouldPlay(AppSettings settings, JobCompletionOptions? job) => job?.PlaySound ?? settings.PlayCompletionSound;
 }
 
 /// <summary>Per-job completion choices keyed by job id, persisted in app state so they survive a restart. Path null = memory only.</summary>
@@ -41,7 +51,7 @@ public sealed class JobCompletionStore
         try
         {
             var loaded = JsonSerializer.Deserialize<Dictionary<string, JobCompletionOptions>>(File.ReadAllText(path));
-            if (loaded is not null) foreach (var (id, o) in loaded) if (o is not null && Enum.IsDefined(o.PowerAction)) map[id] = o;
+            if (loaded is not null) foreach (var (id, o) in loaded) if (o is not null && Enum.IsDefined(o.PowerAction)) { o.Remember = true; map[id] = o; }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException) { }
     }
@@ -58,7 +68,7 @@ public sealed class JobCompletionStore
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var temp = path + ".tmp";
-            File.WriteAllText(temp, JsonSerializer.Serialize(map, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(temp, JsonSerializer.Serialize(map.Where(p => p.Value.Remember).ToDictionary(p => p.Key, p => p.Value), new JsonSerializerOptions { WriteIndented = true }));
             File.Move(temp, path, true); LastError = null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { LastError = "Completion options could not be saved."; }

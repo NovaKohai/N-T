@@ -14,7 +14,7 @@ public sealed class NativeBridge : IDisposable
     public const int MaximumRequestBytes = 64 * 1024;
     
     public record BrowserDownloadRequest(string Url, string? FileName, string? Referer, string? Cookie, Action<BrowserDownloadResponse> Respond);
-    public record BrowserDownloadResponse(bool Ok, string? Id = null, string? Error = null);
+    public record BrowserDownloadResponse(bool Ok, string? Id = null, string? Error = null, bool Cancelled = false);
     
     /// <summary>Instance-control message from a second launch (show window, hand over a magnet link or .torrent path).</summary>
     public record ControlRequest(string Action, string? Value);
@@ -120,7 +120,7 @@ public sealed class NativeBridge : IDisposable
             
             var replyObject = response.Ok 
                 ? (object)new { ok = true, id = response.Id }
-                : (object)new { ok = false, error = response.Error ?? "The download could not be saved." };
+                : (object)new { ok = false, error = response.Error ?? "The download could not be saved.", cancelled = response.Cancelled };
             
             var reply = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(replyObject) + "\n");
             await pipe.WriteAsync(reply, cancellationToken);

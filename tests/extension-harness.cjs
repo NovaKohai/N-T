@@ -6,7 +6,7 @@ const source = name => fs.readFileSync(path.join(extDir, name), 'utf8');
 const tick = async (n = 6) => { for (let i = 0; i < n; i++) await new Promise(r => setImmediate(r)); };
 const json = v => JSON.parse(JSON.stringify(v));
 
-function makeBackground({ settings = {}, nativeReply = req => (req.action === 'ping' ? { ok: true, host: 'com.ndm.bridge' } : { ok: true, id: 'saved-1' }), granted = false, sessionData = {} } = {}) {
+function makeBackground({ settings = {}, nativeReply = req => (req.action === 'ping' ? { ok: true, host: 'com.ndm.bridge' } : { ok: true, id: 'saved-1' }), granted = false, sessionData = {}, openTabs = [] } = {}) {
   const hooks = {}, nativeRequests = [], timers = [], sentToTabs = [], badge = [];
   const event = name => ({ addListener: (f, ...rest) => { hooks[name] = f; hooks[name + ':args'] = rest; } });
   const local = { ...settings };
@@ -26,11 +26,11 @@ function makeBackground({ settings = {}, nativeReply = req => (req.action === 'p
       local: { get: async keys => { const out = {}; for (const k of [].concat(keys ?? Object.keys(local))) if (k in local) out[k] = local[k]; return out; }, set: async o => Object.assign(local, o) },
       session: { get: async k => (typeof k === 'string' ? (k in sessionData ? { [k]: json(sessionData[k]) } : {}) : json(sessionData)), set: async o => Object.assign(sessionData, json(o)), remove: async k => { delete sessionData[k]; } },
     },
-    tabs: { onUpdated: event('tabUpdated'), onRemoved: event('tabRemoved'), sendMessage: (tabId, msg, cb) => { sentToTabs.push({ tabId, msg: json(msg) }); cb && cb(); } },
+    tabs: { query: async () => openTabs, onUpdated: event('tabUpdated'), onRemoved: event('tabRemoved'), sendMessage: (tabId, msg, cb) => { sentToTabs.push({ tabId, msg: json(msg) }); cb && cb(); } },
     action: { setBadgeText: async o => badge.push(o), setBadgeBackgroundColor: async () => {} },
     contextMenus: { removeAll: async () => {}, create: m => nativeRequests.push({ menu: m.id }), onClicked: event('menu') },
     webRequest: { onBeforeRequest: event('request'), onCompleted: event('complete'), onErrorOccurred: event('error'), onHeadersReceived: event('headers') },
-    downloads: { onCreated: event('download') },
+    downloads: { onCreated: event('download'), calls: [], pause: async () => { throw new Error('pause must not be used'); } },
     permissions: { contains: async () => granted },
     cookies: { getAllCookieStores: async () => [{ id: 's', tabIds: [1] }], getAll: async () => [{ name: 'a', value: 'b' }] },
   };
