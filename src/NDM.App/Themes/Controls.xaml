@@ -110,5 +110,23 @@
       <Trigger Property="Role" Value="Floating"><Setter TargetName="PART_HeaderGripper" Property="Visibility" Value="Collapsed"/></Trigger>
       <Trigger Property="Role" Value="Padding"><Setter TargetName="PART_HeaderGripper" Property="Visibility" Value="Collapsed"/></Trigger>
     </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+  <!-- ===== Tabs: themed headers in both themes (unselected = sidebar colour + muted text, hover = highlight, selected = card colour + accent underline) ===== -->
+  <Style TargetType="TabControl"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="8"/><Setter Property="OverridesDefaultStyle" Value="True"/><Setter Property="SnapsToDevicePixels" Value="True"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl"><Grid KeyboardNavigation.TabNavigation="Local"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <TabPanel x:Name="HeaderPanel" Grid.Row="0" IsItemsHost="True" Panel.ZIndex="1" Margin="0,0,0,-1" Background="Transparent" KeyboardNavigation.TabIndex="1"/>
+      <Border x:Name="ContentFrame" Grid.Row="1" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="0,6,6,6" KeyboardNavigation.TabNavigation="Local" KeyboardNavigation.DirectionalNavigation="Contained" KeyboardNavigation.TabIndex="2"><ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" Margin="{TemplateBinding Padding}" TextElement.Foreground="{TemplateBinding Foreground}"/></Border>
+    </Grid></ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="TabFocusRing" TargetType="Control"><Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" CornerRadius="6,6,0,0" Margin="1"/></ControlTemplate></Setter.Value></Setter></Style>
+  <Style TargetType="TabItem"><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="Padding" Value="14,8"/><Setter Property="Margin" Value="0,0,2,0"/><Setter Property="OverridesDefaultStyle" Value="True"/><Setter Property="SnapsToDevicePixels" Value="True"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{StaticResource TabFocusRing}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem"><Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="{TemplateBinding Padding}">
+      <Grid><ContentPresenter x:Name="HeaderText" ContentSource="Header" RecognizesAccessKey="True" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"><ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}"/></Style></ContentPresenter.Resources></ContentPresenter>
+        <Border x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="-14,0,-14,-8" Background="{DynamicResource AccentBrush}" Visibility="Collapsed"/></Grid></Border>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Trigger>
+        <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter TargetName="Underline" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+      </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+  </Style>
   <Style TargetType="Hyperlink"><Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/><Setter Property="TextDecorations" Value="Underline"/></Style>
 </ResourceDictionary>

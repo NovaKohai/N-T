@@ -200,6 +200,53 @@ public sealed partial class DownloadManager : IDisposable
         Notify();
     }
 
+    /// <summary>Changes the folder this download is saved to and returns the new full path (the job's file name is kept; a unique name is chosen if the
+    /// folder already has one, nothing is ever overwritten). A completed job's finished file is moved (only that file). An unfinished job keeps its partial
+    /// data in the state folder (<c>{id}.parts</c>, addressed by PartId), so no partial file has to move: the job's target is switched and the folder is
+    /// checked now (created if missing, write test) so a bad destination fails here, with the job unchanged, and not at the end of the transfer.
+    /// A running transfer keeps running and publishes into the new folder. Same folder = no-op.</summary>
+    public string MoveTo(string id, string newDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(newDirectory) || !Path.IsPathFullyQualified(newDirectory)) throw new ArgumentException("Choose a complete folder path.", nameof(newDirectory));
+        var target = Path.GetFullPath(newDirectory);
+        if (target.Length > Path.GetPathRoot(target)!.Length) target = target.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string result;
+        lock (gate)
+        {
+            ThrowIfDisposed();
+            var w = Find(id);
+            var currentPath = w.Job.FilePath;
+            var currentDir = Path.GetDirectoryName(Path.GetFullPath(currentPath)) ?? "";
+            if (string.Equals(currentDir.TrimEnd(Path.DirectorySeparatorChar), target.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)) return currentPath;
+            bool done = w.Job.Status == "Completed";
+            if (done && !File.Exists(currentPath)) throw new FileNotFoundException("The file is no longer in its saved location.", currentPath);
+            try
+            {
+                Directory.CreateDirectory(target);
+                var probe = Path.Combine(target, ".neodm-write-test-" + Guid.NewGuid().ToString("N"));
+                using (new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
+            }
+            catch (UnauthorizedAccessException ex) { throw new IOException("NeoDM cannot write to that folder: " + ex.Message, ex); }
+            catch (DirectoryNotFoundException ex) { throw new IOException("That folder or drive is not available: " + ex.Message, ex); }
+            catch (IOException ex) { throw new IOException("That folder cannot be used: " + ex.Message, ex); }
+            var stem = Path.GetFileNameWithoutExtension(w.Job.FileName); var extension = Path.GetExtension(w.Job.FileName);
+            string? name = null;
+            for (var i = 0; i < 10000 && name is null; i++)
+            {
+                var candidate = i == 0 ? w.Job.FileName : stem + " (" + i + ")" + extension; var full = Path.Combine(target, candidate);
+                if (!File.Exists(full) && !Directory.Exists(full) && !jobs.Any(o => o != w && o.Job.FilePath.Equals(full, StringComparison.OrdinalIgnoreCase))) name = candidate;
+            }
+            if (name is null) throw new IOException("Unable to reserve a destination filename.");
+            result = Path.Combine(target, name); var oldName = w.Job.FileName;
+            if (done) File.Move(currentPath, result, false);
+            w.Job.FilePath = result; w.Job.FileName = name;
+            try { SaveLocked(); }
+            catch { w.Job.FilePath = currentPath; w.Job.FileName = oldName; if (done) { try { File.Move(result, currentPath, false); } catch (IOException) { } } throw; }
+        }
+        Notify();
+        return result;
+    }
+
     /// <summary>Replaces the address of an unfinished job (expired links). Progress is kept when the new address serves the same content
     /// (same size and validators); otherwise the transfer restarts cleanly. The job ends up Paused; call <see cref="Resume"/>.</summary>
     public void UpdateUrl(string id, string newUrl)

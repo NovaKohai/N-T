@@ -59,7 +59,7 @@ internal static class FidelityTests
         var app = new FidelityApplication();
         using var fixture = new FixtureServer(); fixture.RedirectTarget = fixture.BaseUrl;
         using var manager = new DownloadManager(Path.Combine(root, "files"), Path.Combine(root, "state"), new DownloadOptions { MaxConcurrentDownloads = 2, MaxSegments = 2, RetryCount = 0 });
-        var settings = new AppSettings { DownloadDirectory = Path.Combine(root, "files"), ShowCompletionDialog = false };
+        var settings = new AppSettings { DownloadDirectory = Path.Combine(root, "files"), ShowCompletionDialog = false, ShowProgressOnCompletion = false };
         var window = new MainWindow(manager, settings, () => settings.Save(Path.Combine(root, "settings")), enableTray: false) { ShowInTaskbar = false };
         var deferred = new Queue<Action>(); var shown = new List<string>(); Action? dismiss = null;
         using var controller = new CompletionController(manager.Jobs, id => manager.Jobs.FirstOrDefault(j => j.Id == id), () => true, (job, closed) => { shown.Add(job.Id); dismiss = closed; }, action => deferred.Enqueue(action));

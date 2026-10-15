@@ -17,6 +17,7 @@ public partial class DownloadProgressWindow : Window
     private readonly AppSettings? settings;
     private readonly DispatcherTimer timer;
     private bool loading = true, removing;
+    private bool? windowChosen; // null until the user touches 'Show this window...': until then this download follows the global setting
     private bool? soundChosen; // null until the user touches the checkbox: until then this download follows the global sound setting
     public DownloadRow Row { get; }
     public DownloadProgressWindow(DownloadManager manager, string id, JobCompletionStore? store = null, AppSettings? settings = null)
@@ -39,6 +40,7 @@ public partial class DownloadProgressWindow : Window
     private void LoadOptions()
     {
         var o = store?.Get(id) ?? new JobCompletionOptions { ShowDialog = settings?.ShowCompletionDialog ?? true };
+        windowChosen = o.ShowWindow; ShowWindowBox.IsChecked = o.ShowWindow ?? settings?.ShowProgressOnCompletion ?? true;
         SaveToText.Text = Row.FilePath;
         soundChosen = o.PlaySound; RememberBox.IsChecked = o.Remember;
         PlaySoundBox.IsChecked = o.PlaySound ?? settings?.PlayCompletionSound ?? true;
@@ -47,14 +49,14 @@ public partial class DownloadProgressWindow : Window
     }
     private JobCompletionOptions ReadOptions() => new()
     {
-        PlaySound = soundChosen, Remember = RememberBox.IsChecked == true,
+        PlaySound = soundChosen, ShowWindow = windowChosen, Remember = RememberBox.IsChecked == true,
         ShowDialog = ShowDialogBox.IsChecked == true, ExitApp = ExitAppBox.IsChecked == true, TurnOff = TurnOffBox.IsChecked == true, Force = ForceBox.IsChecked == true,
         PowerAction = (TurnOffKind.SelectedItem as ComboBoxItem)?.Tag is CompletionActionKind k ? k : CompletionActionKind.Shutdown
     };
     private void ApplyOptionRules()
     {
         var o = ReadOptions(); bool open = !Row.IsComplete && store is not null;
-        ShowDialogBox.IsEnabled = PlaySoundBox.IsEnabled = RememberBox.IsEnabled = open;
+        ShowDialogBox.IsEnabled = PlaySoundBox.IsEnabled = RememberBox.IsEnabled = ShowWindowBox.IsEnabled = open;
         ExitAppBox.IsEnabled = TurnOffBox.IsEnabled = open && o.ActionsEnabled;
         TurnOffKind.IsEnabled = open && o.PowerKindEnabled;
         ForceBox.IsEnabled = open && o.ForceEnabled;
@@ -63,12 +65,54 @@ public partial class DownloadProgressWindow : Window
     {
         if (loading) return;
         if (ReferenceEquals(sender, PlaySoundBox)) soundChosen = PlaySoundBox.IsChecked == true;
+        if (ReferenceEquals(sender, ShowWindowBox)) windowChosen = ShowWindowBox.IsChecked == true;
         var o = ReadOptions();
         if (o.Force && !CompletionActionInfo.UsesForce(o.PowerAction)) { o.Force = false; loading = true; ForceBox.IsChecked = false; loading = false; } // force only exists for Shut down / Restart
         ApplyOptionRules();
         store?.Set(id, o);
         if (store?.LastError is { } error) Notice.Text = error;
     }
+    /// <summary>Shows the folder picker; null = cancelled. Replaceable so tests never open a real dialog.</summary>
+    public Func<Window, string, string?> PickFolder { get; set; } = DefaultPickFolder;
+    private static string? DefaultPickFolder(Window owner, string initial)
+    {
+        try
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Choose the folder to save this download in", InitialDirectory = Directory.Exists(initial) ? initial : "", Multiselect = false };
+            return dialog.ShowDialog(owner) == true ? dialog.FolderName : null;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException or NotSupportedException)
+        {
+            var prompt = new TextPromptWindow("Change save location", "Type the full path of the folder to save this download in.", initial,
+                text => System.IO.Path.IsPathFullyQualified(text) ? null : "Enter a complete folder path, starting with a drive letter.") { Owner = owner };
+            return prompt.ShowDialog() == true ? prompt.Value : null;
+        }
+    }
+    private void ChangeLocation_Click(object sender, RoutedEventArgs e)
+    {
+        var job = manager.Jobs.FirstOrDefault(j => j.Id == id);
+        if (job is null || Row.IsTorrent) { Refresh(); return; }
+        var picked = PickFolder(this, System.IO.Path.GetDirectoryName(job.FilePath) ?? "");
+        if (string.IsNullOrWhiteSpace(picked)) return;
+        ApplyLocation(picked);
+    }
+    /// <summary>Applies a chosen folder to this download only; failures are shown in place and leave the job unchanged.</summary>
+    public void ApplyLocation(string folder)
+    {
+        string before = manager.Jobs.FirstOrDefault(j => j.Id == id)?.FilePath ?? "";
+        try
+        {
+            var path = manager.MoveTo(id, folder);
+            LocationMessage.Text = string.Equals(path, before, StringComparison.OrdinalIgnoreCase) ? "This download is already saved in that folder." : "Save location changed. This download now saves to: " + path;
+        }
+        catch (KeyNotFoundException) { LocationMessage.Text = "This download no longer exists."; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        { LocationMessage.Text = "The save location was not changed. " + (ex.Message.Length > 0 ? ex.Message : "Check the folder and try again."); }
+        LocationMessage.Visibility = Visibility.Visible;
+        Refresh();
+    }
+    /// <summary>Called by the main window when the job finishes while this window is already open.</summary>
+    public void ShowCompletion() => Refresh();
     private void HideTab_Click(object sender, RoutedEventArgs e) => Tabs.SelectedIndex = -1;
     private void Details_Click(object sender, RoutedEventArgs e)
     {
@@ -88,6 +132,9 @@ public partial class DownloadProgressWindow : Window
         bool changed = Row.Update(job);
         Title = Row.FileName;
         UrlText.Text = Row.Url; UrlText.ToolTip = Row.Url;
+        if (SaveToText.Text != Row.FilePath) SaveToText.Text = Row.FilePath;
+        ChangeLocationButton.IsEnabled = !Row.IsTorrent;
+        ChangeLocationButton.ToolTip = Row.IsTorrent ? "Torrent data is stored by the torrent engine; change its folder in Options > Torrents." : null;
         StatusText.Text = Row.IsComplete ? "Complete" : Row.Status switch
         {
             "Connecting" => "Checking address: " + Row.Url,

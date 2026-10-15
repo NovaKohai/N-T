@@ -39,7 +39,7 @@ internal static partial class ManageTests
     private static void ProgressWindowTests(string root, FixtureServer server, DialogScript script)
     {
         var m = Manager(root, "progress");
-        var settings = new AppSettings { DownloadDirectory = Path.Combine(root, "progress", "files"), ShowCompletionDialog = false };
+        var settings = new AppSettings { DownloadDirectory = Path.Combine(root, "progress", "files"), ShowCompletionDialog = false, ShowProgressOnCompletion = false };
         var power = new PowerLog(); var countdown = new Countdown();
         string storePath = Path.Combine(root, "progress", "job-completion.json");
         var window = new MainWindow(m, settings, () => { }, enableTray: false, power) { ShowInTaskbar = false };

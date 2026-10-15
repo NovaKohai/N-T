@@ -171,6 +171,91 @@ internal static class ManageTests
         }
     }
 
+    /// <summary>Per-download "Change save location": partial, running, completed, collision, bad destinations, same folder.</summary>
+    public static async Task MoveTo(Func<(string, string)> paths)
+    {
+        using var server = new FixtureServer(); var p = paths(); var root = Path.GetDirectoryName(p.Item1)!;
+        string Dir(string name) => Path.Combine(root, name);
+        string expected = FixtureServer.Hash(server.Payload);
+        string persistedId, persistedPath;
+        using (var m = Manager(p))
+        {
+            // 1. partial: pause mid-transfer, move, resume: byte-identical file in the new folder, nothing left in the old one
+            var a = await m.AddScheduledAsync(new(server.BaseUrl + "/range", "partial.bin"), DateTimeOffset.UtcNow.AddHours(1));
+            m.SetSpeedLimit(a.Id, 700000); m.Schedule(a.Id, DateTimeOffset.UtcNow);
+            await Wait(() => Job(m, a.Id).DownloadedBytes >= 65536, "No partial progress");
+            m.Pause(a.Id); await Task.Delay(300);
+            var oldPath = Job(m, a.Id).FilePath; var paused = Job(m, a.Id);
+            var movedPath = m.MoveTo(a.Id, Dir("partial-new"));
+            Check(movedPath == Path.Combine(Dir("partial-new"), "partial.bin") && Job(m, a.Id).FilePath == movedPath && Job(m, a.Id).Status == "Paused" && Job(m, a.Id).DownloadedBytes == paused.DownloadedBytes, "Partial move: job points at the new folder, progress and state are kept");
+            Check(Directory.Exists(Path.Combine(p.Item2, a.Id + ".parts")) && !File.Exists(oldPath), "Partial data stays in the state folder (nothing published early)");
+            m.SetSpeedLimit(a.Id, null); m.Resume(a.Id);
+            var doneA = await Complete(m, a.Id);
+            Check(doneA.FilePath == movedPath && File.Exists(movedPath) && !File.Exists(oldPath) && FixtureServer.Hash(File.ReadAllBytes(movedPath)) == expected, "Partial move then finish: byte-identical SHA-256 in the new folder, none in the old one");
+            Check(!Directory.Exists(Path.Combine(p.Item2, a.Id + ".parts")), "Part files are cleaned up after publishing");
+
+            // 2. running job moves while transferring and completes correctly
+            var r = await m.AddScheduledAsync(new(server.BaseUrl + "/range", "running.bin"), DateTimeOffset.UtcNow.AddHours(1));
+            m.SetSpeedLimit(r.Id, 900000); m.Schedule(r.Id, DateTimeOffset.UtcNow);
+            await Wait(() => Job(m, r.Id).Status == "Downloading" && Job(m, r.Id).DownloadedBytes >= 65536, "Running job did not start");
+            long before = Job(m, r.Id).DownloadedBytes;
+            var runningPath = m.MoveTo(r.Id, Dir("running-new"));
+            Check(Job(m, r.Id).FilePath == runningPath && Job(m, r.Id).Status != "Completed", "Running job: path switched while transferring");
+            await Wait(() => Job(m, r.Id).DownloadedBytes > before, "Transfer stalled after the move");
+            m.SetSpeedLimit(r.Id, null);
+            var doneR = await Complete(m, r.Id);
+            Check(doneR.FilePath == runningPath && FixtureServer.Hash(File.ReadAllBytes(runningPath)) == expected && !File.Exists(Path.Combine(p.Item1, "running.bin")), "Running move completes in the new folder, byte-identical");
+
+            // 3. completed move: only the job's own file moves; neighbours stay
+            var neighbour = Path.Combine(p.Item1, "neighbour.txt"); File.WriteAllText(neighbour, "mine");
+            var c = await Complete(m, (await m.AddAsync(new(server.BaseUrl + "/range", "finished.bin"))).Id);
+            var finishedOld = c.FilePath;
+            var finishedNew = m.MoveTo(c.Id, Dir("finished-new"));
+            Check(File.Exists(finishedNew) && !File.Exists(finishedOld) && Job(m, c.Id).FilePath == finishedNew && Job(m, c.Id).FileName == "finished.bin" && FixtureServer.Hash(File.ReadAllBytes(finishedNew)) == expected && File.ReadAllText(neighbour) == "mine", "Completed move: the finished file (only) moves and the job points at it");
+            persistedId = c.Id; persistedPath = finishedNew;
+
+            // 4. name collision: a different file with that name is never overwritten
+            Directory.CreateDirectory(Dir("collide")); File.WriteAllText(Path.Combine(Dir("collide"), "finished.bin"), "another file");
+            var collided = m.MoveTo(c.Id, Dir("collide"));
+            Check(Path.GetFileName(collided) == "finished (1).bin" && File.ReadAllText(Path.Combine(Dir("collide"), "finished.bin")) == "another file" && File.Exists(collided) && Job(m, c.Id).FileName == "finished (1).bin", "Collision: unique name chosen, existing file untouched");
+            persistedPath = collided;
+
+            // 5. same folder is a no-op
+            var same = m.MoveTo(c.Id, Dir("collide") + Path.DirectorySeparatorChar);
+            Check(same == collided && Job(m, c.Id).FilePath == collided && File.Exists(collided), "Same folder: no-op");
+
+            // 6. bad destinations: clear error, job and file unchanged
+            var keep = Job(m, c.Id).FilePath;
+            await Assert.Throws<ArgumentException>(() => Task.Run(() => m.MoveTo(c.Id, "relative-folder")));
+            await Assert.Throws<ArgumentException>(() => Task.Run(() => m.MoveTo(c.Id, "")));
+            var asFile = Path.Combine(root, "i-am-a-file"); File.WriteAllText(asFile, "x");
+            await Assert.Throws<IOException>(() => Task.Run(() => m.MoveTo(c.Id, asFile)));
+            var freeDrive = Enumerable.Range('D', 'Z' - 'D' + 1).Select(ch => (char)ch + ":\\").FirstOrDefault(d => !Directory.Exists(d));
+            if (freeDrive is not null)
+            {
+                var ex = await Assert.Throws<IOException>(() => Task.Run(() => m.MoveTo(c.Id, Path.Combine(freeDrive, "missing-disk"))));
+                Check(ex.Message.Contains("not available"), "Missing disk: the error says the folder or drive is not available: " + ex.Message);
+            }
+            var locked = Dir("locked"); Directory.CreateDirectory(locked);
+            var user = Environment.UserDomainName + "\\" + Environment.UserName;
+            var deny = Process.Start(new ProcessStartInfo("icacls", $"\"{locked}\" /deny \"{user}\":(WD,AD,WEA,WA)") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true })!;
+            deny.WaitForExit(); Check(deny.ExitCode == 0, "Test setup: could not deny write access on the temporary folder");
+            try
+            {
+                var ex = await Assert.Throws<IOException>(() => Task.Run(() => m.MoveTo(c.Id, locked)));
+                Check(ex.Message.Contains("cannot write"), "No write permission: clear error: " + ex.Message);
+            }
+            finally { Process.Start(new ProcessStartInfo("icacls", $"\"{locked}\" /remove:d \"{user}\"") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true })!.WaitForExit(); }
+            Check(Job(m, c.Id).FilePath == keep && File.Exists(keep) && Directory.GetFiles(locked).Length == 0 && Directory.GetFiles(Dir("collide"), ".neodm-write-test-*").Length == 0, "Failed moves leave the job, the file and the folders unchanged (no probe files left)");
+            await Assert.Throws<KeyNotFoundException>(() => Task.Run(() => m.MoveTo("nope", Dir("x"))));
+        }
+        using (var again = Manager(p))
+        {
+            var restored = again.Jobs.Single(j => j.Id == persistedId);
+            Check(restored.FilePath == persistedPath && File.Exists(restored.FilePath), "Moved location survives a restart");
+        }
+    }
+
     public static async Task RefreshAddress(Func<(string, string)> paths)
     {
         using var server = new FixtureServer(); var p = paths(); using var m = Manager(p);

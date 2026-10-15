@@ -16,14 +16,16 @@ public sealed class AppSettings
     public bool EnableDynamicSegmentation { get; set; } = true;
     public bool ShowCompletionDialog { get; set; } = true;
     public bool ShowProgressForCapturedDownloads { get; set; } = true;
+    /// <summary>Re-open (or restore) a download's own window when it finishes, in the Complete state. A download can override this in its 'Options on completion' tab.</summary>
+    public bool ShowProgressOnCompletion { get; set; } = true;
     public bool PlayCompletionSound { get; set; } = true;
     // Updates: the only network traffic NeoDM starts by itself is the release check (api.github.com) and the download of the update the user accepts.
     public bool CheckForUpdates { get; set; } = true;
     public DateTimeOffset? LastUpdateCheckUtc { get; set; }
     public string SkippedUpdateVersion { get; set; } = "";
-    /// <summary>Settings schema marker. 2 = category folders default to on; 3 = completion sound defaults to on (a persisted false from the old default is switched once on load). Both migrations run once; later explicit choices carry the new marker.</summary>
+    /// <summary>Settings schema marker. 2 = category folders default to on; 3 = completion sound defaults to on (a persisted false from the old default is switched once on load); 4 = 'open the download window when a download finishes' defaults to on. The migrations run once; later explicit choices carry the new marker.</summary>
     public int SettingsSchema { get; set; } = CurrentSchema;
-    public const int CurrentSchema = 3;
+    public const int CurrentSchema = 4;
     public bool EnableCategoryFolders { get; set; } = true;
     public string ProgramsFolder { get; set; } = "Programs";
     public string CompressedFolder { get; set; } = "Compressed";
@@ -84,6 +86,7 @@ public sealed class AppSettings
             }
             if (settings.SettingsSchema < 2) settings.EnableCategoryFolders = true; // one-time switch; explicit choices saved afterwards carry schema 2
             if (settings.SettingsSchema < 3) settings.PlayCompletionSound = true; // one-time: the old default was off
+            if (settings.SettingsSchema < 4) settings.ShowProgressOnCompletion = true; // one-time: the option did not exist before
             settings.SettingsSchema = CurrentSchema;
             if (string.IsNullOrWhiteSpace(settings.DownloadDirectory) || !Path.IsPathFullyQualified(settings.DownloadDirectory)) settings.DownloadDirectory = new AppSettings().DownloadDirectory;
             else if (string.Equals(Path.GetFileName(settings.DownloadDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)), "New Download Manager", StringComparison.OrdinalIgnoreCase)) settings.DownloadDirectory = new AppSettings().DownloadDirectory;
@@ -120,7 +123,7 @@ public sealed class AppSettings
         MaxSegments = source.MaxSegments; MaxConcurrentDownloads = source.MaxConcurrentDownloads;
         RetryCount = source.RetryCount; RequestTimeoutSeconds = source.RequestTimeoutSeconds;
         EnableDynamicSegmentation = source.EnableDynamicSegmentation;
-        ShowCompletionDialog = source.ShowCompletionDialog; ShowProgressForCapturedDownloads = source.ShowProgressForCapturedDownloads; PlayCompletionSound = source.PlayCompletionSound;
+        ShowCompletionDialog = source.ShowCompletionDialog; ShowProgressForCapturedDownloads = source.ShowProgressForCapturedDownloads; ShowProgressOnCompletion = source.ShowProgressOnCompletion; PlayCompletionSound = source.PlayCompletionSound;
         EnableCategoryFolders = source.EnableCategoryFolders; SettingsSchema = source.SettingsSchema;
         ProgramsFolder = source.ProgramsFolder; CompressedFolder = source.CompressedFolder;
         MusicFolder = source.MusicFolder; VideoFolder = source.VideoFolder; DocumentsFolder = source.DocumentsFolder;

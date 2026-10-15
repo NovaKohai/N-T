@@ -51,7 +51,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("remove can delete only the job's own file; missing/locked reported", () => ManageTests.RemoveWithFile(Paths)),
     ("move/rename updates disk and job, persists, rejects unsafe targets", () => ManageTests.MoveRename(Paths)),
     ("refresh address keeps validated progress", () => ManageTests.RefreshAddress(Paths)),
-    ("redownload restarts without touching the old file", () => ManageTests.Redownload(Paths))
+    ("redownload restarts without touching the old file", () => ManageTests.Redownload(Paths)),
+    ("change save location: partial, running, completed, collision, bad destinations, same folder", () => ManageTests.MoveTo(Paths))
 };
 foreach (var test in tests)
 {

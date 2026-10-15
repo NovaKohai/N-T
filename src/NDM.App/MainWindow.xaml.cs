@@ -230,7 +230,16 @@ public partial class MainWindow : Window
     public void OnJobCompleted(DownloadJob job)
     {
         if (CompletionSound.ShouldPlay(_settings, JobCompletion.Get(job.Id))) PlayCompletionSound();
+        ShowCompletionWindow(job);
         RunJobCompletion(job);
+    }
+    /// <summary>"Show this window when the download finishes": re-opens (or restores) the job's one progress window in its Complete state and brings it to the front.
+    /// An open, visible window just shows completion without stealing focus. The window replaces the separate completion dialog (PresentCompletion skips jobs that have a window).</summary>
+    internal void ShowCompletionWindow(DownloadJob job)
+    {
+        if (_closed || !CompletionSound.ShouldShowWindow(_settings, JobCompletion.Get(job.Id))) return;
+        if (_progressWindows.TryGetValue(job.Id, out var open) && open.IsVisible && open.WindowState != WindowState.Minimized) { open.ShowCompletion(); return; }
+        OpenProgressWindow(job.Id, foreground: true)?.ShowCompletion();
     }
     internal void RunJobCompletion(DownloadJob job)
     {

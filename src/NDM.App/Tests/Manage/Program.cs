@@ -94,6 +94,8 @@ internal static partial class ManageTests
             ContextMenu(root, server, script);
             Properties(root, server);
             ProgressWindowTests(root, server, script);
+            CompletionWindowTests(root, server);
+            ChangeLocationTests(root, server);
             ProxyOptionsTab(root, server);
             Variant(root, server);
             Console.WriteLine($"ALL MANAGE TESTS PASSED ({passed})");

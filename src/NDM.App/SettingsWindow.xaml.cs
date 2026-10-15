@@ -23,6 +23,7 @@ public partial class SettingsWindow : Window
         DynamicSegmentation.IsChecked = settings.EnableDynamicSegmentation;
         CompletionDialog.IsChecked = settings.ShowCompletionDialog;
         CapturedProgress.IsChecked = settings.ShowProgressForCapturedDownloads;
+        ProgressOnCompletion.IsChecked = settings.ShowProgressOnCompletion;
         CompletionSound.IsChecked = settings.PlayCompletionSound;
         EnableCategoryFolders.IsChecked = settings.EnableCategoryFolders;
         ProgramsFolder.Text = settings.ProgramsFolder;
@@ -202,6 +203,7 @@ public partial class SettingsWindow : Window
             updated.EnableDynamicSegmentation = DynamicSegmentation.IsChecked == true;
             updated.ShowCompletionDialog = CompletionDialog.IsChecked == true;
             updated.ShowProgressForCapturedDownloads = CapturedProgress.IsChecked == true;
+            updated.ShowProgressOnCompletion = ProgressOnCompletion.IsChecked == true;
             updated.PlayCompletionSound = CompletionSound.IsChecked == true;
             updated.EnableCategoryFolders = EnableCategoryFolders.IsChecked == true;
             updated.ProgramsFolder = ProgramsFolder.Text.Trim();

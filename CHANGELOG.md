@@ -3,6 +3,19 @@
 All notable changes to NeoDM are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.3.1] - 2026-10-16
+
+### Fixed
+- Dark mode: the tabs of the per-download progress window (Download status / Speed Limiter / Options on completion) and of the Options window (General / Save To / Downloads / Proxy / Torrents) were bright white or grey with unreadable text, and the selected tab was pure white. Tab headers are now themed in both themes: unselected = sidebar colour with muted text, hover = subtle highlight with full-contrast text, selected = surface colour with full-contrast text and an accent underline, themed keyboard focus ring, readable disabled state, themed content border. Tests render the headers in both themes (no near-white background) and check text contrast of at least 4.5:1 for selected, unselected and hover (3:1 for disabled).
+
+### Added
+- "Show this window when the download finishes": per-download checkbox in the progress window's "Options on completion" tab, and a global setting Options > Downloads > "Open the download window when a download finishes" (`ShowProgressOnCompletion`, on by default; settings schema 4 switches it on once for existing settings). When a download completes and its window was closed, hidden or minimised, the same single window for that download opens again (or is restored), comes to the front and shows the Complete state with Open / Open folder / Close. An already open window just shows Complete without taking focus. A download's own choice overrides the global one both ways; it is stored with the other per-download completion options (kept across restarts with "Remember this choice"). Downloads that were already complete when NeoDM started never open a window.
+- Exactly one completion window: when this window is shown for a job it replaces the separate "download complete" dialog for that job. If the option is off for the job, the existing "Show download complete dialog" behaviour is unchanged; its greying rules for the other completion options (Exit NeoDM, Turn off computer) are unchanged too.
+- "Change save location...": next to the read-only "Save To:" path of the "Options on completion" tab. It opens a folder picker (a themed text prompt if the system dialog is unavailable) and applies the folder to this download only, through the new `DownloadManager.MoveTo(id, folder)`. A finished download's file is moved (only that file). An unfinished download keeps its partial data in NeoDM's state folder (addressed by part id), so nothing partial has to move: the job's target folder is switched, a running transfer keeps running and finishes in the new folder, and the folder is created and write-tested first. A name already used in the new folder gets a unique name ("name (1).ext"); nothing is ever overwritten. A missing drive, a folder without write permission or an invalid path gives a clear message and leaves the job and files unchanged; choosing the current folder does nothing. The Save To text, the list and Properties follow. Torrent rows have the button disabled with a tooltip pointing to Options > Torrents.
+
+### Changed
+- Settings schema is now 4 (adds `ShowProgressOnCompletion`).
+
 ## [1.3.0] - 2026-10-15
 
 ### Fixed

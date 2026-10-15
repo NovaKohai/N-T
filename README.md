@@ -126,7 +126,7 @@ NeoDM is an open source project created by **unlimitedera**.
 - Nothing else. The .NET runtime is bundled.
 
 ### Step 1: Install NeoDM
-1. Download `NeoDM-Setup-1.3.0.msi` from the [latest release](https://github.com/unlimitedera/NeoDM/releases/latest).
+1. Download `NeoDM-Setup-1.3.1.msi` from the [latest release](https://github.com/unlimitedera/NeoDM/releases/latest).
 2. Double-click it and follow the wizard: Welcome, license, install folder (default `C:\Program Files\NeoDM`), then the **Browser extension** page.
 3. On the **Browser extension** page, leave "Also install through browser policy" **unchecked** unless you manage your PCs with browser policies. On a normal PC the browsers block that route (see the extension section below).
 4. Click Install and accept the Windows permission prompt. NeoDM starts by itself when setup finishes and appears in the system tray.
@@ -138,7 +138,7 @@ What the installer does: copies the app, registers the native messaging host for
 **Silent install:**
 
 ```
-msiexec /i NeoDM-Setup-1.3.0.msi /qn
+msiexec /i NeoDM-Setup-1.3.1.msi /qn
 ```
 
 Optional properties: `INSTALLFOLDER="D:\NeoDM"`, `RUN_AT_STARTUP=0`, `DESKTOP_SHORTCUT=1`, `INSTALL_POLICY=1`, `NO_LAUNCH=1`.
@@ -237,8 +237,11 @@ Updates: NeoDM checks GitHub for new releases and can install them after you con
 
 ## Releases
 
+Current version: **1.3.1**
+
 | Version | Date | Highlights |
 |---|---|---|
+| 1.3.1 | 2026-10-16 | Dark-mode tabs fixed in the progress and Options windows, the download window re-opens when a download finishes (per download or global), "Change save location..." for a single download. |
 | 1.3.0 | 2026-10-15 | Capture happens only in NeoDM (browser download removed first, dialog in front), themed menus/scroll bars/drop-downs, scaling fixes, completion sound on by default, extension file-type filters and session pause, self-updater from GitHub. |
 | 1.2.1 | 2026-10-15 | Fixed an installer error (2762); running NeoDM is now closed automatically during install and upgrade. |
 | 1.2.0 | 2026-10-15 | Torrents section, torrent file selection fix, category folders on by default, installer icon, auto-launch, in-place upgrades. |

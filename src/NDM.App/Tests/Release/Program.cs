@@ -20,7 +20,7 @@ internal sealed class TestApp : NDM.App.App
     public void Theme(string theme) => Resources.MergedDictionaries[0] = new ResourceDictionary { Source = new Uri($"pack://application:,,,/NeoDM;component/Themes/{theme}.xaml") };
 }
 
-/// <summary>1.3.0: themed menus/scroll bars/combo boxes, contrast, layout at 100/125/150 %, completion sound, 'Remember' placement, activation helper, capture reply.</summary>
+/// <summary>1.3.0/1.3.1: themed tabs, menus/scroll bars/combo boxes, contrast, layout at 100/125/150 %, completion sound, 'Remember' placement, activation helper, capture reply.</summary>
 internal static partial class ReleaseTests
 {
     internal static int Passed;
@@ -101,14 +101,14 @@ internal static partial class ReleaseTests
                 SettingsAndSound(root);
                 CaptureReply(root);
                 ActivationTests();
-                foreach (var theme in new[] { "Light", "Dark" }) { app.Theme(theme); ThemeTests(app, theme, root); }
+                foreach (var theme in new[] { "Light", "Dark" }) { app.Theme(theme); ThemeTests(app, theme, root); TabTests(app, theme, root); }
                 app.Theme("Light");
                 LayoutTests(app, root);
                 SettingsRememberTests(root);
                 UpdateTests(app, root);
             }
             finally { try { Directory.Delete(root, true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
-            Console.WriteLine($"Release 1.3.0 tests passed: {Passed}");
+            Console.WriteLine($"Release 1.3.1 tests passed: {Passed}");
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
@@ -121,20 +121,32 @@ internal static partial class ReleaseTests
     private static void SettingsAndSound(string root)
     {
         // new installs
-        Check(new AppSettings().PlayCompletionSound && AppSettings.CurrentSchema == 3 && new AppSettings().SettingsSchema == 3, "Completion sound defaults to ON for new installs (schema 3)");
+        Check(new AppSettings().PlayCompletionSound && AppSettings.CurrentSchema == 4 && new AppSettings().SettingsSchema == 4, "Completion sound defaults to ON for new installs (schema 4)");
         var dir = Path.Combine(root, "settings"); Directory.CreateDirectory(dir);
         Check(AppSettings.Load(dir).PlayCompletionSound, "No settings file -> sound on");
         // existing users: schema 2 file with the old default 'false' is switched once
         File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"SettingsSchema\":2,\"PlayCompletionSound\":false,\"Theme\":\"Dark\"}");
         var migrated = AppSettings.Load(dir);
-        Check(migrated.PlayCompletionSound && migrated.SettingsSchema == 3 && migrated.Theme == "Dark", "Existing schema-2 settings: sound switched on once, other values kept");
+        Check(migrated.PlayCompletionSound && migrated.SettingsSchema == 4 && migrated.Theme == "Dark", "Existing schema-2 settings: sound switched on once, other values kept");
         File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"PlayCompletionSound\":false}");
         Check(AppSettings.Load(dir).PlayCompletionSound, "Existing file without any marker: sound on");
         // afterwards the user's choice is respected
         migrated.PlayCompletionSound = false; migrated.Save(dir);
         var again = AppSettings.Load(dir);
-        Check(!again.PlayCompletionSound && again.SettingsSchema == 3, "After the migration a saved 'off' is respected");
+        Check(!again.PlayCompletionSound && again.SettingsSchema == 4, "After the migration a saved 'off' is respected");
         again.PlayCompletionSound = true; again.Save(dir); Check(AppSettings.Load(dir).PlayCompletionSound, "A saved 'on' stays on");
+        // 1.3.1: "open the download window when a download finishes" (schema 4)
+        Check(new AppSettings().ShowProgressOnCompletion, "Open-window-on-completion defaults to ON for new installs");
+        File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"SettingsSchema\":3,\"ShowProgressOnCompletion\":false,\"Theme\":\"Dark\"}");
+        var windowMigrated = AppSettings.Load(dir);
+        Check(windowMigrated.ShowProgressOnCompletion && windowMigrated.SettingsSchema == 4 && windowMigrated.Theme == "Dark", "Existing schema-3 settings get 'open the download window' switched on once, other values kept");
+        File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"Theme\":\"Light\"}");
+        Check(AppSettings.Load(dir).ShowProgressOnCompletion, "An old settings file without the option gets it on");
+        windowMigrated.ShowProgressOnCompletion = false; windowMigrated.Save(dir);
+        Check(!AppSettings.Load(dir).ShowProgressOnCompletion, "After the migration a saved 'off' is respected");
+        Check(!windowMigrated.Copy().ShowProgressOnCompletion, "Settings copy carries the option");
+        Check(CompletionSound.ShouldShowWindow(new AppSettings { ShowProgressOnCompletion = true }, null) && !CompletionSound.ShouldShowWindow(new AppSettings { ShowProgressOnCompletion = false }, null)
+            && !CompletionSound.ShouldShowWindow(new AppSettings { ShowProgressOnCompletion = true }, new JobCompletionOptions { ShowWindow = false }) && CompletionSound.ShouldShowWindow(new AppSettings { ShowProgressOnCompletion = false }, new JobCompletionOptions { ShowWindow = true }), "Per-download 'show this window' overrides the global setting both ways; unset follows it");
 
         // Options window checkbox is bound to the setting and saves
         var settings = new AppSettings { DownloadDirectory = Path.Combine(root, "files") };
@@ -277,6 +289,94 @@ internal static partial class ReleaseTests
         Check(window.WindowState == WindowState.Normal && window.Topmost && fake.Calls.Contains("setfg"), "BringToFront: window restored and topmost while it is being raised");
         PumpUntil(() => !window.Topmost, "topmost is dropped afterwards"); Check(!window.Topmost, "BringToFront: Topmost only lasts briefly, then it is an ordinary window");
         window.Close();
+    }
+
+    // ===================== 1.3.1: themed tabs (progress window + Options window) =====================
+    private static double MaxContrastIn(BitmapSource bitmap, Color background, Int32Rect area)
+    {
+        double best = 1; var pixels = new byte[area.Width * area.Height * 4]; bitmap.CopyPixels(area, pixels, area.Width * 4, 0);
+        for (int i = 0; i < pixels.Length; i += 4) best = Math.Max(best, Contrast(Color.FromRgb(pixels[i + 2], pixels[i + 1], pixels[i]), background));
+        return best;
+    }
+    private static void TabChecks(string t, bool dark, TabControl tabs, string label)
+    {
+        t += label + ": ";
+        Color sidebar = Brush("SidebarBrush"), surface = Brush("SurfaceBrush"), ink = Brush("InkBrush"), muted = Brush("MutedBrush"), accent = Brush("AccentBrush");
+        var items = tabs.Items.OfType<TabItem>().ToList();
+        Check(items.Count >= 3, t + "tab control has its tabs");
+        var selected = items.First(i => i.IsSelected);
+        var frame = (Border)tabs.Template.FindName("ContentFrame", tabs);
+        Check(((SolidColorBrush)frame.Background).Color == surface && ((SolidColorBrush)frame.BorderBrush).Color == Brush("BorderBrush"), t + "content border uses the theme surface and border colours");
+        foreach (var item in items)
+        {
+            var shot = Snapshot(item); int w = shot.PixelWidth, h = shot.PixelHeight;
+            bool isSelected = item.IsSelected; var bg = isSelected ? surface : sidebar; var fg = ((SolidColorBrush)item.Foreground).Color;
+            var corner = Px(shot, w / 2, 3);
+            Check(Near(corner, bg) && !(dark && NearWhite(corner)), t + $"'{item.Header}' header background is the theme {(isSelected ? "surface" : "sidebar")} colour" + (dark ? " (no near-white)" : ""));
+            bool enabled = item.IsEnabled; var expectedFg = !enabled ? Brush("DisabledInkBrush") : isSelected ? ink : muted;
+            Check(fg == expectedFg, t + $"'{item.Header}' text colour is the theme {(!enabled ? "dim disabled" : isSelected ? "ink (selected)" : "muted (unselected)")} colour");
+            Check(Contrast(fg, bg) >= (enabled ? 4.5 : 3.0), t + $"'{item.Header}' text contrast {Contrast(fg, bg):0.0}:1 on its header background >= 4.5:1");
+            var text = Visual<TextBlock>(item).First(); var textColor = ((SolidColorBrush)text.Foreground).Color;
+            Check(textColor == fg, t + $"'{item.Header}' header text is painted with the tab foreground (not a default system colour)");
+            Check(MaxContrastIn(shot, bg, new Int32Rect(8, 5, w - 16, h - 9)) >= (enabled ? 4.5 : 3.0), t + $"'{item.Header}' rendered header text reaches >= 4.5:1 against its background");
+            if (isSelected) { var underline = Px(shot, w / 2, h - 2); Check(Near(underline, accent), t + "selected tab has the accent underline"); }
+        }
+        // hover / disabled / focus come from the template, themed (IsMouseOver cannot be forced in a test, so the template's triggers are verified)
+        var style = (Style)Application.Current.FindResource(typeof(TabItem));
+        var template = (ControlTemplate)style.Setters.OfType<Setter>().First(s => s.Property == Control.TemplateProperty).Value;
+        string KeyOf(Trigger tr, DependencyProperty p) => ((DynamicResourceExtension)tr.Setters.OfType<Setter>().First(s => s.Property == p).Value).ResourceKey.ToString()!;
+        var hover = template.Triggers.OfType<Trigger>().First(x => x.Property == UIElement.IsMouseOverProperty);
+        Check(KeyOf(hover, Control.BackgroundProperty) == "SurfaceHoverBrush" && KeyOf(hover, Control.ForegroundProperty) == "InkBrush" && Contrast(ink, Brush("SurfaceHoverBrush")) >= 4.5, t + "hover: subtle themed highlight with full-contrast text (>= 4.5:1)");
+        var off = template.Triggers.OfType<Trigger>().First(x => x.Property == UIElement.IsEnabledProperty);
+        Check(KeyOf(off, Control.ForegroundProperty) == "DisabledInkBrush" && Contrast(Brush("DisabledInkBrush"), sidebar) >= 3.0, t + "disabled tab text is the dim themed colour and stays readable (>= 3:1)");
+        Check(style.Setters.OfType<Setter>().Any(s => s.Property == FrameworkElement.FocusVisualStyleProperty && ReferenceEquals(s.Value, Application.Current.FindResource("TabFocusRing"))), t + "keyboard focus uses the themed focus ring");
+    }
+
+    private static void TabTests(TestApp app, string theme, string root)
+    {
+        bool dark = theme == "Dark"; string t = theme + ": ";
+        // contrast matrix for the tab colour pairs, both themes
+        foreach (var (fg, bg) in new[] { ("MutedBrush", "SidebarBrush"), ("InkBrush", "SurfaceBrush"), ("InkBrush", "SurfaceHoverBrush") })
+            Check(Contrast(Brush(fg), Brush(bg)) >= 4.5, $"{t}tab contrast {fg} on {bg} = {Contrast(Brush(fg), Brush(bg)):0.0}:1 (>= 4.5)");
+        Check(Contrast(Brush("AccentBrush"), Brush("SurfaceBrush")) >= 3.0, t + "tab accent underline is visible on the selected surface (>= 3:1)");
+
+        var host = new Window { Width = 460, Height = 220, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = 40, Top = 40 };
+        var plain = new TabControl { Margin = new Thickness(16), VerticalAlignment = VerticalAlignment.Top };
+        plain.Items.Add(new TabItem { Header = "Download status", Content = new TextBlock { Text = "a" } });
+        plain.Items.Add(new TabItem { Header = "Speed Limiter", Content = new TextBlock { Text = "b" } });
+        plain.Items.Add(new TabItem { Header = "Options on completion", Content = new TextBlock { Text = "c" } });
+        plain.Items.Add(new TabItem { Header = "Unavailable", IsEnabled = false, Content = new TextBlock { Text = "d" } });
+        host.Content = plain; host.Show(); Pump(150);
+        TabChecks(t, dark, plain, "generic tab control");
+        plain.SelectedIndex = 2; Pump(100); TabChecks(t, dark, plain, "generic tab control, third tab selected");
+        var disabled = plain.Items.OfType<TabItem>().Last(); Check(((SolidColorBrush)disabled.Foreground).Color == Brush("DisabledInkBrush"), t + "disabled tab header shows the dim themed text colour");
+        host.Close();
+
+        // the real progress window (Download status / Speed Limiter / Options on completion)
+        var m = NewManager(root, "tabs-" + theme);
+        try
+        {
+            var job = Sync(m.AddScheduledAsync(new DownloadRequest("http://127.0.0.1:9/never.bin"), DateTimeOffset.UtcNow.AddHours(2)));
+            var progress = new DownloadProgressWindow(m, job.Id, new JobCompletionStore(), new AppSettings()) { ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = 20, Top = 20 };
+            progress.Show(); Pump(250);
+            var progressTabs = (TabControl)progress.FindName("Tabs");
+            Check(progressTabs.Items.Count == 3, t + "progress window keeps its three tabs");
+            TabChecks(t, dark, progressTabs, "progress window");
+            progressTabs.SelectedIndex = 2; Pump(100); TabChecks(t, dark, progressTabs, "progress window (Options on completion selected)");
+            if (Environment.GetEnvironmentVariable("NEODM_SHOTS") is { Length: > 0 } shots) { var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(Snapshot((FrameworkElement)progress.Content))); using var f = File.Create(Path.Combine(shots, "progress-" + theme + ".png")); enc.Save(f); }
+            progress.Close();
+        }
+        finally { m.Dispose(); }
+
+        // the Options window (General / Save To / Downloads / Proxy / Torrents)
+        var state = Path.Combine(root, "tabs-settings-" + theme); Directory.CreateDirectory(state);
+        var options = new SettingsWindow(new AppSettings { DownloadDirectory = Path.Combine(root, "tabs-files") }, state) { ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = 20, Top = 20 };
+        options.Show(); Pump(250);
+        var optionTabs = (TabControl)options.FindName("OptionsTabs");
+        Check(optionTabs.Items.OfType<TabItem>().Select(i => ((string)i.Header).Replace("_", "")).Take(4).SequenceEqual(new[] { "General", "Save To", "Downloads", "Proxy" }), t + "Options window tabs: General / Save To / Downloads / Proxy (/ Torrents)");
+        TabChecks(t, dark, optionTabs, "Options window");
+        optionTabs.SelectedIndex = 2; Pump(100); TabChecks(t, dark, optionTabs, "Options window (Downloads selected)");
+        options.Close();
     }
 
     // ===================== 1, 3, 4: themed menus, scroll bars, combo boxes, tool tips, contrast =====================

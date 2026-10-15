@@ -14,6 +14,8 @@ public sealed class JobCompletionOptions
     public bool Force { get; set; }
     /// <summary>Per-download 'Play sound when done'. null = follow the global setting; a value is this download's own choice.</summary>
     public bool? PlaySound { get; set; }
+    /// <summary>Per-download 'Show this window when the download finishes'. null = follow the global setting; a value is this download's own choice and wins.</summary>
+    public bool? ShowWindow { get; set; }
     /// <summary>'Remember this choice for future sessions': only remembered choices are written to disk; the others last until NeoDM exits.</summary>
     public bool Remember { get; set; }
 
@@ -34,6 +36,7 @@ public sealed class JobCompletionOptions
 /// <summary>Decides whether the completion sound plays for a finished job: the job's own choice wins, otherwise the global setting.</summary>
 public static class CompletionSound
 {
+    public static bool ShouldShowWindow(AppSettings settings, JobCompletionOptions? job) => job?.ShowWindow ?? settings.ShowProgressOnCompletion;
     public static bool ShouldPlay(AppSettings settings, JobCompletionOptions? job) => job?.PlaySound ?? settings.PlayCompletionSound;
 }
 
