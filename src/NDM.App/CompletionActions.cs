@@ -180,7 +180,7 @@ public sealed class CompletionActionRunner
             return true;
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException or UnauthorizedAccessException)
-        { LastError = $"“{CompletionActionInfo.Label(kind)}” could not be carried out."; return false; }
+        { LastError = $"\"{CompletionActionInfo.Label(kind)}\" could not be carried out."; return false; }
     }
     private void RunProgram()
     {

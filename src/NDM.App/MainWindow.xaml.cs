@@ -236,7 +236,7 @@ public partial class MainWindow : Window
         var dialog = new DownloadCompleteWindow(job, _settings, _saveSettings, () => _manager.Jobs.Any(j => j.Id == job.Id && j.Status == "Completed")) { Owner = IsVisible && WindowState != WindowState.Minimized ? this : null, ShowInTaskbar = false };
         _completionWindow = dialog;
         dialog.Closed += (_, _) => { _completionWindow = null; acknowledged(); };
-        dialog.Show(); // Deliberately modeless; never block transfers, test loops or the main window.
+        dialog.Show(); // Modeless on purpose, so it never blocks transfers, test loops or the main window.
     }
     /// <summary>Runs this download's own completion action (Exit NeoDM / turn off computer) once, behind the same countdown/cancel safety as the queue action.</summary>
     /// <summary>Plays the completion sound (never for a download muted in its own options) and runs the download's own completion action.</summary>
@@ -699,7 +699,7 @@ public partial class MainWindow : Window
     private void ContextRefreshUrl_Click(object sender, RoutedEventArgs e)
     {
         if (Selected is not { IsTorrent: false, IsComplete: false } row) return;
-        var prompt = new TextPromptWindow("Refresh address", "Enter the new address for “" + row.FileName + "”. Progress is kept when the new link serves the same file.", row.Url,
+        var prompt = new TextPromptWindow("Refresh address", "Enter the new address for \"" + row.FileName + "\". Progress is kept when the new link serves the same file.", row.Url,
             text => { try { NativeBridge.ValidateUrl(text); return null; } catch (FormatException ex) { return ex.Message; } }) { Owner = this };
         if (prompt.ShowDialog() != true) return;
         Perform(() => { _manager.UpdateUrl(row.Id, prompt.Value); _manager.Resume(row.Id); }, "Address updated; the download continues.");

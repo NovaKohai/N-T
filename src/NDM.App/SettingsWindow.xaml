@@ -54,7 +54,7 @@
       </StackPanel></ScrollViewer></TabItem>
       <TabItem x:Name="AppearanceTab" Header="_Appearance"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Theme" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
-        <TextBlock Text="Pick a theme to preview it everywhere right away. Save keeps it; Cancel puts your saved theme back." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <TextBlock Text="Pick a theme to preview it in every open window. Save keeps it. Cancel restores your saved theme." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
         <ListBox x:Name="ThemeGallery" SelectionMode="Single" SelectionChanged="ThemeGallery_Changed" ItemContainerStyle="{StaticResource ThemeCard}" ItemTemplate="{StaticResource ThemeCardTemplate}" AutomationProperties.Name="Themes" Background="Transparent" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Disabled">
           <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
         </ListBox>
@@ -86,10 +86,10 @@
       <TabItem Header="_Downloads"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <GroupBox x:Name="ConnectionsGroup" Header="Connections" Padding="12,10" Margin="0,0,0,24" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}"><StackPanel>
         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/></Grid.RowDefinitions>
-          <Label Content="Maximum _segments per file (1–32)" Target="{Binding ElementName=Segments}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Segments" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Maximum segments"/>
-          <Label Grid.Row="1" Content="Concurrent _downloads (1–16)" Target="{Binding ElementName=Concurrent}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Concurrent" Grid.Row="1" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Concurrent downloads"/>
-          <Label Grid.Row="2" Content="_Retries (0–8)" Target="{Binding ElementName=Retries}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Retries" Grid.Row="2" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Retry count"/>
-          <Label Grid.Row="3" Content="Request _timeout in seconds (1–300)" Target="{Binding ElementName=Timeout}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Timeout" Grid.Row="3" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Request timeout seconds"/>
+          <Label Content="Maximum _segments per file (1 to 32)" Target="{Binding ElementName=Segments}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Segments" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Maximum segments"/>
+          <Label Grid.Row="1" Content="Concurrent _downloads (1 to 16)" Target="{Binding ElementName=Concurrent}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Concurrent" Grid.Row="1" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Concurrent downloads"/>
+          <Label Grid.Row="2" Content="_Retries (0 to 8)" Target="{Binding ElementName=Retries}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Retries" Grid.Row="2" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Retry count"/>
+          <Label Grid.Row="3" Content="Request _timeout in seconds (1 to 300)" Target="{Binding ElementName=Timeout}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Timeout" Grid.Row="3" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Request timeout seconds"/>
         </Grid>
           <CheckBox x:Name="DynamicSegmentation" Content="Enable d_ynamic segmentation" Margin="0,8,0,8"/>
           <TextBlock Text="Restart required: connection changes take effect the next time NeoDM starts. Running downloads are not modified." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
@@ -99,7 +99,7 @@
         <CheckBox x:Name="CompletionSound" Content="Play completion _sound"/>
         <CheckBox x:Name="CapturedProgress" Content="Show _progress window for captured downloads"/>
         <CheckBox x:Name="ProgressOnCompletion" Content="_Open the download window when a download finishes"/>
-        <TextBlock Text="These preferences apply to subsequent completed downloads after saving." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+        <TextBlock Text="These preferences apply to downloads that finish after you save." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <TextBlock Text="Completion" Style="{StaticResource SectionTitle}" Margin="0,24,0,10"/>
         <Label Content="When _all downloads finish" Target="{Binding ElementName=FinishAction}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
         <ComboBox x:Name="FinishAction" HorizontalAlignment="Left" MinWidth="260" AutomationProperties.Name="When all downloads finish" SelectionChanged="FinishAction_Changed"/>
@@ -138,8 +138,8 @@
         <Label Content="Default save _folder (blank = use the general download folder and category rules)" Target="{Binding ElementName=TorrentFolder}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
         <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox x:Name="TorrentFolder" AutomationProperties.Name="Torrent save folder"/><Button Grid.Column="1" Content="Bro_wse…" Click="BrowseTorrent_Click" Margin="8,0,0,0"/></Grid>
         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/></Grid.RowDefinitions>
-          <Label Content="Listen _port (1–65535)" Target="{Binding ElementName=TorrentPort}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="TorrentPort" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Torrent listen port"/>
-          <Label Grid.Row="1" Content="Maximum _connections (1–10000)" Target="{Binding ElementName=TorrentConnections}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="TorrentConnections" Grid.Row="1" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Torrent maximum connections"/>
+          <Label Content="Listen _port (1 to 65535)" Target="{Binding ElementName=TorrentPort}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="TorrentPort" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Torrent listen port"/>
+          <Label Grid.Row="1" Content="Maximum _connections (1 to 10000)" Target="{Binding ElementName=TorrentConnections}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="TorrentConnections" Grid.Row="1" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Torrent maximum connections"/>
           <Label Grid.Row="2" Content="Global download limit in KiB/s (0 = unlimited)" Target="{Binding ElementName=TorrentDown}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="TorrentDown" Grid.Row="2" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Torrent download limit"/>
           <Label Grid.Row="3" Content="Global upload limit in KiB/s (0 = unlimited)" Target="{Binding ElementName=TorrentUp}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="TorrentUp" Grid.Row="3" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Torrent upload limit"/>
         </Grid>

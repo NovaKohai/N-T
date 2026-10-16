@@ -43,7 +43,7 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
     public bool IsComplete => Status.Equals("Completed", StringComparison.OrdinalIgnoreCase) || (IsTorrent && Status == "Seeding");
     public bool CanResume => Status is "Paused" or "Failed" or "Canceled" || (IsTorrent && Status == "Completed");
     public bool CanPause => Status is "Downloading" or "Queued" or "Connecting" or "Scheduled" || (IsTorrent && Status is "Checking" or "Seeding");
-    /// <summary>Doing work that should block 'quit' prompts and 'when downloads finish'. Seeding is deliberately not busy.</summary>
+    /// <summary>Doing work that should block 'quit' prompts and 'when downloads finish'. Seeding does not count as busy.</summary>
     public bool IsBusy => Status is "Downloading" or "Queued" or "Connecting" or "Scheduled" or "Checking";
     public string TorrentSummary => $"Seeds {Seeds} · Peers {Peers} · Ratio {Ratio:0.00} · ↓ {FormatBytes(Speed)}/s ↑ {FormatBytes(UploadSpeed)}/s";
     public string DisplayUrl => IsTorrent ? "Torrent · " + TorrentId : Url.Length == 0 ? "Download URL" : Uri.TryCreate(Url, UriKind.Absolute, out var uri) ? uri.GetLeftPart(UriPartial.Path) : "Download URL";
@@ -52,7 +52,7 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
     public string Downloaded => FormatBytes(DownloadedBytes);
     public string SpeedText => Status == "Downloading" && Speed > 0 ? $"{FormatBytes(Speed)}/s" : IsTorrent && Status == "Seeding" && UploadSpeed > 0 ? $"↑ {FormatBytes(UploadSpeed)}/s" : "—";
     public string Remaining => IsComplete ? "Done" : IsTorrent && Status == "Checking" ? "Checking" : RemainingTime is { } time && Status == "Downloading" ? FormatTime(time) : "—";
-    public string ResumeSupport => ResumeSupported switch { true => "Supported", false => "Not supported — resuming may restart", _ => "Not yet known" };
+    public string ResumeSupport => ResumeSupported switch { true => "Supported", false => "Not supported, resuming may restart", _ => "Not yet known" };
     public string Connections => $"{ActiveConnectionCount} active / {ConnectionLimit} limit";
     public string Detail => IsTorrent ? $"{Downloaded} / {Size}  ·  {TorrentSummary}" + (!string.IsNullOrWhiteSpace(Error) ? "  ·  Needs attention" : "") : $"{Downloaded} / {Size}" + (Speed > 0 ? $"  ·  {SpeedText}" : "") + (RemainingTime.HasValue ? $"  ·  {Remaining} remaining" : "") + (ScheduledAt.HasValue ? $"  ·  Scheduled {ScheduledAt.Value.LocalDateTime:g}" : "") + (!string.IsNullOrWhiteSpace(Error) ? "  ·  Needs attention" : "");
     public Brush StatusBrush => (Brush?)Application.Current?.TryFindResource(IsComplete ? "SuccessBrush" : Status == "Failed" ? "ErrorBrush" : CanResume ? "WarningBrush" : "AccentBrush") ?? Brushes.Gray;
@@ -94,7 +94,7 @@ public sealed record DownloadSegmentRow(int Number, DownloadSegmentSnapshot Snap
 {
     public string Downloaded => Snapshot.DownloadedBytes > 0 || Snapshot.IsActive ? DownloadRow.FormatBytes(Snapshot.DownloadedBytes) : "";
     public string Info => Snapshot.IsActive ? "Receiving data..." : Snapshot.Length > 0 && Snapshot.DownloadedBytes >= Snapshot.Length ? "Complete." : JobRunning ? "Connecting..." : "Disconnect.";
-    public string Range => Snapshot.Length > 0 ? $"{Snapshot.Start:N0} – {Snapshot.Start + Snapshot.Length - 1:N0}" : "Unknown";
+    public string Range => Snapshot.Length > 0 ? $"{Snapshot.Start:N0} to {Snapshot.Start + Snapshot.Length - 1:N0}" : "Unknown";
     public string Bytes => $"{DownloadRow.FormatBytes(Snapshot.DownloadedBytes)} / {DownloadRow.FormatBytes(Snapshot.Length)}";
     public double Progress => Snapshot.Length > 0 ? Math.Clamp(100d * Snapshot.DownloadedBytes / Snapshot.Length, 0, 100) : 0;
     public string State => Snapshot.DownloadedBytes >= Snapshot.Length && Snapshot.Length > 0 ? "Complete" : Snapshot.IsActive ? "Receiving" : "Waiting";

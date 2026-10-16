@@ -158,9 +158,9 @@ public sealed class TorrentFeature : ITorrentFeature
     {
         string folder = _settings.TorrentDownloadDirectory.Length > 0 ? _settings.TorrentDownloadDirectory : _settings.DownloadDirectory;
         try { await _controller.AddAsync(new TorrentAddSelection(magnet, null, "", folder, null, 0, true), timeout); return (true, "added to queue (all files)."); }
-        catch (TimeoutException) { return (false, "not saved — no metadata arrived in time; try this line again."); }
-        catch (InvalidOperationException) { return (false, "duplicate — already in the queue; skipped."); }
-        catch (Exception) { return (false, "not saved — check the destination and try this line again."); }
+        catch (TimeoutException) { return (false, "not saved. No metadata arrived in time, so try this line again."); }
+        catch (InvalidOperationException) { return (false, "duplicate. Already in the queue, so it was skipped."); }
+        catch (Exception) { return (false, "not saved. Check the destination and try this line again."); }
     }
 
     public void Dispose() => _controller.Dispose();

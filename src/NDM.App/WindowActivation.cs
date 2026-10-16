@@ -26,7 +26,7 @@ public enum ActivationResult { Foreground, Flashed, NoHandle }
 /// Brings a NeoDM window above the browser and everything else. Windows only lets the foreground process (or one it has allowed) take focus,
 /// and NeoDM usually runs in the background when a browser download is captured. The steps, in order:
 /// restore if minimised; attach to the foreground window's input queue and SetForegroundWindow; if refused, the classic Alt key tap and a second
-/// try; if Windows still refuses, flash the taskbar button so the dialog is never silently hidden. The native host additionally calls
+/// try; if Windows still refuses, flash the taskbar button so the dialog is never hidden without notice. The native host also calls
 /// AllowSetForegroundWindow for the app process before it sends the request.
 /// </summary>
 public static class WindowActivation

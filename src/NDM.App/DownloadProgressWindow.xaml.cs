@@ -138,7 +138,7 @@ public partial class DownloadProgressWindow : Window
         StatusText.Text = Row.IsComplete ? "Complete" : Row.Status switch
         {
             "Connecting" => "Checking address: " + Row.Url,
-            "Failed" => "Failed" + (string.IsNullOrWhiteSpace(Row.Error) ? "" : " — " + Row.Error),
+            "Failed" => "Failed" + (string.IsNullOrWhiteSpace(Row.Error) ? "" : ": " + Row.Error),
             var s => s
         };
         SizeText.Text = Row.TotalBytes > 0 ? $"{DownloadRow.FormatBytes(Row.TotalBytes)} ({Row.TotalBytes:N0} bytes)" : Row.IsComplete ? DownloadRow.FormatBytes(Row.DownloadedBytes) : "(unknown)";

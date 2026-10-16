@@ -25,7 +25,7 @@ public partial class PropertiesWindow : Window
             new("Size", size),
             new("Downloaded", $"{DownloadRow.FormatBytes(row.DownloadedBytes)} ({row.Percent})"),
             new("Save path", row.FilePath),
-            new("Status", row.Status + (string.IsNullOrWhiteSpace(row.Error) ? "" : " — " + row.Error)),
+            new("Status", row.Status + (string.IsNullOrWhiteSpace(row.Error) ? "" : ": " + row.Error)),
             new("Added", row.AddedAt is { } added ? added.LocalDateTime.ToString("f") : "Unknown (added before dates were recorded)")
         };
         if (row.ScheduledAt is { } at) list.Add(new("Scheduled", at.LocalDateTime.ToString("f")));

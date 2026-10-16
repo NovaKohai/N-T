@@ -3,11 +3,16 @@
 All notable changes to NeoDM are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.4.1] - 2026-10-16
+
+### Changed
+- Wording improvements across the app, extension and documentation.
+
 ## [1.4.0] - 2026-10-16
 
 ### Added
-- **Themes** in Options > Appearance: a gallery of selectable cards, each with a small live swatch of the theme (window chrome, sidebar, list rows, progress, accent button). Picking a card applies it instantly to every open window (no restart); Save keeps it, and Cancel or closing the window restores the saved theme. Nine themes: Light and Dark (unchanged), **System** (follows the Windows light/dark app setting, re-checked when Windows reports a settings change), and new **Midnight** (flat near-black charcoal, 8 px cards, hairline borders, soft violet accent with a gradient primary button and progress bars, roomier rounded toolbar buttons), **Graphite** (neutral grey, teal), **Ocean** (deep blue, cyan), **Forest** (dark green, mint), **Rose** (dark plum, pink) and **Paper** (warm sepia light, brown). All colours and the rounded-card styling are original.
-- **Accent colour**: nine presets plus a custom `#RRGGBB` box (live preview, validation, the `#` is optional) and "Reset accent". The override recolours buttons, progress bars, selection and focus rings in any theme; the accent is nudged until it is readable (4.5:1) and the text on it is picked automatically.
+- Themes in Options > Appearance: a gallery of selectable cards, each with a small live swatch of the theme (window chrome, sidebar, list rows, progress, accent button). Picking a card applies it instantly to every open window (no restart); Save keeps it, and Cancel or closing the window restores the saved theme. Nine themes: Light and Dark (unchanged), System (follows the Windows light/dark app setting, re-checked when Windows reports a settings change), and new Midnight (flat near-black charcoal, 8 px cards, hairline borders, soft violet accent with a gradient primary button and progress bars, roomier rounded toolbar buttons), Graphite (neutral grey, teal), Ocean (deep blue, cyan), Forest (dark green, mint), Rose (dark plum, pink) and Paper (warm sepia light, brown). All colours and the rounded-card styling are original.
+- Accent colour: nine presets plus a custom `#RRGGBB` box (live preview, validation, the `#` is optional) and "Reset accent". The override recolours buttons, progress bars, selection and focus rings in any theme; the accent is nudged until it is readable (4.5:1) and the text on it is picked automatically.
 - Themes are resource dictionaries with the same keys (a test diffs the key sets of every theme); shape and density are theme-level keys (`ControlRadius`, `CardRadius`, `ControlPadding`, `CommandPadding`, `CommandMinHeight`) and the primary fill is `AccentFillBrush`, so a theme can change radius and density without touching templates.
 - Themed check boxes and radio buttons (the box is no longer a bright system square in dark themes) and a themed `ListView` background.
 - Settings: `Theme` accepts any known theme id (unknown values load as Light; the old `Light`/`Dark` values keep working, no schema change) and new optional `AccentOverride` (`#RRGGBB`). Windows 11 title bars follow dark-type themes, and the branded themes also colour the caption, border and title text.

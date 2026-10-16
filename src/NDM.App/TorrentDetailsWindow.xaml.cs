@@ -50,7 +50,7 @@ public partial class TorrentDetailsWindow : Window
             PauseButton.IsEnabled = false; _timer.Stop(); return;
         }
         var row = new DownloadRow(job);
-        Title = $"{row.Percent} · {job.Name} — Torrent details";
+        Title = $"{row.Percent} · {job.Name} · Torrent details";
         NameText.Text = job.Name; PathText.Text = row.FilePath; StatusText.Text = job.State;
         SizeText.Text = $"{row.Downloaded} / {row.Size}";
         DownText.Text = $"{DownloadRow.FormatBytes(job.DownloadSpeed)}/s"; UpText.Text = $"{DownloadRow.FormatBytes(job.UploadSpeed)}/s";

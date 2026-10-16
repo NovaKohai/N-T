@@ -33,18 +33,18 @@ public partial class BulkImportWindow : Window
                 if (url.Length == 0) { blanks++; continue; }
                 if (url.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (_torrents is null || !_torrents.IsAvailable || _settings is null) { failed++; results.Add(prefix + "not saved — " + (_torrents?.UnavailableMessage ?? "torrent support is not available here.")); continue; }
-                    if (_torrents.ValidateMagnet(url, out var hash) is { } problem) { invalid++; results.Add(prefix + "invalid — " + problem); continue; }
-                    if (_torrents.KnowsTorrent(hash) || !magnetSeen.Add(hash)) { duplicates++; results.Add(prefix + "duplicate — already in this import or queue; skipped."); continue; }
+                    if (_torrents is null || !_torrents.IsAvailable || _settings is null) { failed++; results.Add(prefix + "not saved. " + (_torrents?.UnavailableMessage ?? "torrent support is not available here.")); continue; }
+                    if (_torrents.ValidateMagnet(url, out var hash) is { } problem) { invalid++; results.Add(prefix + "invalid. " + problem); continue; }
+                    if (_torrents.KnowsTorrent(hash) || !magnetSeen.Add(hash)) { duplicates++; results.Add(prefix + "duplicate. Already in this import or queue, so it was skipped."); continue; }
                     pendingMagnets.Add((index + 1, url));
                     continue;
                 }
                 try { NativeBridge.ValidateUrl(url); }
-                catch (FormatException) { invalid++; results.Add(prefix + "invalid — enter one complete HTTP(S) URL."); continue; }
+                catch (FormatException) { invalid++; results.Add(prefix + "invalid. Enter one complete HTTP(S) URL."); continue; }
                 string key = new Uri(url).AbsoluteUri;
-                if (seen.Contains(key)) { duplicates++; results.Add(prefix + "duplicate — already in this import or queue; skipped."); continue; }
+                if (seen.Contains(key)) { duplicates++; results.Add(prefix + "duplicate. Already in this import or queue, so it was skipped."); continue; }
                 try { await _manager.AddAsync(new DownloadRequest(url)); seen.Add(key); added++; results.Add(prefix + "added to queue."); }
-                catch (Exception) { failed++; results.Add(prefix + "not saved — check the destination and try this line again."); }
+                catch (Exception) { failed++; results.Add(prefix + "not saved. Check the destination and try this line again."); }
                 // Keep the dialog responsive even when the core completes synchronously.
                 await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
             }

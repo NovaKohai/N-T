@@ -113,7 +113,7 @@ public partial class TorrentAddWindow : Window
             var root = Path.GetPathRoot(Path.GetFullPath(SaveFolder.Text.Trim()));
             if (string.IsNullOrEmpty(root)) { SpaceText.Text = ""; return; }
             long free = new DriveInfo(root).AvailableFreeSpace, need = TorrentFileTree.SelectedBytes(_roots);
-            SpaceText.Text = $"Free on {root}: {DownloadRow.FormatBytes(free)}" + (need > free ? " — not enough space for the selected files." : "");
+            SpaceText.Text = $"Free on {root}: {DownloadRow.FormatBytes(free)}" + (need > free ? ". Not enough space for the selected files." : "");
         }
         catch (Exception) { SpaceText.Text = ""; }
     }

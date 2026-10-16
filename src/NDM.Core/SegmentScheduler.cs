@@ -64,7 +64,7 @@ public sealed partial class DownloadManager
                 {
                     var owner = running[candidate];
                     owner.Cancellation.Cancel();
-                    // Crucial: join/dispose the original immutable HTTP range and writer
+                    // Join and dispose the original immutable HTTP range and writer
                     // BEFORE changing endpoints or assigning the undownloaded tail.
                     try { await owner.Task.ConfigureAwait(false); }
                     catch (OperationCanceledException) when (owner.Cancellation.IsCancellationRequested && !linked.IsCancellationRequested) { }

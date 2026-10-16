@@ -58,7 +58,7 @@ public partial class UpdateWindow : Window
             else text.Margin = new Thickness(block.Kind == ReleaseNotes.Kind.Bullet ? 8 : 0, 2, 0, 2);
             NotesPanel.Children.Add(text);
         }
-        if (NotesPanel.Children.Count == 0) NotesPanel.Children.Add(new TextBlock { Text = "No release notes were published. Use “View full changelog”.", Style = (Style)FindResource("Muted"), TextWrapping = TextWrapping.Wrap });
+        if (NotesPanel.Children.Count == 0) NotesPanel.Children.Add(new TextBlock { Text = "No release notes were published. Use \"View full changelog\".", Style = (Style)FindResource("Muted"), TextWrapping = TextWrapping.Wrap });
         ChangelogLink.NavigateUri = new Uri(UpdateChecker.ChangelogUrl); ReleaseLink.NavigateUri = new Uri(release.HtmlUrl);
         if (release.Installer is null || release.Checksums is null)
         {
@@ -96,7 +96,7 @@ public partial class UpdateWindow : Window
                     StatusText.Text = "The installer is running. NeoDM will close and start again when it finishes.";
                     Installing = false; Close(); return true;
                 case LaunchResult.UacDeclined:
-                    StatusText.Text = "The update was not installed because Windows permission was declined. Press “Update now” to try again.";
+                    StatusText.Text = "The update was not installed because Windows permission was declined. Press \"Update now\" to try again.";
                     break;
                 default:
                     StatusText.Text = "The installer could not be started. Open the release page to install it manually.";

@@ -13,8 +13,8 @@ public sealed record TrayMenuEntry(string? Header, Action? Activate, TrayWindowK
 
 /// <summary>
 /// The independent windows NeoDM currently has open for the user to act on: capture dialogs waiting for a decision and download progress windows.
-/// Each one has its own taskbar button; this list additionally feeds the tray icon's menu so a minimised one can always be found and restored,
-/// even when the main window is hidden or closed to the tray. Pure model + a small menu filler, so it is testable without a real tray.
+/// Each one has its own taskbar button; this list also feeds the tray icon's menu, so a minimised one can always be found and restored,
+/// even when the main window is hidden or closed to the tray. It is a plain model with a small menu filler, so tests need no real tray.
 /// </summary>
 public sealed class TrayWindowList
 {

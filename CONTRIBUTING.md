@@ -1,6 +1,6 @@
 # Contributing to NeoDM
 
-Thanks for helping. NeoDM is an open source project created by unlimitedera and released under the MIT License.
+NeoDM is an open source project created by unlimitedera and released under the MIT License.
 
 ## Ground rules
 - Keep the code original. Do not paste code, assets or text from other projects unless the license allows it and it is credited.
@@ -13,7 +13,7 @@ Requirements: Windows 10/11, the .NET 8 SDK, Node.js, PowerShell, and (for the i
 powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1
 ```
 
-`build.ps1` builds everything, runs every test suite, publishes to `dist\` and runs a name scan. It must exit 0 before you open a pull request.
+`build.ps1` builds everything, runs every test suite, publishes to `dist\` and runs a forbidden-name scan. It must exit 0 before you open a pull request.
 
 ## Making a change
 1. Open an issue first for anything bigger than a small fix.
