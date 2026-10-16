@@ -3,6 +3,11 @@
 All notable changes to NeoDM are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.4.2] - 2026-10-17
+
+### Fixed
+- The media ribbon listed one video several times while it buffered, once for each downloaded piece. Pieces of the same file are now one entry: requests that differ only in range, segment-number or cache-busting parameters (for example `range`, `bytestart`, `byteend`, `sq`, `rn`, `rbuf`, `_`) or in a `/range/0-1048575/` path part are grouped, and the entry shows the full size from `Content-Range`. A partial response whose total size is unknown is not listed. Numbered fragments of segmented streams (`seg-12.mp4`, `frag_00042.m4v`, `init.mp4`) are hidden, and the extension popup, which now lists the media of the current tab, explains why with one row: "Segmented stream, cannot be saved as one file". A video the page plays directly is listed first. Downloading an entry sends the URL without range parameters and retries once with the original URL if NeoDM cannot start it.
+
 ## [1.4.1] - 2026-10-16
 
 ### Changed

@@ -2,6 +2,11 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NeoDM Integration</title><link rel="stylesheet" href="popup.css"></head>
 <body>
 <header><h1>NeoDM Integration</h1><button id="test" type="button">Test connection</button></header>
+<section id="mediaPanel">
+<h2>Media on this page</h2>
+<ul id="mediaList"></ul>
+<p id="mediaNone" class="hint">No downloadable media found yet.</p>
+</section>
 <section id="pausePanel">
 <p id="pauseState" class="hint" role="status" aria-live="polite"></p>
 <label><input type="checkbox" id="pauseSite"> <span id="pauseSiteLabel">Pause NeoDM on this site for this session</span></label>

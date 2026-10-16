@@ -71,6 +71,7 @@
       const urls = [m.currentSrc, m.getAttribute('src') && m.src, ...Array.from(m.querySelectorAll('source[src]')).map(s => s.src)];
       const url = urls.find(u => u && /^https?:/i.test(u));
       if (url) sources.push({ url, tag: m.tagName.toLowerCase() });
+      else if (/^blob:/i.test(m.currentSrc || '')) sources.push({ url: 'blob:', tag: m.tagName.toLowerCase() }); // tells the worker this page streams through MediaSource
     }
     const sig = JSON.stringify(sources);
     if (sig === lastDom) return; lastDom = sig;

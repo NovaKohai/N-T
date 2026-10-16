@@ -11,7 +11,7 @@ const gv = (q, extra = {}) => response('https://rr1---sn-abc.googlevideo.com/vid
 
 test('sniff: direct media by Content-Type with size >= 512 KB; boundary and below', () => {
   const ok = S.classify(response('https://cdn.example/movie.mp4', 'video/mp4', 5 * MB));
-  assert.deepEqual(json(ok), { id: 'https://cdn.example/movie.mp4', url: 'https://cdn.example/movie.mp4', kind: 'video', track: 'file', complete: true, size: 5 * MB, quality: '', mime: 'video/mp4', source: 'net' });
+  assert.deepEqual(json(ok), { id: 'https://cdn.example/movie.mp4', url: 'https://cdn.example/movie.mp4', rawUrl: 'https://cdn.example/movie.mp4', groupKey: 'https://cdn.example/movie.mp4', kind: 'video', track: 'file', complete: true, size: 5 * MB, quality: '', mime: 'video/mp4', source: 'net' });
   assert.equal(S.classify(response('https://cdn.example/a.mp4', 'video/mp4', 512 * 1024)).size, 512 * 1024);
   assert.equal(S.classify(response('https://cdn.example/a.mp4', 'video/mp4', 512 * 1024 - 1)), null);
   assert.equal(S.classify(response('https://cdn.example/a.mp3', 'audio/mpeg; charset=x', 3 * MB)).kind, 'audio');

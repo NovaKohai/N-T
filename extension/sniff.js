@@ -46,8 +46,34 @@
     if (status === 206) { const m = /\/(\d+)\s*$/.exec(header(headers, 'content-range')); return m ? Number(m[1]) : 0; }
     const n = Number(header(headers, 'content-length')); return Number.isFinite(n) && n > 0 ? n : 0;
   }
-  /** googlevideo: drop per-chunk range/rn/rbuf so every chunk of one stream maps to one URL. */
-  function canonicalGoogleUrl(u) { const c = new URL(u.href); for (const p of ['range', 'rn', 'rbuf']) c.searchParams.delete(p); return c.href; }
+  /* ---- grouping: every piece of one resource maps to one canonical URL ---- */
+  const RANGE_PARAMS = new Set('range bytestart byteend start end begin offset rn rbuf bytes from to sq seg segment fragment chunk part frag'.split(' '));
+  const CACHE_PARAMS = new Set('_ _t ts cb nocache rnd random cachebust cachebuster timestamp time'.split(' '));
+  const GOOGLE_PARAMS = new Set(['range', 'rn', 'rbuf', 'sq', 'ump', 'alr']); // per-request only; itag, id, expire, sig, lsig, mime, clen, dur stay
+  const PATH_RANGE = /\/(?:range\/\d+-\d*|bytes[=_]\d+-\d*)(?=\/|$)/gi;
+  const SEG_MAX = 16 * 1024 * 1024; // a fragment of an adaptive stream is never larger than this
+  const MAX_KEYS = 200;
+  const queryKeys = u => (u.search ? u.search.slice(1).split('&') : []).map(p => { let k = p.split('=')[0]; try { k = decodeURIComponent(k.replace(/\+/g, ' ')); } catch {} return k.toLowerCase(); });
+  /** Query string without the named parameters; other parameters keep their exact bytes (signatures, tokens). */
+  function stripQuery(u, names) {
+    if (!u.search) return '';
+    const parts = u.search.slice(1).split('&'), keys = queryKeys(u), keep = parts.filter((_, i) => !names.has(keys[i]));
+    return keep.length === parts.length ? u.search : keep.length ? '?' + keep.join('&') : '';
+  }
+  const rangeLike = u => queryKeys(u).some(k => RANGE_PARAMS.has(k)) || (PATH_RANGE.lastIndex = 0, PATH_RANGE.test(u.pathname));
+  /** URL without range, segment-number and cache-busting parameters or range path segments. Other parameters are kept. */
+  function canonicalUrl(url) {
+    let u; try { u = new URL(url); } catch { return String(url || ''); }
+    const c = new URL(u.href); c.hash = '';
+    if (isGoogleVideo(u)) { c.search = stripQuery(u, GOOGLE_PARAMS); return c.href; }
+    c.search = stripQuery(u, new Set([...RANGE_PARAMS, ...CACHE_PARAMS]));
+    const path = u.pathname.replace(PATH_RANGE, ''); if (path !== u.pathname) c.pathname = path || '/';
+    return c.href;
+  }
+  const canonicalGoogleUrl = u => canonicalUrl(u.href);
+  /** Key shared by every request for the same resource. */
+  const groupKey = item => (item && (item.groupKey || canonicalUrl(item.rawUrl || item.url))) || '';
+  const capKeys = (obj, max = MAX_KEYS) => { const keys = Object.keys(obj); for (let i = 0; i < keys.length - max; i++) delete obj[keys[i]]; };
 
   function describeGoogle(u) {
     const q = u.searchParams, itag = Number(q.get('itag')), mime = (q.get('mime') || '').toLowerCase();
@@ -60,34 +86,61 @@
     return { track, quality, mime: mime || (track === 'audio-only' ? 'audio/mp4' : 'video/mp4'), clen, itag };
   }
 
+  const FRAG_NAME = /(?:^|[^a-z])(?:seg(?:ment)?|frag(?:ment)?|chunk|part)[-_ ]?\d+\.[a-z0-9]{2,5}$|^\d{3,}\.(?:mp4|m4s|m4v|m4a|webm|aac)$|[-_.]\d{4,}\.(?:mp4|m4v|m4a|webm)$|^init(?:ialization)?[-_.\d]*\.(?:mp4|m4v|m4a|webm)$/i;
+  const parseRange = text => { const m = /bytes\s+(\d+)-(\d+)\/(\d+|\*)/i.exec(text); return m ? { start: Number(m[1]), end: Number(m[2]), total: m[3] === '*' ? 0 : Number(m[3]) } : null; };
+  /** Fragment candidate: origin + path with digit runs replaced by '#' + mime. */
+  function segmentCandidate(u, type, total) {
+    if (total >= SEG_MAX) return null;
+    let name = u.pathname.split('/').pop(); try { name = decodeURIComponent(name); } catch {}
+    return { key: u.origin + u.pathname.replace(/\d+/g, '#') + '|' + type, path: u.pathname, nameHit: FRAG_NAME.test(name) };
+  }
+  const isMediaResponse = details => !!details && /^(video|audio|image)\//i.test(header(details.responseHeaders, 'content-type').trim());
+
   /**
-   * Decide whether a webRequest.onHeadersReceived details object is a downloadable media file.
-   * Returns an item or null. Never returns manifests, segments or tiny responses.
+   * Examine one onHeadersReceived details object. Returns { item?, piece?, seg? }:
+   * item = a downloadable file, piece = a partial response whose total is unknown, seg = a possible stream fragment.
+   * `state` (optional) is the per-tab tracker; it is only read here.
    */
-  function classify(details) {
-    if (!details || !isHttp(details.url) || !(details.tabId >= 0)) return null;
-    if (details.method && details.method !== 'GET') return null;
-    if (details.statusCode !== 200 && details.statusCode !== 206) return null;
-    let u; try { u = new URL(details.url); } catch { return null; }
-    if (/\.(m3u8|mpd|ts|m4s)$/i.test(u.pathname)) return null;
+  function inspect(details, state) {
+    const out = {};
+    if (!details || !isHttp(details.url) || !(details.tabId >= 0)) return out;
+    if (details.method && details.method !== 'GET') return out;
+    if (details.statusCode !== 200 && details.statusCode !== 206) return out;
+    let u; try { u = new URL(details.url); } catch { return out; }
+    if (/\.(m3u8|mpd|ts|m4s)$/i.test(u.pathname)) return out;
     const type = header(details.responseHeaders, 'content-type').split(';')[0].trim().toLowerCase();
     if (/^image\//.test(type) && !MANIFEST_TYPES.test(type)) {
       const size = totalSize(details.statusCode, details.responseHeaders);
-      if (size < IMAGE_MIN_SIZE) return null;
-      return { id: u.href, url: u.href, kind: type === 'image/gif' ? 'gif' : 'image', track: 'file', complete: true, size, quality: '', mime: type, source: 'net' };
+      if (size < IMAGE_MIN_SIZE) return out;
+      out.item = { id: u.href, url: u.href, kind: type === 'image/gif' ? 'gif' : 'image', track: 'file', complete: true, size, quality: '', mime: type, source: 'net' };
+      return out;
     }
-    if (!/^(video|audio)\//.test(type) || MANIFEST_TYPES.test(type) || SEGMENT_TYPES.test(type)) return null;
+    if (!/^(video|audio)\//.test(type) || MANIFEST_TYPES.test(type) || SEGMENT_TYPES.test(type)) return out;
     if (isGoogleVideo(u)) {
-      const g = describeGoogle(u); if (!g) return null;
+      const g = describeGoogle(u); if (!g) return out;
       const size = g.clen || totalSize(details.statusCode, details.responseHeaders);
-      if (size < MIN_SIZE) return null;
+      if (size < MIN_SIZE) return out;
       const url = canonicalGoogleUrl(u);
-      return { id: url, url, kind: g.track === 'audio-only' ? 'audio' : 'video', track: g.track, complete: g.track === 'muxed', size, quality: g.quality, mime: g.mime, source: 'net' };
+      out.item = { id: url, url, rawUrl: u.href, groupKey: url, kind: g.track === 'audio-only' ? 'audio' : 'video', track: g.track, complete: g.track === 'muxed', size, quality: g.quality, mime: g.mime, source: 'net' };
+      return out;
     }
-    const size = totalSize(details.statusCode, details.responseHeaders);
-    if (size < MIN_SIZE) return null;
-    return { id: u.href, url: u.href, kind: type.startsWith('audio/') ? 'audio' : 'video', track: 'file', complete: true, size, quality: '', mime: type, source: 'net' };
+    const partial = details.statusCode === 206, cr = partial ? parseRange(header(details.responseHeaders, 'content-range')) : null;
+    const length = Number(header(details.responseHeaders, 'content-length')) || 0;
+    const total = partial ? (cr ? cr.total : 0) : length;
+    const url = canonicalUrl(u.href), ranged = rangeLike(u);
+    out.seg = segmentCandidate(u, type, total);
+    const roundChunk = !partial && length >= 65536 && length <= 8 * 1024 * 1024 && length % 65536 === 0;
+    if (partial ? total < MIN_SIZE : roundChunk && (ranged || !!(state && state.pieces && state.pieces[url]))) {
+      out.piece = { key: url, mime: type, len: partial && cr ? cr.end - cr.start + 1 : length };
+      return out;
+    }
+    if (total < MIN_SIZE) return out;
+    out.item = { id: url, url, rawUrl: u.href, groupKey: url, kind: type.startsWith('audio/') ? 'audio' : 'video', track: 'file', complete: true, size: total, quality: '', mime: type, source: 'net' };
+    if (!partial && ranged) out.item.ambiguous = true; // a 200 on a range-style URL: probably a piece, hidden when the page streams through MSE
+    return out;
   }
+  /** Decide whether a webRequest.onHeadersReceived details object is a downloadable media file. Item or null. */
+  const classify = details => inspect(details).item || null;
 
   /** Item for a direct <video>/<audio> source reported by the page (size unknown). */
   function fromDom(url, tag) {
@@ -95,15 +148,68 @@
     let u; try { u = new URL(url); } catch { return null; }
     if (/\.(m3u8|mpd)$/i.test(decodeURIComponent(u.pathname))) return null;
     if (isGoogleVideo(u)) return null; // handled with proper itag knowledge by the network sniffer
-    return { id: u.href, url: u.href, kind: tag === 'audio' ? 'audio' : 'video', track: 'file', complete: true, size: 0, quality: '', mime: '', source: 'dom' };
+    const key = canonicalUrl(u.href);
+    return { id: key, url: key, rawUrl: u.href, groupKey: key, kind: tag === 'audio' ? 'audio' : 'video', track: 'file', complete: true, size: 0, quality: '', mime: '', source: 'dom', primary: true };
   }
 
-  /** Insert/merge into a per-tab list. Network info (size, mime) wins over DOM info. Newest first, capped. */
+  /** Insert/merge into a per-tab list. The first URL stays; network info (size, mime) wins over DOM info; the largest size is kept. Newest first, capped. */
   function merge(list, item, max = 30) {
     const out = list.filter(x => x.id !== item.id), old = list.find(x => x.id === item.id);
-    out.unshift(old ? { ...old, ...item, size: item.size || old.size, mime: item.mime || old.mime, source: old.source === 'net' ? 'net' : item.source } : item);
-    return out.slice(0, max);
+    if (!old) { out.unshift(item); return out.slice(0, max); }
+    const m = { ...old, ...item, url: old.url, rawUrl: old.rawUrl || item.rawUrl, size: Math.max(item.size || 0, old.size || 0), mime: item.mime || old.mime, source: old.source === 'net' ? 'net' : item.source };
+    if (old.primary || item.primary) m.primary = true; else delete m.primary;
+    if (old.ambiguous && item.ambiguous) m.ambiguous = true; else delete m.ambiguous;
+    out.unshift(m); return out.slice(0, max);
   }
+  const sameItem = (a, b) => { const strip = x => x && JSON.stringify({ ...x, time: 0 }); return strip(a) === strip(b); };
+
+  /**
+   * Feed one response into the per-tab state { items, pieces, segs, segmented, mse }. Returns true when the visible list changed,
+   * 'quiet' when only the trackers changed, false otherwise.
+   */
+  function ingest(state, details, types, now = Date.now()) {
+    state.pieces = state.pieces || {}; state.segs = state.segs || {}; state.segmented = state.segmented || {};
+    const r = inspect(details, state);
+    if (r.seg) {
+      if (state.segmented[r.seg.key]) return false;
+      const list = state.segs[r.seg.key] = state.segs[r.seg.key] || [];
+      if (!list.includes(r.seg.path) && list.length < 3) list.push(r.seg.path);
+      capKeys(state.segs);
+      if (r.seg.nameHit || list.length >= 3) {
+        state.segmented[r.seg.key] = true; capKeys(state.segmented); delete state.segs[r.seg.key];
+        state.items = state.items.filter(i => i.segKey !== r.seg.key);
+        return true;
+      }
+    }
+    if (r.piece) { state.pieces[r.piece.key] = { mime: r.piece.mime, len: r.piece.len }; capKeys(state.pieces); return 'quiet'; }
+    if (!r.item || (types && !types[typeOfItem(r.item)])) return r.seg ? 'quiet' : false;
+    return upsert(state, r.item, now, r.seg && r.seg.key) || (r.seg ? 'quiet' : false);
+  }
+  /** Add or merge one item (network or DOM); true when anything but the time changed. */
+  function upsert(state, item, now = Date.now(), segKey) {
+    state.pieces = state.pieces || {}; if (state.pieces[item.groupKey]) delete state.pieces[item.groupKey];
+    const next = { ...item, time: now }; if (segKey) next.segKey = segKey;
+    const before = state.items.find(i => i.id === next.id);
+    state.items = merge(state.items, next);
+    return !sameItem(before, state.items.find(i => i.id === next.id));
+  }
+  /** Clear everything learned about the current page. */
+  function resetTracking(state) { state.items = []; state.pieces = {}; state.segs = {}; state.segmented = {}; state.mse = false; }
+
+  const SEGMENTED_ROW = { id: 'neodm-segmented', kind: 'info', info: true, text: 'Segmented stream, cannot be saved as one file' };
+  const familyOf = i => { try { return new URL(i.url).origin; } catch { return ''; } };
+  const isFile = i => i.track === 'file' && i.kind !== 'image' && i.kind !== 'gif';
+  /** Items to show: primary first, then complete files by size, leftovers dropped, capped. `info` adds the segmented-stream row. */
+  function listItems(state, { max = 30, info = false } = {}) {
+    let list = (state.items || []).filter(i => !(state.mse && i.ambiguous && !i.primary));
+    const biggest = {};
+    for (const i of list) if (isFile(i)) biggest[familyOf(i)] = Math.max(biggest[familyOf(i)] || 0, i.size || 0);
+    list = list.filter(i => i.primary || !isFile(i) || !(biggest[familyOf(i)] >= MIN_SIZE && (i.size || 0) < biggest[familyOf(i)] * 0.1));
+    list = list.map((i, n) => [i, n]).sort(([a, x], [b, y]) => (!!b.primary - !!a.primary) || (!!b.complete - !!a.complete) || ((b.size || 0) - (a.size || 0)) || (x - y)).map(([i]) => i).slice(0, max);
+    return list;
+  }
+  /** The tab's list without the typed filter applied; used by tests and by the popup after filtering. */
+  const withInfo = (state, list) => (state.segmented && Object.keys(state.segmented).length ? [...list, { ...SEGMENTED_ROW }] : list);
 
   const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
   /** Page title -> safe Windows file name stem (no path chars, <=120 chars). Empty string when nothing usable. */
@@ -133,6 +239,6 @@
     return Array.from(stem).slice(0, 255 - ext.length - suffix.length - quality.length).join('') + quality + suffix + ext;
   }
 
-  scope.NeoSniff = { TYPE_IDS, DEFAULT_TYPES, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused, MIN_SIZE, IMAGE_MIN_SIZE, classify, fromDom, merge, safeName, suggestedName, extensionFor, isHttp };
+  scope.NeoSniff = { TYPE_IDS, DEFAULT_TYPES, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused, MIN_SIZE, IMAGE_MIN_SIZE, classify, inspect, ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, canonicalUrl, groupKey, SEGMENTED_ROW, MAX_KEYS, fromDom, merge, safeName, suggestedName, extensionFor, isHttp };
   if (typeof module !== 'undefined') module.exports = scope.NeoSniff;
 })(globalThis);

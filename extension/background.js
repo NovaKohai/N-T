@@ -1,6 +1,6 @@
 importScripts('bridge.js', 'sniff.js');
 const { http, ack, transfer } = NDMBridge;
-const { classify, fromDom, merge, suggestedName, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused } = NeoSniff;
+const { ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, fromDom, suggestedName, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused } = NeoSniff;
 const PAUSE_KEY = 'neodm.pause', SCHEMA = 2;
 const methods = new Map();
 let observations = new Map();
@@ -69,7 +69,7 @@ async function loadTab(tabId) {
 function mutateTab(tabId, fn) {
   const next = (tabQueues.get(tabId) || Promise.resolve()).then(async () => {
     const state = await loadTab(tabId), changed = fn(state);
-    if (changed) { await chrome.storage.session.set({ [key(tabId)]: state }); await badge(tabId, state); await notifyTab(tabId, state); }
+    if (changed) { await chrome.storage.session.set({ [key(tabId)]: state }); if (changed !== 'quiet') { await badge(tabId, state); await notifyTab(tabId, state); } } // 'quiet': trackers changed, the list did not
     return state;
   }).catch(() => undefined);
   tabQueues.set(tabId, next); return next;
@@ -81,23 +81,26 @@ async function badge(tabId, state) {
 async function visibleItems(state) {
   const p = await prefs();
   if (isPaused(p.pause, state.page, state.host)) return [];
-  return state.items.filter(i => p.types[typeOfItem(i)]);
+  return listItems({ ...state, items: state.items.filter(i => p.types[typeOfItem(i)]) });
+}
+/** Same list plus the informational row for segmented streams (popup only, never the ribbon). */
+async function popupItems(state) {
+  const p = await prefs();
+  if (isPaused(p.pause, state.page, state.host)) return [];
+  return withInfo(state, await visibleItems(state));
 }
 async function notifyTab(tabId, state) { try { const items = await visibleItems(state); chrome.tabs.sendMessage(tabId, { type: 'neodm-media', items }, () => void chrome.runtime.lastError); } catch {} }
 async function refreshTabs() { try { for (const t of await chrome.tabs.query({})) if (Number.isInteger(t.id) && http(t.url)) notifyTab(t.id, await loadTab(t.id)); } catch {} }
-function addItem(tabId, item) {
-  return mutateTab(tabId, state => {
-    const old = JSON.stringify(state.items.find(i => i.id === item.id));
-    state.items = merge(state.items, item);
-    return old !== JSON.stringify(state.items.find(i => i.id === item.id));
-  });
-}
+function addItem(tabId, item) { return mutateTab(tabId, state => upsert(state, item)); }
 chrome.webRequest.onHeadersReceived.addListener(async details => {
-  const item = classify(details);
-  if (!item || !(await prefs()).types[typeOfItem(item)]) return; // e.g. images/GIFs are only collected while their type is ticked
+  if (!isMediaResponse(details)) return;
+  const types = (await prefs()).types; // e.g. images/GIFs are only collected while their type is ticked
   let origin = ''; try { origin = new URL(details.initiator || details.documentUrl).origin; } catch {}
-  if (origin && origin !== 'null') await mutateTab(details.tabId, state => { if (state.host === origin) return false; state.host = origin; return true; });
-  addItem(details.tabId, item);
+  await mutateTab(details.tabId, state => {
+    const changed = ingest(state, details, types);
+    if (origin && origin !== 'null' && state.host !== origin) { state.host = origin; return true; }
+    return changed;
+  });
 }, { urls: ['http://*/*', 'https://*/*'], types: ['media', 'xmlhttprequest', 'other', 'object', 'image'] }, ['responseHeaders']);
 chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (!change.url) return;
@@ -105,7 +108,7 @@ chrome.tabs.onUpdated.addListener((tabId, change) => {
   mutateTab(tabId, state => {
     if (state.page === page) return false;
     const first = !state.page; state.page = page;
-    if (!first) state.items = []; // first sighting after a worker restart must not wipe items already sniffed
+    if (!first) resetTracking(state); // first sighting after a worker restart must not wipe items already sniffed
     return true;
   });
 });
@@ -159,8 +162,15 @@ chrome.downloads.onCreated.addListener(async item => {
 async function downloadItem(tab, id) {
   const state = await loadTab(tab.id), item = state.items.find(i => i.id === id);
   if (!item) return { ok: false, error: 'This media is no longer available on the page.' };
-  try { return await send({ url: item.url, fileName: suggestedName(item, tab.title), referer: http(tab.url) ? tab.url : '', method: 'GET' }, tab); }
-  catch (e) { return { ok: false, error: e?.message || 'NeoDM did not acknowledge this URL.' }; }
+  const request = url => ({ url, fileName: suggestedName(item, tab.title), referer: http(tab.url) ? tab.url : '', method: 'GET' });
+  try { return await send(request(item.url), tab); }
+  catch (e) {
+    // The URL without range parameters failed to start: try the URL exactly as the page requested it, once.
+    if (!e?.cancelled && item.rawUrl && item.rawUrl !== item.url && http(item.rawUrl)) {
+      try { return await send(request(item.rawUrl), tab); } catch (e2) { e = e2; }
+    }
+    return { ok: false, error: e?.message || 'NeoDM did not acknowledge this URL.' };
+  }
 }
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id || !message) return false;
@@ -168,10 +178,15 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   const page = Number.isInteger(sender.tab?.id) && sender.frameId === 0 && http(sender.url); // content script in a top frame
   if (page && message.action === 'media-list') { loadTab(sender.tab.id).then(visibleItems).then(items => respond({ items })); return true; }
   if (page && message.action === 'media-dom') {
-    const found = (Array.isArray(message.sources) ? message.sources.slice(0, 50) : []).map(s => fromDom(String(s?.url), s?.tag === 'audio' ? 'audio' : 'video')).filter(Boolean);
-    Promise.all(found.map(i => addItem(sender.tab.id, i))).then(() => respond({ ok: true })); return true;
+    const sources = Array.isArray(message.sources) ? message.sources.slice(0, 50) : [];
+    const found = sources.map(s => fromDom(String(s?.url), s?.tag === 'audio' ? 'audio' : 'video')).filter(Boolean);
+    const mse = sources.some(s => /^blob:/i.test(String(s?.url))); // a blob: player streams through MediaSource: the network pieces are not files
+    mutateTab(sender.tab.id, state => { if (!mse || state.mse) return false; state.mse = true; return true; })
+      .then(() => Promise.all(found.map(i => addItem(sender.tab.id, i)))).then(() => respond({ ok: true })); return true;
   }
   if (page && message.action === 'media-download') { downloadItem(sender.tab, String(message.id)).then(respond); return true; }
+  if (popup && message.action === 'popup-media' && Number.isInteger(message.tabId)) { loadTab(message.tabId).then(popupItems).then(items => respond({ items }), () => respond({ items: [] })); return true; }
+  if (popup && message.action === 'popup-download' && Number.isInteger(message.tab?.id)) { downloadItem({ id: message.tab.id, url: String(message.tab.url || ''), title: String(message.tab.title || '') }, String(message.id)).then(respond); return true; }
   if (popup && message.action === 'pause-set') {
     setPause(message).then(respond, () => respond({ ok: false })); return true;
   }
