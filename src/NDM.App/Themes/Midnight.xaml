@@ -1,0 +1,26 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <SolidColorBrush x:Key="CanvasBrush" Color="#16181B"/>
+  <SolidColorBrush x:Key="SidebarBrush" Color="#1A1C20"/>
+  <SolidColorBrush x:Key="SurfaceBrush" Color="#1E2125"/>
+  <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#292C33"/>
+  <SolidColorBrush x:Key="InkBrush" Color="#E6E8EB"/>
+  <SolidColorBrush x:Key="MutedBrush" Color="#9AA0AA"/>
+  <SolidColorBrush x:Key="BorderBrush" Color="#2A2D33"/>
+  <SolidColorBrush x:Key="AccentBrush" Color="#8B7CFF"/>
+  <SolidColorBrush x:Key="AccentHoverBrush" Color="#A194FF"/>
+  <SolidColorBrush x:Key="AccentSoftBrush" Color="#2D2B4A"/>
+  <SolidColorBrush x:Key="OnAccentBrush" Color="#101114"/>
+  <SolidColorBrush x:Key="SuccessBrush" Color="#6FD39A"/>
+  <SolidColorBrush x:Key="WarningBrush" Color="#F0C060"/>
+  <SolidColorBrush x:Key="ErrorBrush" Color="#FF8E98"/>
+  <SolidColorBrush x:Key="DisabledInkBrush" Color="#767C86"/>
+  <SolidColorBrush x:Key="ThumbBrush" Color="#3A3E45"/>
+  <SolidColorBrush x:Key="ThumbHoverBrush" Color="#50555E"/>
+  <SolidColorBrush x:Key="ThumbPressedBrush" Color="#6B717B"/>
+  <LinearGradientBrush x:Key="AccentFillBrush" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#7C6CF2" Offset="0"/><GradientStop Color="#8B7CFF" Offset="1"/></LinearGradientBrush>
+  <CornerRadius x:Key="ControlRadius">8</CornerRadius>
+  <CornerRadius x:Key="CardRadius">8</CornerRadius>
+  <Thickness x:Key="ControlPadding">16,10</Thickness>
+  <Thickness x:Key="CommandPadding">14,7</Thickness>
+  <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="CommandMinHeight">34</sys:Double>
+</ResourceDictionary>

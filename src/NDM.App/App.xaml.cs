@@ -37,13 +37,19 @@ public partial class App : Application
             new RoutedEventHandler((sender, args) =>
             {
                 if (sender is Window window && ReferenceEquals(args.OriginalSource, window))
-                    WindowChrome.Apply(window, Settings.Theme == "Dark");
+                    ThemeManager.ApplyChrome(window);
             }));
         try
         {
             Directory.CreateDirectory(StateDirectory);
             Settings = AppSettings.Load(StateDirectory);
-            ApplyTheme(Settings.Theme);
+            ApplyTheme(Settings.Theme, Settings.AccentOverride);
+            Microsoft.Win32.SystemEvents.UserPreferenceChanged += (_, args) =>
+            {
+                // Follow-Windows theme: re-resolve when the OS app-theme setting changes (and only then; an explicit theme ignores it).
+                if (args.Category is Microsoft.Win32.UserPreferenceCategory.General or Microsoft.Win32.UserPreferenceCategory.VisualStyle && ThemeManager.CurrentId == ThemeCatalog.SystemId)
+                    Dispatcher.BeginInvoke(() => { if (ThemeManager.CurrentId == ThemeCatalog.SystemId) ApplyTheme(ThemeCatalog.SystemId, ThemeManager.CurrentAccent); });
+            };
             Directory.CreateDirectory(Settings.DownloadDirectory);
             _manager = new DownloadManager(
                 Settings.DownloadDirectory, 
@@ -90,11 +96,8 @@ public partial class App : Application
         Updates.Start();
     }
 
-    public void ApplyTheme(string theme)
-    {
-        Resources.MergedDictionaries[0] = new ResourceDictionary { Source = new Uri($"pack://application:,,,/NeoDM;component/Themes/{(theme == "Dark" ? "Dark" : "Light")}.xaml", UriKind.Absolute) };
-        foreach (Window window in Windows) WindowChrome.Apply(window, theme == "Dark");
-    }
+    /// <summary>Applies a theme (and optional accent override) to the whole application at once; open windows repaint through DynamicResource.</summary>
+    public void ApplyTheme(string theme, string? accent = null) => ThemeManager.Apply(this, theme, accent);
 
     /// <summary>Second launch: hand the work (or just 'show yourself') to the running instance, then exit.</summary>
     private void ForwardToRunningInstance(StartupArguments args)

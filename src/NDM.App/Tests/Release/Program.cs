@@ -101,7 +101,7 @@ internal static partial class ReleaseTests
                 SettingsAndSound(root);
                 CaptureReply(root);
                 ActivationTests();
-                foreach (var theme in new[] { "Light", "Dark" }) { app.Theme(theme); ThemeTests(app, theme, root); TabTests(app, theme, root); }
+                foreach (var theme in ThemeCatalog.Concrete.Select(x => x.Id)) { app.Theme(theme); ThemeTests(app, theme, root); TabTests(app, theme, root); }
                 app.Theme("Light");
                 LayoutTests(app, root);
                 SettingsRememberTests(root);
@@ -334,7 +334,7 @@ internal static partial class ReleaseTests
 
     private static void TabTests(TestApp app, string theme, string root)
     {
-        bool dark = theme == "Dark"; string t = theme + ": ";
+        bool dark = ThemeCatalog.IsDark(theme); string t = theme + ": ";
         // contrast matrix for the tab colour pairs, both themes
         foreach (var (fg, bg) in new[] { ("MutedBrush", "SidebarBrush"), ("InkBrush", "SurfaceBrush"), ("InkBrush", "SurfaceHoverBrush") })
             Check(Contrast(Brush(fg), Brush(bg)) >= 4.5, $"{t}tab contrast {fg} on {bg} = {Contrast(Brush(fg), Brush(bg)):0.0}:1 (>= 4.5)");
@@ -373,16 +373,16 @@ internal static partial class ReleaseTests
         var options = new SettingsWindow(new AppSettings { DownloadDirectory = Path.Combine(root, "tabs-files") }, state) { ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = 20, Top = 20 };
         options.Show(); Pump(250);
         var optionTabs = (TabControl)options.FindName("OptionsTabs");
-        Check(optionTabs.Items.OfType<TabItem>().Select(i => ((string)i.Header).Replace("_", "")).Take(4).SequenceEqual(new[] { "General", "Save To", "Downloads", "Proxy" }), t + "Options window tabs: General / Save To / Downloads / Proxy (/ Torrents)");
+        Check(optionTabs.Items.OfType<TabItem>().Select(i => ((string)i.Header).Replace("_", "")).Take(4).SequenceEqual(new[] { "General", "Appearance", "Save To", "Downloads" }), t + "Options window tabs: General / Save To / Downloads / Proxy (/ Torrents)");
         TabChecks(t, dark, optionTabs, "Options window");
-        optionTabs.SelectedIndex = 2; Pump(100); TabChecks(t, dark, optionTabs, "Options window (Downloads selected)");
+        optionTabs.SelectedIndex = 3; Pump(100); TabChecks(t, dark, optionTabs, "Options window (Downloads selected)");
         options.Close();
     }
 
     // ===================== 1, 3, 4: themed menus, scroll bars, combo boxes, tool tips, contrast =====================
     private static void ThemeTests(TestApp app, string theme, string root)
     {
-        bool dark = theme == "Dark"; string t = theme + ": ";
+        bool dark = ThemeCatalog.IsDark(theme); string t = theme + ": ";
         Color surface = Brush("SurfaceBrush"), border = Brush("BorderBrush");
 
         // --- context menu: border + inner edge pixels ---

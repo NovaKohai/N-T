@@ -56,6 +56,17 @@ NeoDM is an open source project created by **unlimitedera**.
 
 ---
 
+## Themes
+
+Pick a look in **Options, Appearance**: Light, Dark, System (follows Windows), Midnight, Graphite, Ocean, Forest, Rose and Paper. A theme applies instantly to every window, and you can set your own accent colour.
+
+| | | |
+|---|---|---|
+| ![Midnight](docs/images/themes/Midnight.png) | ![Ocean](docs/images/themes/Ocean.png) | ![Forest](docs/images/themes/Forest.png) |
+| Midnight | Ocean | Forest |
+| ![Rose](docs/images/themes/Rose.png) | ![Graphite](docs/images/themes/Graphite.png) | ![Paper](docs/images/themes/Paper.png) |
+| Rose | Graphite | Paper |
+
 ## Features
 
 ### Download engine
@@ -70,6 +81,7 @@ NeoDM is an open source project created by **unlimitedera**.
 
 ### Interface
 - Clean, modern interface with light and dark themes.
+- **Themes** (Options > Appearance): a gallery with live swatches and instant preview of Light, Dark, System (follows Windows), Midnight, Graphite, Ocean, Forest, Rose and Paper, plus a custom accent colour. See `docs/images/themes`.
 - Compact menus and toolbar, sortable download list, and a sidebar with filters (All, Downloading, Paused, Completed, Failed, Queued, Scheduled).
 - A separate **Torrents** section (All torrents, Downloading, Seeding, Completed).
 - Search, bulk URL import, Pause all / Resume all, Remove completed.
@@ -126,7 +138,7 @@ NeoDM is an open source project created by **unlimitedera**.
 - Nothing else. The .NET runtime is bundled.
 
 ### Step 1: Install NeoDM
-1. Download `NeoDM-Setup-1.3.3.msi` from the [latest release](https://github.com/unlimitedera/NeoDM/releases/latest).
+1. Download `NeoDM-Setup-1.4.0.msi` from the [latest release](https://github.com/unlimitedera/NeoDM/releases/latest).
 2. Double-click it and follow the wizard: Welcome, license, install folder (default `C:\Program Files\NeoDM`), then the **Browser extension** page.
 3. On the **Browser extension** page, leave "Also install through browser policy" **unchecked** unless you manage your PCs with browser policies. On a normal PC the browsers block that route (see the extension section below).
 4. Click Install and accept the Windows permission prompt. NeoDM starts by itself when setup finishes and appears in the system tray.
@@ -138,7 +150,7 @@ What the installer does: copies the app, registers the native messaging host for
 **Silent install:**
 
 ```
-msiexec /i NeoDM-Setup-1.3.3.msi /qn
+msiexec /i NeoDM-Setup-1.4.0.msi /qn
 ```
 
 Optional properties: `INSTALLFOLDER="D:\NeoDM"`, `RUN_AT_STARTUP=0`, `DESKTOP_SHORTCUT=1`, `INSTALL_POLICY=1`, `NO_LAUNCH=1`.
@@ -221,6 +233,8 @@ Updates: NeoDM checks GitHub for new releases and can install them after you con
 
 ## Data and privacy
 
+Full policy: [PRIVACY.md](PRIVACY.md).
+
 - Settings and the queue live in `%LOCALAPPDATA%\NDM`.
 - NeoDM has no telemetry, no accounts and no licence checks.
 - Cookies are only sent from the browser to NeoDM if you enable that option in the extension, and are never logged.
@@ -237,10 +251,11 @@ Updates: NeoDM checks GitHub for new releases and can install them after you con
 
 ## Releases
 
-Current version: **1.3.3**
+Current version: **1.4.0**
 
 | Version | Date | Highlights |
 |---|---|---|
+| 1.4.0 | 2026-10-16 | Theme gallery in Options > Appearance with instant preview: Light, Dark, System, Midnight, Graphite, Ocean, Forest, Rose and Paper, plus a custom accent colour (presets or #RRGGBB) and themed check boxes. |
 | 1.3.3 | 2026-10-16 | The capture dialog's "Save to" folder is now the real save folder (Start, Add to queue and Schedule), and the capture dialog no longer times out: the browser download is only restarted if NeoDM really fails, never because you are still deciding. |
 | 1.3.2 | 2026-10-16 | Browser-captured downloads open only their own options window (own taskbar button, listed in the tray menu), and file names / extensions are detected from the browser, Content-Disposition, redirects, Content-Type and file signature. |
 | 1.3.1 | 2026-10-16 | Dark-mode tabs fixed in the progress and Options windows, the download window re-opens when a download finishes (per download or global), "Change save location..." for a single download. |

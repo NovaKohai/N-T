@@ -27,7 +27,7 @@ internal static class OptionsTests
         Field<CheckBox>(window, "DynamicSegmentation").IsChecked = false;
         Field<CheckBox>(window, "CompletionDialog").IsChecked = false;
         Field<CheckBox>(window, "CompletionSound").IsChecked = true;
-        Field<RadioButton>(window, "DarkTheme").IsChecked = true;
+        Field<ListBox>(window, "ThemeGallery").SelectedIndex = 1; // Dark
     }
     private static void Capture(SettingsWindow window, string path)
     {
@@ -85,17 +85,17 @@ internal static class OptionsTests
             var dialog = new SettingsWindow(settings, state);
             dialog.Loaded += (_, _) =>
             {
-                Check(Field<TabControl>(dialog, "OptionsTabs").Items.Count == 5 && !Field<TabControl>(dialog, "OptionsTabs").Items.OfType<TabItem>().Any(i => (string)i.Header == "_Connection"), "Five real option sections (General, Save To, Downloads, Proxy, Torrents); no Connection tab");
+                Check(Field<TabControl>(dialog, "OptionsTabs").Items.Count == 6 && !Field<TabControl>(dialog, "OptionsTabs").Items.OfType<TabItem>().Any(i => (string)i.Header == "_Connection"), "Six real option sections (General, Appearance, Save To, Downloads, Proxy, Torrents); no Connection tab");
                 var downloadsTab = Field<TabControl>(dialog, "OptionsTabs").Items.OfType<TabItem>().First(i => (string)i.Header == "_Downloads");
                 var group = Field<GroupBox>(dialog, "ConnectionsGroup");
                 Check((string)group.Header == "Connections" && LogicalUnder(group, (DependencyObject)downloadsTab.Content) && new[] { "Segments", "Concurrent", "Retries", "Timeout", "DynamicSegmentation" }.All(n => LogicalUnder(Field<FrameworkElement>(dialog, n), group)), "Connection settings live in the Downloads tab 'Connections' group");
-                Check(Field<TextBox>(dialog, "Destination").Text == destination && Field<RadioButton>(dialog, "DarkTheme").IsChecked == true, "Compatible named controls initialize correctly");
+                Check(Field<TextBox>(dialog, "Destination").Text == destination && ((ThemeCardModel)Field<ListBox>(dialog, "ThemeGallery").SelectedItem).Id == "Dark", "Compatible named controls initialize correctly");
                 Check(Field<TextBox>(dialog, "Segments").Text == "8" && Field<TextBox>(dialog, "Concurrent").Text == "3" && Field<TextBox>(dialog, "Retries").Text == "3" && Field<TextBox>(dialog, "Timeout").Text == "30", "All numeric editors display persisted values");
                 foreach (var item in Field<TabControl>(dialog, "OptionsTabs").Items.Cast<TabItem>())
                 { item.IsSelected = true; dialog.UpdateLayout(); Check(item.Content is FrameworkElement element && element.ActualHeight > 0, "Tab renders: " + item.Header); }
                 Field<TabControl>(dialog, "OptionsTabs").SelectedIndex = 0;
                 Capture(dialog, Path.Combine(root, "options-general.png"));
-                Field<TabControl>(dialog, "OptionsTabs").SelectedIndex = 2;
+                Field<TabControl>(dialog, "OptionsTabs").SelectedIndex = 3;
                 Capture(dialog, Path.Combine(root, "options-downloads.png"));
                 app.Resources.MergedDictionaries[0] = new ResourceDictionary { Source = new Uri("pack://application:,,,/NeoDM;component/Themes/Dark.xaml") };
                 Capture(dialog, Path.Combine(root, "options-downloads-dark.png"));

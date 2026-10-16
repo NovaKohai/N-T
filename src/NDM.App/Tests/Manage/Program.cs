@@ -277,7 +277,7 @@ internal static partial class ManageTests
         var tabs = Field<TabControl>(dialog, "OptionsTabs");
         var headers = tabs.Items.OfType<TabItem>().Select(t => (string)t.Header).ToArray();
         Check(headers.Contains("_Proxy"), "Options has a Proxy tab");
-        Check(tabs.Items.Count == 5 && headers.Contains("_Torrents") && !headers.Contains("_Connection"), "Five option sections (no Connection tab), including Torrents");
+        Check(tabs.Items.Count == 6 && headers.Contains("_Torrents") && !headers.Contains("_Connection"), "Six option sections (no Connection tab), including Appearance and Torrents");
         Check(Field<CheckBox>(dialog, "ProxyForPeers").Visibility == Visibility.Visible, "Torrent build shows the torrent proxy scopes");
         var types = Field<ComboBox>(dialog, "ProxyTypeBox").Items.OfType<ComboBoxItem>().Select(i => (string)i.Content).ToArray();
         Check(types.Length == 4 && types[0].StartsWith("None") && types[1] == "HTTP" && types[2].StartsWith("HTTPS") && types[3] == "SOCKS5" && !types.Any(t => t.Contains("SOCKS4")), "Types: None/HTTP/HTTPS/SOCKS5 (no SOCKS4)");

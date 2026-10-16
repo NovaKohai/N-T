@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Microsoft.Win32;
 using NDM.Core;
 namespace NDM.App;
@@ -15,7 +16,12 @@ public partial class SettingsWindow : Window
         _settings = settings; _stateDirectory = stateDirectory ?? App.StateDirectory;
         InitializeComponent();
         Destination.Text = settings.DownloadDirectory;
-        LightTheme.IsChecked = settings.Theme != "Dark"; DarkTheme.IsChecked = settings.Theme == "Dark";
+        _savedTheme = ThemeCatalog.Normalize(settings.Theme); _savedAccent = ThemeCatalog.NormalizeAccent(settings.AccentOverride);
+        _theme = _savedTheme; _accent = _savedAccent;
+        _cards = ThemeCatalog.All.Select(t => new ThemeCardModel(t, _accent)).ToList();
+        ThemeGallery.ItemsSource = _cards; ThemeGallery.SelectedItem = _cards.First(c => c.Id == _theme);
+        AccentSwatches.ItemsSource = AccentPreset.All;
+        AccentHex.Text = _accent ?? ""; ShowAccentPreview();
         Segments.Text = settings.MaxSegments.ToString(CultureInfo.InvariantCulture);
         Concurrent.Text = settings.MaxConcurrentDownloads.ToString(CultureInfo.InvariantCulture);
         Retries.Text = settings.RetryCount.ToString(CultureInfo.InvariantCulture);
@@ -71,6 +77,47 @@ public partial class SettingsWindow : Window
         ProxyType_Changed(this, null!);
         SeedKeep.IsChecked = !settings.TorrentStopSeedingAtRatio; SeedStop.IsChecked = settings.TorrentStopSeedingAtRatio;
         TorrentSeedRatio.Text = settings.TorrentSeedRatioLimit.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+    // ---- Appearance: every change previews app-wide at once; only Save keeps it, anything else puts the saved theme back ----
+    private readonly string _savedTheme; private readonly string? _savedAccent;
+    private string _theme; private string? _accent; private bool _committed;
+    private readonly List<ThemeCardModel> _cards;
+    /// <summary>Theme currently previewed (id as stored in settings).</summary>
+    public string PreviewTheme => _theme;
+    /// <summary>Accent override currently previewed (null = the theme's own).</summary>
+    public string? PreviewAccent => _accent;
+    private void PreviewApply() { if (Application.Current is { } app) ThemeManager.Apply(app, _theme, _accent); }
+    private void ThemeGallery_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (ThemeGallery.SelectedItem is not ThemeCardModel card || card.Id == _theme) return;
+        _theme = card.Id; PreviewApply();
+    }
+    private void Swatch_Click(object sender, RoutedEventArgs e) { if (sender is FrameworkElement { Tag: string hex }) AccentHex.Text = hex; }
+    private void ResetAccent_Click(object sender, RoutedEventArgs e) => AccentHex.Clear();
+    private void AccentHex_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (AccentError is null || _cards is null) return;
+        string text = AccentHex.Text.Trim();
+        if (text.Length == 0) { AccentError.Text = ""; SetAccent(null); }
+        else if (ThemeCatalog.TryParseAccent(text, out var hex)) { AccentError.Text = ""; SetAccent(hex); }
+        else AccentError.Text = "Use six hex digits like #7C6CF2.";
+        ShowAccentPreview();
+    }
+    private void SetAccent(string? hex)
+    {
+        if (hex == _accent) return;
+        _accent = hex; foreach (var card in _cards) card.SetAccent(hex);
+        PreviewApply();
+    }
+    private void ShowAccentPreview()
+    {
+        AccentPreview.Background = _accent is null ? (Brush)FindResource("AccentFillBrush") : new SolidColorBrush((Color)ColorConverter.ConvertFromString(_accent));
+    }
+    private void OpenAppearance_Click(object sender, RoutedEventArgs e) => OptionsTabs.SelectedItem = AppearanceTab;
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        if (!_committed) { _theme = _savedTheme; _accent = _savedAccent; PreviewApply(); }
     }
     private string _skipped = "";
     private void ShowSkipped() { SkippedPanel.Visibility = _skipped.Length > 0 ? Visibility.Visible : Visibility.Collapsed; SkippedText.Text = "Skipped version: " + _skipped; }
@@ -199,7 +246,9 @@ public partial class SettingsWindow : Window
             else { updated.ProxyHost = ProxyHost.Text.Trim(); updated.ProxyUsername = ProxyUser.Text.Trim(); }
             updated.ProxyResolveHostsThroughProxy = ProxyResolve.IsChecked == true; updated.ProxyForDownloads = ProxyForDownloads.IsChecked == true;
             updated.ProxyForPeers = ProxyForPeers.IsChecked == true; updated.ProxyForTrackers = ProxyForTrackers.IsChecked == true;
-            updated.Theme = DarkTheme.IsChecked == true ? "Dark" : "Light";
+            string accentText = AccentHex.Text.Trim();
+            if (accentText.Length > 0 && !ThemeCatalog.TryParseAccent(accentText, out _)) { OptionsTabs.SelectedItem = AppearanceTab; throw new FormatException("Accent colour must be six hex digits like #7C6CF2, or empty to use the theme's accent."); }
+            updated.Theme = _theme; updated.AccentOverride = _accent;
             updated.EnableDynamicSegmentation = DynamicSegmentation.IsChecked == true;
             updated.ShowCompletionDialog = CompletionDialog.IsChecked == true;
             updated.ShowProgressForCapturedDownloads = CapturedProgress.IsChecked == true;
@@ -230,7 +279,8 @@ public partial class SettingsWindow : Window
         catch (FormatException ex) { ErrorText.Text = ex.Message; return; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         { ErrorText.Text = "Options were not saved. Check that the destination and settings folders are writable."; return; }
-        if (Application.Current is App app) app.ApplyTheme(_settings.Theme);
+        _committed = true;
+        if (Application.Current is { } app) ThemeManager.Apply(app, _settings.Theme, _settings.AccentOverride);
         try { DialogResult = true; } catch (InvalidOperationException) { Close(); }
     }
     private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
@@ -241,4 +291,44 @@ public partial class SettingsWindow : Window
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         { ErrorText.Text = "Chrome setup help could not be opened in your browser."; }
     }
+}
+
+/// <summary>One gallery card: the theme's own palette (read from its dictionary, never applied) for the live swatch.</summary>
+public sealed class ThemeCardModel : System.ComponentModel.INotifyPropertyChanged
+{
+    private readonly ResourceDictionary _file; private readonly ThemeInfo _info;
+    public ThemeCardModel(ThemeInfo info, string? accent)
+    {
+        _info = info; _file = ThemeManager.LoadFile(ThemeCatalog.Resolve(info.Id)); SetAccent(accent);
+    }
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    public string Id => _info.Id; public string Name => _info.Name; public string Description => _info.Description;
+    public Brush Canvas => B("CanvasBrush"); public Brush Sidebar => B("SidebarBrush"); public Brush Surface => B("SurfaceBrush"); public Brush Edge => B("BorderBrush");
+    public Brush Ink => B("InkBrush"); public Brush Muted => B("MutedBrush");
+    private Brush B(string key) => (Brush)_file[key];
+    private ResourceDictionary? _accented;
+    public Brush AccentSoft => (Brush)(_accented?["AccentSoftBrush"] ?? _file["AccentSoftBrush"]);
+    public Brush AccentFill => (Brush)(_accented?["AccentFillBrush"] ?? _file["AccentFillBrush"]);
+    public Brush OnAccent => (Brush)(_accented?["OnAccentBrush"] ?? _file["OnAccentBrush"]);
+    public void SetAccent(string? hex)
+    {
+        _accented = null;
+        if (ThemeCatalog.TryParseAccent(hex, out var h))
+        {
+            _accented = new ResourceDictionary();
+            foreach (var (key, brush) in ThemeManager.AccentBrushes(_file, h)) _accented[key] = brush;
+        }
+        PropertyChanged?.Invoke(this, new(nameof(AccentSoft))); PropertyChanged?.Invoke(this, new(nameof(AccentFill))); PropertyChanged?.Invoke(this, new(nameof(OnAccent)));
+    }
+    public override string ToString() => Name;
+}
+
+public sealed record AccentPreset(string Name, string Hex)
+{
+    public Brush Brush => new SolidColorBrush((Color)ColorConverter.ConvertFromString(Hex));
+    public static readonly IReadOnlyList<AccentPreset> All = new AccentPreset[]
+    {
+        new("Violet", "#8B7CFF"), new("Blue", "#4C9AFF"), new("Cyan", "#3CC8F0"), new("Teal", "#2DD4BF"), new("Green", "#4ADE80"),
+        new("Amber", "#F5B83D"), new("Orange", "#FB8C3C"), new("Pink", "#F472B6"), new("Red", "#F2555F"),
+    };
 }

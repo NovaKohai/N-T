@@ -78,6 +78,11 @@ try
     Check(restored.Theme == "Dark" && restored.DownloadDirectory == settings.DownloadDirectory, "Settings durable round-trip");
     File.WriteAllText(Path.Combine(root, "settings.json"), "invalid");
     Check(AppSettings.Load(root).Theme == "Light", "Recover malformed settings");
+    File.WriteAllText(Path.Combine(root, "settings.json"), "{\"Theme\":\"Midnight\",\"AccentOverride\":\"#7c6cf2\"}");
+    Check(AppSettings.Load(root) is { Theme: "Midnight", AccentOverride: "#7C6CF2" }, "Theme id and accent override load and normalise");
+    File.WriteAllText(Path.Combine(root, "settings.json"), "{\"Theme\":\"Neon\",\"AccentOverride\":\"red\"}");
+    Check(AppSettings.Load(root) is { Theme: "Light", AccentOverride: null }, "Unknown theme falls back to Light and a bad accent is dropped");
+    Check(ThemeCatalog.Resolve("System", () => true) == "Dark" && ThemeCatalog.Resolve("System", () => false) == "Light", "System theme resolves from the injected OS setting");
     using var manager = new DownloadManager(Path.Combine(root, "files"), Path.Combine(root, "state"));
     
     // Create a bridge that auto-accepts all requests (simulating user clicking "Start Download")

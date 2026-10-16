@@ -1,16 +1,47 @@
 <Window Style="{StaticResource {x:Type Window}}" x:Class="NDM.App.SettingsWindow" Icon="Assets/NDM.ico" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Options" Width="650" Height="600" MinWidth="610" MinHeight="560" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
   <Window.Resources>
-    <Style TargetType="TextBox"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="CaretBrush" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="Padding" Value="8,5"/><Setter Property="MinHeight" Value="32"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/></Style>
-    <Style TargetType="CheckBox"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Margin" Value="0,0,0,14"/><Setter Property="MinHeight" Value="24"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
-    <Style TargetType="RadioButton"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="MinHeight" Value="24"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="CaretBrush" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="Padding" Value="8,5"/><Setter Property="MinHeight" Value="32"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/></Style>
+    <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Margin" Value="0,0,0,14"/><Setter Property="MinHeight" Value="24"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+    <Style TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="MinHeight" Value="24"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
     <Style x:Key="SectionTitle" TargetType="TextBlock"><Setter Property="FontSize" Value="16"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Margin" Value="0,0,0,18"/></Style>
+    <Style x:Key="ThemeCard" TargetType="ListBoxItem">
+      <Setter Property="Margin" Value="0,0,8,8"/><Setter Property="Padding" Value="8"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/><Setter Property="AutomationProperties.Name" Value="{Binding Name}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><Grid>
+        <Border x:Name="Frame" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="2" CornerRadius="{DynamicResource CardRadius}" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border>
+        <Border x:Name="Tick" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,12,12,0" Width="18" Height="18" CornerRadius="9" Background="{DynamicResource AccentFillBrush}"><TextBlock Text="&#x2713;" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource OnAccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+      </Grid><ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/></Trigger>
+        <Trigger Property="IsSelected" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/><Setter TargetName="Tick" Property="Visibility" Value="Visible"/></Trigger>
+      </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <DataTemplate x:Key="ThemeCardTemplate">
+      <StackPanel Width="140">
+        <Border Height="84" CornerRadius="6" ClipToBounds="True" Background="{Binding Canvas}" BorderBrush="{Binding Edge}" BorderThickness="1">
+          <Grid><Grid.RowDefinitions><RowDefinition Height="11"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <Border Background="{Binding Sidebar}" BorderBrush="{Binding Edge}" BorderThickness="0,0,0,1"><Border Height="3" Width="26" CornerRadius="1.5" HorizontalAlignment="Left" Margin="6,0,0,0" Background="{Binding Muted}"/></Border>
+            <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+              <Border Background="{Binding Sidebar}" BorderBrush="{Binding Edge}" BorderThickness="0,0,1,0"><StackPanel Margin="4,6,4,0">
+                <Border Height="7" CornerRadius="3" Background="{Binding AccentSoft}" Margin="0,0,0,4"><Border Height="2" Width="14" HorizontalAlignment="Left" Margin="4,0,0,0" CornerRadius="1" Background="{Binding Ink}"/></Border>
+                <Border Height="2" Width="18" HorizontalAlignment="Left" CornerRadius="1" Background="{Binding Muted}" Margin="4,0,0,6"/><Border Height="2" Width="14" HorizontalAlignment="Left" CornerRadius="1" Background="{Binding Muted}" Margin="4,0,0,0"/></StackPanel></Border>
+              <Grid Grid.Column="1" Margin="6,6,6,5"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Border Height="12" CornerRadius="3" Background="{Binding Surface}" BorderBrush="{Binding Edge}" BorderThickness="1" Margin="0,0,0,3"><Grid><Border Height="2" Width="34" HorizontalAlignment="Left" Margin="4,0,0,0" CornerRadius="1" Background="{Binding Ink}"/><Border Height="2" Width="26" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="4,0,0,1" CornerRadius="1" Background="{Binding AccentFill}"/></Grid></Border>
+                <Border Grid.Row="1" Height="12" CornerRadius="3" Background="{Binding AccentSoft}" BorderBrush="{Binding Edge}" BorderThickness="1" Margin="0,0,0,3"><Border Height="2" Width="40" HorizontalAlignment="Left" Margin="4,0,0,0" CornerRadius="1" Background="{Binding Ink}"/></Border>
+                <Border Grid.Row="2" Height="12" CornerRadius="3" Background="{Binding Surface}" BorderBrush="{Binding Edge}" BorderThickness="1"><Border Height="2" Width="30" HorizontalAlignment="Left" Margin="4,0,0,0" CornerRadius="1" Background="{Binding Muted}"/></Border>
+                <Border Grid.Row="3" Height="11" Width="34" CornerRadius="4" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="{Binding AccentFill}"><Border Height="2" Width="16" CornerRadius="1" Background="{Binding OnAccent}"/></Border>
+              </Grid></Grid></Grid></Border>
+        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="2,8,0,0"/>
+        <TextBlock Text="{Binding Description}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="2,1,0,0" MinHeight="30"/>
+      </StackPanel>
+    </DataTemplate>
+    <Style x:Key="Swatch" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="MinHeight" Value="30"/><Setter Property="Margin" Value="0,0,8,8"/><Setter Property="Padding" Value="0"/><Setter Property="AutomationProperties.Name" Value="{Binding Name}"/><Setter Property="ToolTip" Value="{Binding Name}"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Ring" CornerRadius="15" BorderThickness="2" BorderBrush="{DynamicResource BorderBrush}" Padding="3"><Ellipse Fill="{Binding Brush}"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource InkBrush}"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
   </Window.Resources>
   <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <TabControl x:Name="OptionsTabs" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Padding="18">
       <TabItem Header="_General"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Appearance" Style="{StaticResource SectionTitle}"/>
-        <StackPanel Orientation="Horizontal"><RadioButton x:Name="LightTheme" Content="_Light" GroupName="Theme" Margin="0,0,28,0"/><RadioButton x:Name="DarkTheme" Content="_Dark" GroupName="Theme"/></StackPanel>
-        <TextBlock Text="Theme changes apply when you save." Style="{StaticResource Muted}" Margin="0,12,0,24"/>
+        <TextBlock Text="Themes and the accent colour have their own tab." Style="{StaticResource Muted}" Margin="0,0,0,12"/>
+        <Button x:Name="OpenAppearanceButton" Content="Open _Appearance…" Click="OpenAppearance_Click" HorizontalAlignment="Left" Margin="0,0,0,24"/>
         <TextBlock Text="Updates" Style="{StaticResource SectionTitle}"/>
         <CheckBox x:Name="CheckForUpdates" Content="Check for _updates automatically" Margin="0,0,0,6"/>
         <TextBlock Text="NeoDM contacts api.github.com once a day at most to look for a new release. Nothing is installed without your confirmation." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
@@ -20,6 +51,19 @@
         <TextBlock Text="Chrome extension and native host setup are separate. Live browser integration has not been verified on this machine." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <Button Content="Open Chrome extension _setup help" Click="BrowserSetup_Click" HorizontalAlignment="Left" Margin="0,14,0,12"/>
         <TextBlock Text="File types and browser capture preferences are configured independently in the extension's Options. NeoDM does not change those preferences here." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+      </StackPanel></ScrollViewer></TabItem>
+      <TabItem x:Name="AppearanceTab" Header="_Appearance"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
+        <TextBlock Text="Theme" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
+        <TextBlock Text="Pick a theme to preview it everywhere right away. Save keeps it; Cancel puts your saved theme back." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <ListBox x:Name="ThemeGallery" SelectionMode="Single" SelectionChanged="ThemeGallery_Changed" ItemContainerStyle="{StaticResource ThemeCard}" ItemTemplate="{StaticResource ThemeCardTemplate}" AutomationProperties.Name="Themes" Background="Transparent" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+          <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
+        </ListBox>
+        <TextBlock Text="Accent colour" Style="{StaticResource SectionTitle}" Margin="0,18,0,6"/>
+        <TextBlock Text="Replaces the theme's accent in buttons, progress bars, selection and focus rings. Leave empty to use the theme's own." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+        <ItemsControl x:Name="AccentSwatches" AutomationProperties.Name="Accent presets"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate><DataTemplate><Button Style="{StaticResource Swatch}" Tag="{Binding Hex}" Click="Swatch_Click"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"><Label Content="C_ustom (#RRGGBB)" Target="{Binding ElementName=AccentHex}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="AccentHex" Width="110" MaxLength="7" TextChanged="AccentHex_Changed" AutomationProperties.Name="Custom accent colour" Margin="8,0,8,0"/><Border x:Name="AccentPreview" Width="36" Height="28" CornerRadius="6" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" Margin="0,0,10,0"/><Button x:Name="ResetAccentButton" Content="_Reset accent" Click="ResetAccent_Click"/></StackPanel>
+        <TextBlock x:Name="AccentError" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite"/>
       </StackPanel></ScrollViewer></TabItem>
       <TabItem Header="_Save To"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Default download destination" Style="{StaticResource SectionTitle}"/>

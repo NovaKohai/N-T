@@ -13,5 +13,6 @@
     <Compile Include="../CompletionActionKind.cs" Link="CompletionActionKind.cs"/>
     <Compile Include="../AppSettings.cs" Link="AppSettings.cs"/>
     <Compile Include="../CategoryHelper.cs" Link="CategoryHelper.cs"/>
+    <Compile Include="../ThemeCatalog.cs" Link="ThemeCatalog.cs"/>
   </ItemGroup>
 </Project>

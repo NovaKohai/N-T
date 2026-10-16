@@ -8,7 +8,10 @@ namespace NDM.App;
 public sealed class AppSettings
 {
     public string DownloadDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+    /// <summary>Theme id from <see cref="ThemeCatalog"/> (Light, Dark, System, Midnight, ...). Unknown values load as Light.</summary>
     public string Theme { get; set; } = "Light";
+    /// <summary>Optional #RRGGBB accent that replaces the theme's own accent; null = the theme's accent.</summary>
+    public string? AccentOverride { get; set; }
     public int MaxSegments { get; set; } = 8;
     public int MaxConcurrentDownloads { get; set; } = 3;
     public int RetryCount { get; set; } = 3;
@@ -90,7 +93,8 @@ public sealed class AppSettings
             settings.SettingsSchema = CurrentSchema;
             if (string.IsNullOrWhiteSpace(settings.DownloadDirectory) || !Path.IsPathFullyQualified(settings.DownloadDirectory)) settings.DownloadDirectory = new AppSettings().DownloadDirectory;
             else if (string.Equals(Path.GetFileName(settings.DownloadDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)), "New Download Manager", StringComparison.OrdinalIgnoreCase)) settings.DownloadDirectory = new AppSettings().DownloadDirectory;
-            if (settings.Theme != "Dark") settings.Theme = "Light";
+            settings.Theme = ThemeCatalog.Normalize(settings.Theme);
+            settings.AccentOverride = ThemeCatalog.NormalizeAccent(settings.AccentOverride);
             settings.MaxSegments = Bound(settings.MaxSegments, 1, 32, 8);
             settings.MaxConcurrentDownloads = Bound(settings.MaxConcurrentDownloads, 1, 16, 3);
             settings.RetryCount = Bound(settings.RetryCount, 0, 8, 3);
@@ -119,7 +123,7 @@ public sealed class AppSettings
     // Update the shared instance only after durable persistence succeeds.
     public void CopyFrom(AppSettings source)
     {
-        DownloadDirectory = source.DownloadDirectory; Theme = source.Theme;
+        DownloadDirectory = source.DownloadDirectory; Theme = source.Theme; AccentOverride = source.AccentOverride;
         MaxSegments = source.MaxSegments; MaxConcurrentDownloads = source.MaxConcurrentDownloads;
         RetryCount = source.RetryCount; RequestTimeoutSeconds = source.RequestTimeoutSeconds;
         EnableDynamicSegmentation = source.EnableDynamicSegmentation;

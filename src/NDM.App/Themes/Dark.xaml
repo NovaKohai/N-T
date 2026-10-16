@@ -17,4 +17,10 @@
   <SolidColorBrush x:Key="ThumbBrush" Color="#4E5B64"/>
   <SolidColorBrush x:Key="ThumbHoverBrush" Color="#6F808C"/>
   <SolidColorBrush x:Key="ThumbPressedBrush" Color="#93A5B1"/>
+  <SolidColorBrush x:Key="AccentFillBrush" Color="#80D5C8"/>
+  <CornerRadius x:Key="ControlRadius">6</CornerRadius>
+  <CornerRadius x:Key="CardRadius">8</CornerRadius>
+  <Thickness x:Key="ControlPadding">14,9</Thickness>
+  <Thickness x:Key="CommandPadding">10,5</Thickness>
+  <sys:Double xmlns:sys="clr-namespace:System;assembly=mscorlib" x:Key="CommandMinHeight">30</sys:Double>
 </ResourceDictionary>
