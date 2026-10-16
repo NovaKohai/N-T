@@ -4,8 +4,10 @@ const { classify, fromDom, merge, suggestedName, typeOfFile, typeOfItem, withDef
 const PAUSE_KEY = 'neodm.pause', SCHEMA = 2;
 const methods = new Map();
 let observations = new Map();
-// The desktop app shows an options dialog and replies only after the user decides (up to 5 minutes).
-const PING_TIMEOUT_MS = 12000, DOWNLOAD_TIMEOUT_MS = 330000;
+// The desktop app shows an options dialog and replies only after the user decides. The host sends {pending:true} every ~15 s while the app is
+// alive and the dialog is open; each one restarts a short idle timer, so the wait is unbounded while the app answers and ends (browser download
+// restarted) only when it goes silent. A host that does not send pending frames (older install) keeps the old 330 s limit.
+const PING_TIMEOUT_MS = 12000, DOWNLOAD_TIMEOUT_MS = 330000, PENDING_IDLE_MS = 60000;
 /* ---- preferences: capture on by default, media-type filter, session-scoped pause (chrome.storage.session resets with the browser) ---- */
 async function ensureDefaults() {
   const s = await chrome.storage.local.get(['schema', 'captureEnabled', 'mediaTypes']);
@@ -27,8 +29,11 @@ function native(request, timeoutMs = request?.action === 'ping' ? PING_TIMEOUT_M
     const port = chrome.runtime.connectNative('com.ndm.bridge');
     let done = false;
     const finish = (error, reply) => { if (done) return; done = true; clearTimeout(timer); port.disconnect(); error ? reject(error) : resolve(reply); };
-    const timer = setTimeout(() => finish(new Error('Bridge timed out')), timeoutMs);
-    port.onMessage.addListener(reply => finish(null, reply));
+    let timer = setTimeout(() => finish(new Error('Bridge timed out')), timeoutMs);
+    port.onMessage.addListener(reply => {
+      if (reply?.pending === true && !done) { clearTimeout(timer); timer = setTimeout(() => finish(new Error('Bridge stopped answering')), PENDING_IDLE_MS); return; }
+      finish(null, reply);
+    });
     port.onDisconnect.addListener(() => finish(new Error(chrome.runtime.lastError?.message || 'Bridge disconnected')));
     try { port.postMessage(request); } catch (e) { finish(e); }
   });
@@ -44,7 +49,7 @@ async function send(request, tab) {
     const cookies = await chrome.cookies.getAll({ url: request.url, ...(store ? { storeId: store.id } : {}) });
     request.cookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
   }
-  const reply = await native(request);
+  const reply = await native({ ...request, keepAlive: true }); // keepAlive: older hosts ignore it and answer once, as before
   if (reply?.ok === false && typeof reply.error === 'string') { const e = new Error(reply.error); e.cancelled = reply.cancelled === true; throw e; } // cancelled: the user pressed Cancel in the app dialog
   if (!ack(reply)) throw new Error('Application did not durably accept the download');
   return reply;

@@ -99,13 +99,13 @@ public sealed partial class DownloadManager
                 resolved = new ResolvedName(DownloadFileNames.Sanitize(current.TrimEnd('.') + extension), NameSource.Url, true);
             }
             else resolved = FileNameResolver.Resolve(uri, w.Request.FileName, null, probe);
-            var name = AvailableName(resolved.Name, w);
+            var name = AvailableName(resolved.Name, w, w.Request.TargetDirectory is null ? null : Path.GetDirectoryName(w.Job.FilePath));
             if (name != w.Job.FileName)
             {
                 var oldDirectory = Path.GetDirectoryName(w.Job.FilePath) ?? downloads;
                 var autoDirectory = Path.GetFullPath(pathResolver?.Invoke(w.Job.FileName) ?? downloads);
                 // The category folder follows the final extension unless the job was moved somewhere else on purpose.
-                var directory = Path.GetFullPath(oldDirectory).TrimEnd(Path.DirectorySeparatorChar).Equals(autoDirectory.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
+                var directory = w.Request.TargetDirectory is not null ? oldDirectory : Path.GetFullPath(oldDirectory).TrimEnd(Path.DirectorySeparatorChar).Equals(autoDirectory.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)
                     ? pathResolver?.Invoke(name) ?? downloads : oldDirectory;
                 w.Job.FileName = name; w.Job.FilePath = Path.Combine(directory, name);
             }

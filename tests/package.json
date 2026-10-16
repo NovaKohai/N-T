@@ -2,7 +2,7 @@
   "name": "ndm-extension-tests",
   "private": true,
   "scripts": {
-    "test": "node --test extension-tests.cjs extension-advanced-tests.cjs extension-v130-tests.cjs"
+    "test": "node --test extension-tests.cjs extension-advanced-tests.cjs extension-v130-tests.cjs extension-v132-tests.cjs extension-v133-tests.cjs"
   },
   "devDependencies": {
     "jsdom": "26.1.0"

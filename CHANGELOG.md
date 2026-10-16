@@ -3,6 +3,12 @@
 All notable changes to NeoDM are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.3.3] - 2026-10-16
+
+### Fixed
+- The capture dialog ignored its "Save to" folder. Root cause: the dialog exposed `SavePath` but the job was added with the bare request, so the engine's own category resolver chose the folder. `DownloadRequest` has a new optional `TargetDirectory`; the dialog sets it whenever you typed or browsed a folder or picked a category, and the engine saves into exactly that folder for Start now, Add to queue and Schedule: created if missing, proven writable up front (a folder that cannot be written keeps the dialog open with the reason), collision-safe unique name, never overwrites, kept across name refinement and restarts (persisted with the job). If you leave the path untouched the behaviour is unchanged (category folder of the final extension; the pre-fill follows the detected name and now honours the category-folder setting). The progress window shows the real final path.
+- A capture dialog left open for more than 5 minutes made the extension restart the download in the browser, so a later Start in NeoDM duplicated it. The native host now sends keep-alive frames (`{"pending":true}` every 15 s) to extensions that ask for them (`keepAlive:true` in the request), the extension waits without limit while they arrive (60 s idle limit, re-armed by every frame) and restarts the download only when NeoDM fails or goes silent. The app no longer times out waiting for the user (the pipe also had a 30 s ceiling) and serves several captures at once. If the browser side hangs up while the dialog is open, the dialog is locked with an explanation and cannot add a duplicate. Old extension + new host/app and new extension + old host keep working (one reply frame, legacy 330 s limit).
+
 ## [1.3.2] - 2026-10-16
 
 ### Fixed

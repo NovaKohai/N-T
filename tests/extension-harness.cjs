@@ -18,7 +18,7 @@ function makeBackground({ settings = {}, nativeReply = req => (req.action === 'p
         let receive, disconnected;
         return {
           onMessage: { addListener: f => { receive = f; } }, onDisconnect: { addListener: f => { disconnected = f; } }, disconnect: () => {},
-          postMessage: req => { nativeRequests.push(json(req)); Promise.resolve(nativeReply(req)).then(r => (r instanceof Error ? disconnected() : receive(r)), () => disconnected()); },
+          postMessage: req => { nativeRequests.push(json(req)); Promise.resolve(nativeReply(req)).then(r => (r instanceof Error ? disconnected() : [].concat(r).forEach(x => receive(x))), () => disconnected()); },
         };
       },
     },

@@ -95,6 +95,7 @@ internal static partial class ManageTests
             Properties(root, server);
             ProgressWindowTests(root, server, script);
             CaptureWindowTests(root, server);
+            SaveFolderTests(root, server);
             CompletionWindowTests(root, server);
             ChangeLocationTests(root, server);
             ProxyOptionsTab(root, server);

@@ -17,6 +17,7 @@ public partial class DownloadOptionsDialog : Window
     public string Category { get; private set; } = "General";
 
     private readonly string _defaultDownloadDirectory;
+    private readonly Func<string, string>? _autoFolder;
     private readonly Uri _uri;
     private readonly string? _browserName, _browserMime;
     private readonly Func<CancellationToken, Task<NameProbeResult?>>? _probe;
@@ -36,8 +37,9 @@ public partial class DownloadOptionsDialog : Window
     /// <param name="mime">The browser's content type for the download (may be empty).</param>
     /// <param name="probe">Quick HEAD / ranged-GET look at the link; fills the name, size and type when it answers.</param>
     public DownloadOptionsDialog(string url, string? suggestedFileName, string? referer, string? cookie, string defaultDownloadDirectory,
-        string? mime = null, Func<CancellationToken, Task<NameProbeResult?>>? probe = null)
+        string? mime = null, Func<CancellationToken, Task<NameProbeResult?>>? probe = null, Func<string, string>? autoFolder = null)
     {
+        _autoFolder = autoFolder;
         _defaultDownloadDirectory = defaultDownloadDirectory;
         _uri = new Uri(url);
         _browserName = string.IsNullOrWhiteSpace(suggestedFileName) ? null : suggestedFileName;
@@ -55,7 +57,7 @@ public partial class DownloadOptionsDialog : Window
 
         NameInput.TextChanged += (_, _) => { if (!_programmatic) _nameEdited = true; if (NameInput.Text.Trim().Length > 0) Title = NameInput.Text.Trim(); };
         PathInput.TextChanged += (_, _) => { if (!_programmatic) _pathEdited = true; };
-        CategoryDropdown.SelectionChanged += (_, _) => { if (!_programmatic) _categoryEdited = true; };
+        CategoryDropdown.SelectionChanged += (_, _) => OnCategoryChanged();
         Closed += (_, _) => _probeCancel.Cancel();
         Loaded += (_, _) => { NameInput.Focus(); NameInput.SelectAll(); };
         if (_probe is null) DetectedInfo.Visibility = Visibility.Collapsed;
@@ -77,10 +79,40 @@ public partial class DownloadOptionsDialog : Window
             {
                 var category = DetectCategory(_nameEdited ? NameInput.Text : name);
                 if (!_categoryEdited) { Category = category; SelectCategory(category); }
-                if (!_pathEdited) { var path = GetCategoryPath(Category); PathInput.Text = path; SavePath = path; }
+                if (!_pathEdited)
+                {
+                    // Untouched path: the folder the engine itself will use (category of the final extension, honouring the category-folder setting).
+                    var path = !_categoryEdited && _autoFolder is not null ? _autoFolder(_nameEdited ? NameInput.Text.Trim() : name) : GetCategoryPath(Category);
+                    PathInput.Text = path; SavePath = path;
+                }
             }
         }
         finally { _programmatic = false; }
+    }
+
+    private void OnCategoryChanged()
+    {
+        if (_programmatic) return;
+        _categoryEdited = true;
+        if (_pathEdited) return;
+        _programmatic = true;
+        try { var path = GetCategoryPath(Category = (CategoryDropdown.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string ?? Category); PathInput.Text = path; SavePath = path; }
+        finally { _programmatic = false; }
+    }
+
+    /// <summary>True while neither the folder nor the category was chosen by the user: the engine's own category folder applies. Otherwise the
+    /// folder shown in the box is the job's exact save folder.</summary>
+    public bool PathIsAuto => !_pathEdited && !_categoryEdited;
+
+    /// <summary>The connection to the browser that asked for this download is gone (the browser already restarted it or the extension stopped waiting).
+    /// Adding it now would duplicate the download, so the dialog is locked and says so; the user can only close it.</summary>
+    public bool Expired { get; private set; }
+    public void MarkExpired(string message)
+    {
+        if (Expired || Accepted) return;
+        Expired = true;
+        StartButton.IsEnabled = QueueButton.IsEnabled = ScheduleButton.IsEnabled = false;
+        ValidationError.Text = message;
     }
 
     private async Task RunProbeAsync()
@@ -214,6 +246,7 @@ public partial class DownloadOptionsDialog : Window
 
     private bool ValidateAndPrepare()
     {
+        if (Expired) return false; // the expiry message stays; nothing may be added any more
         try
         {
             ValidationError.Text = "";
@@ -235,14 +268,11 @@ public partial class DownloadOptionsDialog : Window
             if (!Path.IsPathFullyQualified(savePath))
                 throw new FormatException("Save location must be a full path.");
             
-            // Create directory if it doesn't exist
-            try
+            // Create the folder if it is missing and prove it is writable now, so a bad folder keeps this dialog open instead of failing later.
+            try { savePath = DownloadManager.EnsureWritableFolder(savePath); }
+            catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
             {
-                Directory.CreateDirectory(savePath);
-            }
-            catch (Exception ex)
-            {
-                throw new FormatException($"Cannot create directory: {ex.Message}");
+                throw new FormatException(ex is ArgumentException ? ex.Message : "Cannot use that folder. " + ex.Message);
             }
             
             SpeedLimit = DownloadDialogValidation.ParseSpeed(SpeedInput.Text);
@@ -251,7 +281,7 @@ public partial class DownloadOptionsDialog : Window
             // The user's own name, or the browser's, is kept as is. Only a name derived from the address alone that the server has not confirmed yet
             // stays open for the engine to refine from the server's answer when the transfer starts.
             bool open = !_nameEdited && _browserName is null && _seen is null;
-            Request = new DownloadRequest(url, name, metadata?.Referer, metadata?.Cookie, open);
+            Request = new DownloadRequest(url, name, metadata?.Referer, metadata?.Cookie, open, PathIsAuto ? null : savePath);
             SavePath = savePath;
             
             var selectedCategory = (CategoryDropdown.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string;

@@ -70,8 +70,19 @@ public sealed partial class DownloadManager : IDisposable
             // Provisional name from the URL; the real one is settled from the server's answer when the transfer starts.
             var candidate = request.FileName ?? FileNameResolver.Resolve(uri, null, null, null).Name;
             if (request.FileName is null && !request.AutoName) request = request with { AutoName = true };
-            var name = AvailableName(DownloadFileNames.Sanitize(candidate));
-            var targetDir = pathResolver?.Invoke(name) ?? downloads;
+            string name, targetDir;
+            if (request.TargetDirectory is { } custom)
+            {
+                // The folder the user chose is used verbatim: created if missing, proven writable now so a bad folder fails here and not at the end.
+                targetDir = EnsureWritableFolder(custom);
+                request = request with { TargetDirectory = targetDir };
+                name = AvailableName(DownloadFileNames.Sanitize(candidate), null, targetDir);
+            }
+            else
+            {
+                name = AvailableName(DownloadFileNames.Sanitize(candidate));
+                targetDir = pathResolver?.Invoke(name) ?? downloads;
+            }
             var work = new Work
             {
                 Request = request,
@@ -203,6 +214,26 @@ public sealed partial class DownloadManager : IDisposable
         Notify();
     }
 
+    /// <summary>Creates the folder when missing and proves it is writable (a temporary file is created and deleted). Returns the normalised full path;
+    /// throws <see cref="ArgumentException"/> for a path that is not complete and <see cref="IOException"/> with a readable message otherwise.</summary>
+    public static string EnsureWritableFolder(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder) || !Path.IsPathFullyQualified(folder)) throw new ArgumentException("Choose a complete folder path.", nameof(folder));
+        var target = Path.GetFullPath(folder.Trim());
+        if (target.Length > Path.GetPathRoot(target)!.Length) target = target.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        try
+        {
+            Directory.CreateDirectory(target);
+            var probe = Path.Combine(target, ".neodm-write-test-" + Guid.NewGuid().ToString("N"));
+            using (new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
+        }
+        catch (UnauthorizedAccessException ex) { throw new IOException("NeoDM cannot write to that folder: " + ex.Message, ex); }
+        catch (DirectoryNotFoundException ex) { throw new IOException("That folder or drive is not available: " + ex.Message, ex); }
+        catch (IOException ex) { throw new IOException("That folder cannot be used: " + ex.Message, ex); }
+        catch (NotSupportedException ex) { throw new IOException("That folder cannot be used: " + ex.Message, ex); }
+        return target;
+    }
+
     /// <summary>Changes the folder this download is saved to and returns the new full path (the job's file name is kept; a unique name is chosen if the
     /// folder already has one, nothing is ever overwritten). A completed job's finished file is moved (only that file). An unfinished job keeps its partial
     /// data in the state folder (<c>{id}.parts</c>, addressed by PartId), so no partial file has to move: the job's target is switched and the folder is
@@ -223,15 +254,7 @@ public sealed partial class DownloadManager : IDisposable
             if (string.Equals(currentDir.TrimEnd(Path.DirectorySeparatorChar), target.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase)) return currentPath;
             bool done = w.Job.Status == "Completed";
             if (done && !File.Exists(currentPath)) throw new FileNotFoundException("The file is no longer in its saved location.", currentPath);
-            try
-            {
-                Directory.CreateDirectory(target);
-                var probe = Path.Combine(target, ".neodm-write-test-" + Guid.NewGuid().ToString("N"));
-                using (new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
-            }
-            catch (UnauthorizedAccessException ex) { throw new IOException("NeoDM cannot write to that folder: " + ex.Message, ex); }
-            catch (DirectoryNotFoundException ex) { throw new IOException("That folder or drive is not available: " + ex.Message, ex); }
-            catch (IOException ex) { throw new IOException("That folder cannot be used: " + ex.Message, ex); }
+            EnsureWritableFolder(target);
             var stem = Path.GetFileNameWithoutExtension(w.Job.FileName); var extension = Path.GetExtension(w.Job.FileName);
             string? name = null;
             for (var i = 0; i < 10000 && name is null; i++)

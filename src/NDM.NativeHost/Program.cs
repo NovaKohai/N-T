@@ -29,7 +29,7 @@ internal static class Program
                 try { request = await ReadFrame(input); } catch { await WriteFrame(output, Error("Invalid or oversized native frame")); return 3; }
                 if (request == null) return 0;
                 byte[] reply;
-                try { reply = await Handle(request, config); }
+                try { reply = await Handle(request, config, pending: frame => WriteFrame(output, frame)); }
                 catch { reply = Error("Bridge unavailable or request rejected; browser download remains available"); }
                 await WriteFrame(output, reply);
             }
@@ -59,13 +59,18 @@ internal static class Program
         var value = field.GetString()!; if (value.Length > max || value.Any(char.IsControl)) throw new InvalidDataException(); return value;
     }
     static bool Http(string value) => Uri.TryCreate(value, UriKind.Absolute, out var u) && (u.Scheme == "http" || u.Scheme == "https") && !string.IsNullOrEmpty(u.Host) && string.IsNullOrEmpty(u.UserInfo);
-    static async Task<byte[]> Handle(byte[] message, Config config, string pipeName = "NDM.Downloads")
+    /// <summary>Sent to the extension every <see cref="PendingInterval"/> while the app's dialog waits for the user: "NeoDM is alive, still deciding". Only sent to
+    /// extensions that asked for it (<c>keepAlive:true</c> in the request); an older extension gets exactly one reply frame as before.</summary>
+    internal static readonly byte[] PendingFrame = Encoding.UTF8.GetBytes("{\"pending\":true}");
+    internal static TimeSpan PendingInterval = TimeSpan.FromSeconds(15);
+    static async Task<byte[]> Handle(byte[] message, Config config, string pipeName = "NDM.Downloads", Func<byte[], Task>? pending = null)
     {
         using var doc = JsonDocument.Parse(message); var root = doc.RootElement;
         if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException();
-        if (root.TryGetProperty("action", out var action) && action.GetString() == "ping") return JsonSerializer.SerializeToUtf8Bytes(new { ok = true, host = "com.ndm.bridge" });
+        if (root.TryGetProperty("action", out var action) && action.GetString() == "ping") return JsonSerializer.SerializeToUtf8Bytes(new { ok = true, host = "com.ndm.bridge", keepAlive = true });
         if (root.TryGetProperty("method", out var method) && method.GetString() != "GET") throw new InvalidDataException();
         string url = Field(root,"url"), fileName = Field(root,"fileName",255), referer = Field(root,"referer"), cookie = Field(root,"cookie",32768), mime = Field(root,"mime",100);
+        bool keepAlive = pending != null && root.TryGetProperty("keepAlive", out var ka) && ka.ValueKind == JsonValueKind.True;
         if (!Http(url) || (referer.Length > 0 && !Http(referer))) throw new InvalidDataException();
         if (fileName.IndexOfAny(new[] {'/','\\',':','<','>','"','|','?','*'}) >= 0 || fileName is "." or "..") throw new InvalidDataException();
         if (mime.Length > 0 && !System.Text.RegularExpressions.Regex.IsMatch(mime, @"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*$")) throw new InvalidDataException();
@@ -82,11 +87,23 @@ internal static class Program
             await pipe.ConnectAsync(ct);
         }
         AllowAppForeground(pipe);
-        // The app shows an options dialog and replies only after the user decides (up to 5 minutes); the extension waits 330 s.
-        using var decision = new CancellationTokenSource(TimeSpan.FromSeconds(320)); var rt = decision.Token;
+        // The app shows an options dialog and replies only after the user decides. A keep-alive extension waits without a limit while the app stays
+        // connected (pending frames tell it so); a failed app connection (pipe closed / error) ends the wait at once. Older extensions: 320 s, one reply.
+        using var decision = new CancellationTokenSource(keepAlive ? Timeout.InfiniteTimeSpan : TimeSpan.FromSeconds(320)); var rt = decision.Token;
         await pipe.WriteAsync(payload, rt); await pipe.WriteAsync(new byte[] {10}, rt); await pipe.FlushAsync(rt);
-        using var response = new MemoryStream(); byte[] one = new byte[1];
-        while (true) { int n = await pipe.ReadAsync(one, rt); if (n == 0) throw new EndOfStreamException(); if (one[0] == 10) break; if (response.Length >= Max) throw new InvalidDataException(); response.WriteByte(one[0]); }
+        async Task<MemoryStream> ReadReply()
+        {
+            var buffer = new MemoryStream(); byte[] one = new byte[1];
+            while (true) { int n = await pipe.ReadAsync(one, rt); if (n == 0) throw new EndOfStreamException(); if (one[0] == 10) break; if (buffer.Length >= Max) throw new InvalidDataException(); buffer.WriteByte(one[0]); }
+            return buffer;
+        }
+        var read = ReadReply();
+        while (keepAlive)
+        {
+            if (await Task.WhenAny(read, Task.Delay(PendingInterval)) == read) break;
+            await pending!(PendingFrame);
+        }
+        using var response = await read;
         var bytes = response.ToArray(); using var result = JsonDocument.Parse(bytes); var r = result.RootElement;
         if (!r.TryGetProperty("ok", out var ok) || (ok.ValueKind != JsonValueKind.True && ok.ValueKind != JsonValueKind.False)) throw new InvalidDataException();
         if (ok.GetBoolean()) { if (!r.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(id.GetString())) throw new InvalidDataException(); }
@@ -132,6 +149,43 @@ internal static class Program
             foreach (var bad in new[] { "{\"url\":\"https://example.org/a\",\"mime\":\"not a mime\"}", "{\"url\":\"https://example.org/a\",\"mime\":\"" + new string('a', 101) + "/b\"}", "{\"url\":\"https://example.org/a\",\"fileName\":\"a/b.zip\"}", "{\"url\":\"https://example.org/a\",\"mime\":5}" })
             { try { await Handle(Encoding.UTF8.GetBytes(bad), new Config("hohmmojlhbkelkobobpkochpdempcihd", null), "NDM.SelfTest.none"); return 1; } catch (InvalidDataException) { } }
         }
+        {
+            // Keep-alive: a slow decision yields pending frames, then the app's real reply; without keepAlive the reply is a single frame and nothing else.
+            var saved = PendingInterval; PendingInterval = TimeSpan.FromMilliseconds(40);
+            try
+            {
+                foreach (var asked in new[] { true, false })
+                {
+                    string name = "NDM.SelfTest." + Guid.NewGuid().ToString("N");
+                    using var server = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                    var serve = Task.Run(async () => {
+                        await server.WaitForConnectionAsync();
+                        using var reader = new StreamReader(server, Encoding.UTF8, false, 1024, true);
+                        using var request = JsonDocument.Parse((await reader.ReadLineAsync())!);
+                        if (request.RootElement.EnumerateObject().Count() != 4) throw new InvalidDataException(); // keepAlive is never forwarded to the app
+                        await Task.Delay(400);
+                        await server.WriteAsync(Encoding.UTF8.GetBytes("{\"ok\":true,\"id\":\"slow\"}" + (char)10)); await server.FlushAsync();
+                    });
+                    var frames = new List<string>();
+                    var request2 = "{\"url\":\"https://example.org/a\",\"cookie\":\"test=1\"" + (asked ? ",\"keepAlive\":true" : "") + "}";
+                    var final = await Handle(Encoding.UTF8.GetBytes(request2), new Config("hohmmojlhbkelkobobpkochpdempcihd", null), name, f => { frames.Add(Encoding.UTF8.GetString(f)); return Task.CompletedTask; });
+                    await serve;
+                    if (Encoding.UTF8.GetString(final) != "{\"ok\":true,\"id\":\"slow\"}") return 1;
+                    if (asked ? frames.Count < 3 || frames.Any(f => f != "{\"pending\":true}") : frames.Count != 0) return 1;
+                }
+                {
+                    // The app goes away while the user is deciding: the wait ends with an error instead of hanging.
+                    string name = "NDM.SelfTest." + Guid.NewGuid().ToString("N");
+                    using var server = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                    var serve = Task.Run(async () => { await server.WaitForConnectionAsync(); await Task.Delay(150); server.Dispose(); });
+                    try { await Handle(Encoding.UTF8.GetBytes("{\"url\":\"https://example.org/a\",\"keepAlive\":true}"), new Config("hohmmojlhbkelkobobpkochpdempcihd", null), name, _ => Task.CompletedTask); return 1; }
+                    catch (Exception e) when (e is EndOfStreamException or IOException) { }
+                    await serve;
+                }
+            }
+            finally { PendingInterval = saved; }
+        }
+        Console.Error.WriteLine("PASS keep-alive: pending frames only for extensions that ask, never forwarded, app hang-up ends the wait");
         Console.Error.WriteLine("PASS framing: UTF-8, little-endian, EOF, zero/oversized/truncated frames; current-user pipe request and exact positive/negative ACK; optional fileName/mime forwarded, bad values rejected"); return 0;
     }
 }

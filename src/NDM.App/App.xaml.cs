@@ -147,7 +147,12 @@ public partial class App : Application
                 var windows = (MainWindow as MainWindow)?.TrayWindows ?? _fallbackWindows;
                 var manager = _manager!;
                 var dialog = new DownloadOptionsDialog(request.Url, request.FileName, request.Referer, request.Cookie, Settings.DownloadDirectory, request.Mime,
-                    ct => manager.ProbeNameAsync(new DownloadRequest(request.Url, null, request.Referer, request.Cookie), ct));
+                    ct => manager.ProbeNameAsync(new DownloadRequest(request.Url, null, request.Referer, request.Cookie), ct),
+                    fileName => CategoryHelper.GetDownloadPath(fileName, Settings));
+                // The wait for the user is unbounded; if the browser side goes away meanwhile the dialog says so and can no longer add a duplicate.
+                request.Gone.Register(() => Dispatcher.BeginInvoke(new Action(() => dialog.MarkExpired(
+                    "The browser stopped waiting for NeoDM (the browser or its connection was closed), so it has restarted this download itself. " +
+                    "Adding it here would download it twice. Close this window."))));
                 bool accepted = await CaptureFlow.ShowAsync(dialog, windows);
 
                 if (!accepted || dialog.Request is null)
@@ -157,48 +162,19 @@ public partial class App : Application
                     return;
                 }
 
-                DownloadJob job;
-                
-                switch (dialog.UserAction)
+                // The browser side hung up while the dialog was open (the browser already restarted the download): adding now would duplicate it.
+                if (request.Gone.IsCancellationRequested)
                 {
-                    case DownloadOptionsDialog.DialogAction.StartNow:
-                        job = await _manager!.AddScheduledAsync(dialog.Request, dialog.SpeedLimit.HasValue ? DateTimeOffset.UtcNow.AddYears(1) : null);
-                        if (dialog.SpeedLimit.HasValue)
-                        {
-                            _manager.SetSpeedLimit(job.Id, dialog.SpeedLimit);
-                            _manager.Resume(job.Id);
-                        }
-                        break;
-
-                    case DownloadOptionsDialog.DialogAction.Queue:
-                        job = await _manager!.AddScheduledAsync(dialog.Request, dialog.SpeedLimit.HasValue ? DateTimeOffset.UtcNow.AddYears(1) : null);
-                        if (dialog.SpeedLimit.HasValue)
-                        {
-                            _manager.SetSpeedLimit(job.Id, dialog.SpeedLimit);
-                        }
-                        break;
-
-                    case DownloadOptionsDialog.DialogAction.Schedule:
-                        job = await _manager!.AddScheduledAsync(dialog.Request, dialog.SpeedLimit.HasValue ? DateTimeOffset.UtcNow.AddYears(1) : dialog.ScheduledAt);
-                        if (dialog.SpeedLimit.HasValue)
-                        {
-                            _manager.SetSpeedLimit(job.Id, dialog.SpeedLimit);
-                            _manager.Schedule(job.Id, dialog.ScheduledAt ?? DateTimeOffset.UtcNow);
-                        }
-                        else if (dialog.ScheduledAt.HasValue)
-                        {
-                            _manager.Schedule(job.Id, dialog.ScheduledAt.Value);
-                        }
-                        break;
-
-                    default:
-                        request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in NeoDM.", Cancelled: true));
-                        return;
+                    request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "The browser connection was lost before you decided."));
+                    return;
                 }
-
-                // Only downloads that start right now open the window; queued-with-limit and scheduled ones stay quiet.
-                bool startedNow = dialog.UserAction == DownloadOptionsDialog.DialogAction.StartNow || (dialog.UserAction == DownloadOptionsDialog.DialogAction.Queue && !dialog.SpeedLimit.HasValue);
-                if (startedNow && MainWindow is MainWindow main) main.ShowCapturedProgress(job.Id);
+                var job = await CaptureCommit.AddAsync(manager, dialog);
+                if (job is null)
+                {
+                    request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in NeoDM.", Cancelled: true));
+                    return;
+                }
+                if (CaptureCommit.StartsNow(dialog) && MainWindow is MainWindow main) main.ShowCapturedProgress(job.Id);
                 request.Respond(new NativeBridge.BrowserDownloadResponse(true, job.Id));
             }
             catch (Exception ex)

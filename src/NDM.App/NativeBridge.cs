@@ -13,7 +13,8 @@ public sealed class NativeBridge : IDisposable
     public const string PipeName = "NDM.Downloads";
     public const int MaximumRequestBytes = 64 * 1024;
     
-    public record BrowserDownloadRequest(string Url, string? FileName, string? Referer, string? Cookie, Action<BrowserDownloadResponse> Respond, string? Mime = null);
+    public record BrowserDownloadRequest(string Url, string? FileName, string? Referer, string? Cookie, Action<BrowserDownloadResponse> Respond, string? Mime = null, CancellationToken Gone = default);
+    // Gone: cancelled when the client (native host / extension) closed its end of the pipe while the user was still deciding.
     public record BrowserDownloadResponse(bool Ok, string? Id = null, string? Error = null, bool Cancelled = false);
     
     /// <summary>Instance-control message from a second launch (show window, hand over a magnet link or .torrent path).</summary>
@@ -68,12 +69,17 @@ public sealed class NativeBridge : IDisposable
         {
             try
             {
-                using var pipe = new NamedPipeServerStream(_pipeName, PipeDirection.InOut, 1,
+                // Several captures can wait for their dialogs at once, so every connection is served on its own and the next one is accepted right away.
+                var pipe = new NamedPipeServerStream(_pipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances,
                     PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-                await pipe.WaitForConnectionAsync(_stop.Token);
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
-                timeout.CancelAfter(TimeSpan.FromSeconds(30));
-                await HandleAsync(pipe, timeout.Token);
+                try { await pipe.WaitForConnectionAsync(_stop.Token); }
+                catch { pipe.Dispose(); throw; }
+                _ = Task.Run(async () =>
+                {
+                    try { await HandleAsync(pipe, _stop.Token); }
+                    catch (Exception) { }
+                    finally { pipe.Dispose(); }
+                });
             }
             catch (OperationCanceledException) when (_stop.IsCancellationRequested) { break; }
             catch (Exception ex) when (ex is IOException or OperationCanceledException or UnauthorizedAccessException)
@@ -83,13 +89,18 @@ public sealed class NativeBridge : IDisposable
         }
     }
 
-    private async Task HandleAsync(Stream pipe, CancellationToken cancellationToken)
+    private async Task HandleAsync(Stream pipe, CancellationToken stopToken)
     {
+        // Reading the request is bounded (a silent client must not hold the pipe); waiting for the user's decision is not.
+        using var readLimit = CancellationTokenSource.CreateLinkedTokenSource(stopToken);
+        readLimit.CancelAfter(TimeSpan.FromSeconds(30));
+        var cancellationToken = readLimit.Token;
         TaskCompletionSource<BrowserDownloadResponse> responseSource = new();
         
         try
         {
             var payload = await ReadRequestAsync(pipe, cancellationToken);
+            cancellationToken = stopToken; // from here on only app shutdown ends the wait
             using var json = JsonDocument.Parse(payload);
             if (json.RootElement.ValueKind != JsonValueKind.Object) throw new FormatException("Request must be a JSON object.");
             var root = json.RootElement;
@@ -111,15 +122,17 @@ public sealed class NativeBridge : IDisposable
             if (fileName is { Length: > 512 }) throw new FormatException("File name too long.");
             if (mime is not null && !ValidMime(mime)) throw new FormatException("Invalid content type.");
             
+            // The client sends nothing after its request, so a read that completes means it hung up (browser restarted the download or the host died).
+            using var gone = CancellationTokenSource.CreateLinkedTokenSource(stopToken);
+            _ = WatchForHangUpAsync(pipe, gone, stopToken);
             // Queue the request and notify the UI thread
-            var browserRequest = new BrowserDownloadRequest(url, fileName, referer, cookie, response => responseSource.SetResult(response), mime);
+            var browserRequest = new BrowserDownloadRequest(url, fileName, referer, cookie, response => responseSource.TrySetResult(response), mime, gone.Token);
             _onRequestReceived(browserRequest);
             
-            // Wait for the UI thread to respond (with timeout)
-            using var waitCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            waitCancellation.CancelAfter(TimeSpan.FromMinutes(5)); // Give user time to decide
-            
-            var response = await responseSource.Task.WaitAsync(waitCancellation.Token);
+            // Wait for the UI thread to respond. No time limit: the user decides when to; the wait ends early only if the client hangs up.
+            BrowserDownloadResponse response;
+            try { response = await responseSource.Task.WaitAsync(gone.Token); }
+            catch (OperationCanceledException) when (!stopToken.IsCancellationRequested) { return; } // nobody is listening any more; the dialog was told
             
             var replyObject = response.Ok 
                 ? (object)new { ok = true, id = response.Id }
@@ -154,6 +167,13 @@ public sealed class NativeBridge : IDisposable
             }
             catch (Exception pipeEx) when (pipeEx is IOException or OperationCanceledException) { }
         }
+    }
+
+    private static async Task WatchForHangUpAsync(Stream pipe, CancellationTokenSource gone, CancellationToken stop)
+    {
+        try { var one = new byte[1]; await pipe.ReadAsync(one, stop); }
+        catch (Exception) { }
+        if (!stop.IsCancellationRequested) { try { gone.Cancel(); } catch (ObjectDisposedException) { } }
     }
 
     private string? HandleControl(string action, string? value)

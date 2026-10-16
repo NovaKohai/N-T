@@ -113,6 +113,40 @@ try
     Check(emptyHeaders.GetProperty("ok").GetBoolean(), "Native-host empty optional headers normalize to null");
     Check(manager.Jobs.Any(j => j.Id == emptyHeaders.GetProperty("id").GetString()), "Empty-header acceptance belongs to isolated test manager");
     
+    // ---- 1.3.3: waiting for the user is unbounded (past the old 30 s pipe ceiling), several captures wait at once, a hang-up is reported
+    {
+        string slowPipe = "NDM.ProtocolSlow." + Guid.NewGuid().ToString("N");
+        var pending = new System.Collections.Concurrent.ConcurrentDictionary<string, NativeBridge.BrowserDownloadRequest>();
+        using var slow = new NativeBridge(r => pending[r.Url] = r, slowPipe);
+        slow.Start();
+        async Task<(NamedPipeClientStream Pipe, StreamReader Reader)> Open(string url)
+        {
+            var c = new NamedPipeClientStream(".", slowPipe, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            using var t = new CancellationTokenSource(TimeSpan.FromSeconds(10)); await c.ConnectAsync(t.Token);
+            await c.WriteAsync(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { url }) + (char)10)); await c.FlushAsync();
+            return (c, new StreamReader(c));
+        }
+        async Task WaitFor(string url) { for (int i = 0; i < 200 && !pending.ContainsKey(url); i++) await Task.Delay(50); }
+        var (pa, ra) = await Open("http://127.0.0.1/a"); var (pb, rb) = await Open("http://127.0.0.1/b");
+        await WaitFor("http://127.0.0.1/a"); await WaitFor("http://127.0.0.1/b");
+        Check(pending.Count == 2, "Two captures wait for their dialogs at the same time");
+        var lineA = ra.ReadLineAsync();
+        await Task.Delay(TimeSpan.FromSeconds(32));
+        Check(!lineA.IsCompleted && !pending["http://127.0.0.1/a"].Gone.IsCancellationRequested, "Still waiting after 32 s (no pipe time limit while the user decides)");
+        pending["http://127.0.0.1/b"].Respond(new NativeBridge.BrowserDownloadResponse(true, "idB"));
+        Check(JsonDocument.Parse((await rb.ReadLineAsync())!).RootElement.GetProperty("id").GetString() == "idB", "Second capture answered independently of the first");
+        pb.Dispose();
+        pending["http://127.0.0.1/a"].Respond(new NativeBridge.BrowserDownloadResponse(true, "idA"));
+        Check(JsonDocument.Parse((await lineA)!).RootElement.GetProperty("id").GetString() == "idA", "First capture answered after the long wait");
+        pa.Dispose();
+        var (pc, rc) = await Open("http://127.0.0.1/c"); await WaitFor("http://127.0.0.1/c");
+        var gone = pending["http://127.0.0.1/c"].Gone;
+        Check(!gone.IsCancellationRequested, "Connected client: Gone not signalled");
+        pc.Dispose();
+        for (int i = 0; i < 100 && !gone.IsCancellationRequested; i++) await Task.Delay(50);
+        Check(gone.IsCancellationRequested, "Client hang-up while the dialog is open is signalled (dialog is told the capture expired)");
+    }
+
     // Run category folder organization tests
     CategoryTest.Run();
     
