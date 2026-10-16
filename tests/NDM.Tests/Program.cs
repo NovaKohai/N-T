@@ -52,7 +52,11 @@ var tests = new (string Name, Func<Task> Run)[]
     ("move/rename updates disk and job, persists, rejects unsafe targets", () => ManageTests.MoveRename(Paths)),
     ("refresh address keeps validated progress", () => ManageTests.RefreshAddress(Paths)),
     ("redownload restarts without touching the old file", () => ManageTests.Redownload(Paths)),
-    ("change save location: partial, running, completed, collision, bad destinations, same folder", () => ManageTests.MoveTo(Paths))
+    ("change save location: partial, running, completed, collision, bad destinations, same folder", () => ManageTests.MoveTo(Paths)),
+    ("file names: Content-Disposition / URL / query / MIME / magic-number parsing", NameTests.Parsing),
+    ("file names: priority, extension repair, GUID/empty fallback", NameTests.Decisions),
+    ("file names: real downloads resolve the right name (disposition, redirects, type, magic, HEAD 405, collisions)", () => NameTests.Downloads(Paths())),
+    ("file names: pre-download probe (HEAD, ranged-GET fallback, redirects, size/type)", () => NameTests.Probe(Paths()))
 };
 foreach (var test in tests)
 {

@@ -3,6 +3,21 @@
 All notable changes to NeoDM are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.3.2] - 2026-10-16
+
+### Fixed
+- Captured downloads sometimes saved with a random name and no extension, so the file did not open until renamed. Root cause: the extension sent an empty file name, the app never read the server's `Content-Disposition`, took the name from the ORIGINAL address (not the one after redirects), ignored the `Content-Type`, and filled the dialog from the last path segment only. The name is now decided in this order: (1) the name the browser itself decided (`downloads` item file name and content type, forwarded as new optional `fileName` / `mime` fields; the wire contract stays backward compatible and the native host validates both strictly, 255 / 100 characters, no path or control characters); (2) `Content-Disposition` (`filename*` UTF-8 percent-encoding beats `filename`; quoted or not; path parts removed); (3) the final address after redirects (percent-decoded last segment, query and fragment ignored) or a name in the query (`filename=`, `file=`, `name=`, `fn=`, `response-content-disposition=`); (4) a missing or script-like extension (`.php`, `.aspx`, `.cgi`, `.html` ...) is repaired from the `Content-Type` (built-in table: archives, programs, documents, video, audio, images, text, torrent ...; `octet-stream` adds nothing; a valid extension is never replaced) and, as a last resort, from the first bytes (zip, rar, 7z, pdf, exe, mkv/webm, mp4, mp3, png, jpeg, gif, gzip); (5) a GUID-like, empty or dots-only name becomes `<host>-download.<ext>`. The download folder (category) follows the FINAL extension.
+- The same resolver runs when a transfer starts, so links added without the capture dialog (Add URL, bulk import, context menu, media ribbon) get correct names too. A name you typed, or the browser's own name, is kept; collisions still get `name (1).ext`.
+- The capture dialog no longer brings up the whole app. It is an independent top-level window (no owner, its own taskbar button with the NeoDM icon and the file name as title) that opens above the browser and never shows, restores or activates the main window, even if that is minimised, hidden to the tray or closed to the tray. The progress window opened by "Start Download" is independent in the same way. Several captures at once are several separate dialogs (no modal on modal).
+
+### Added
+- Pre-download check: when the capture dialog opens, NeoDM looks at the link in the background (HEAD, then a ranged GET of the first bytes if HEAD is refused or does not settle the extension; redirects followed, proxy, referer and cookies honoured, 8 s limit) and fills the "File name" box with the real name unless you already edited it. The dialog shows the detected size and type, and moves the category / folder along with the final extension unless you changed them.
+- Tray menu section: every waiting capture dialog and every open progress window is listed in the tray icon's right-click menu (`\u2022 Download options: <file>`, `\u2022 Downloading: <file> (42%)`); clicking one restores and activates that window. Left-click or double-click on the tray icon restores a waiting capture dialog first, else the main window. The tray icon stays visible while such a window is open. The section is hidden when nothing is open.
+- The extension remembers the browser's own file name from `downloads.onDeterminingFilename` (no `suggest()` call, so the browser is never held up).
+
+### Changed
+- `DownloadRequest` has an optional `AutoName` flag (a name the engine may still refine); explicit names are never touched. Redirect hops keep the request method.
+
 ## [1.3.1] - 2026-10-16
 
 ### Fixed

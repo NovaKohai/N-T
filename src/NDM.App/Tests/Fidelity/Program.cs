@@ -82,7 +82,7 @@ internal static class FidelityTests
             Until(() => manager.Jobs.Any(j => j.Id == first.Id && j.Status == "Downloading" && j.RemainingTime.HasValue && j.SpeedBytesPerSecond > 0), "Real HTTP transfer exposes stable speed and remaining time");
             Until(() => window.Rows.Any(r => r.Id == first.Id && r.Remaining != "—"), "ETA reaches main row from detached core snapshots");
             list.SelectedItem = window.Rows.Single(r => r.Id == first.Id); list.Focus(); Pump(); Key(window, System.Windows.Input.Key.Enter); Pump();
-            var progress = window.OwnedWindows.OfType<DownloadProgressWindow>().Single();
+            var progress = System.Windows.Application.Current.Windows.OfType<DownloadProgressWindow>().Single(w => w.IsVisible) /* 1.3.2: progress windows are independent (no owner), so they are no longer in OwnedWindows */;
             Check(progress.Row.Id == first.Id && progress.Row.SegmentRows.Count == 2 && progress.Row.ResumeSupported == true, "Enter opens modeless live progress with real segments and resume support");
             Until(() => progress.Row.DownloadedBytes > 0 && progress.Row.ActiveConnectionCount > 0, "Progress window refreshes live connection bytes");
             Capture(progress, Path.Combine(root, "progress-light.png"));

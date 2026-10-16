@@ -42,7 +42,8 @@ try
             url = "http://example.com/file.zip",
             fileName = "file.zip",
             referer = "http://example.com/",
-            cookie = "session=test"
+            cookie = "session=test",
+            mime = "application/zip"
         });
         
         await client.WriteAsync(Encoding.UTF8.GetBytes(message + "\n"), timeout.Token);
@@ -61,6 +62,7 @@ try
     Check(capturedRequest.FileName == "file.zip", "Request filename preserved");
     Check(capturedRequest.Referer == "http://example.com/", "Request referer preserved");
     Check(capturedRequest.Cookie == "session=test", "Request cookie preserved");
+    Check(capturedRequest.Mime == "application/zip", "Optional browser mime forwarded to the app");
 
     // Simulate user accepting the download
     capturedRequest.Respond(new NativeBridge.BrowserDownloadResponse(true, "test-job-id"));
@@ -103,6 +105,18 @@ try
     Check(!cancelResponse.GetProperty("ok").GetBoolean(), "Cancelled response indicates failure");
     Check(cancelResponse.GetProperty("error").GetString() == "User cancelled", "Error message preserved");
 
+    // Optional fields are validated: a malformed mime is rejected without reaching the UI; old four-field requests still work.
+    capturedRequest = null;
+    foreach (var bad in new[] { "{\"url\":\"http://example.com/a.zip\",\"mime\":\"not a mime\"}", "{\"url\":\"http://example.com/a.zip\",\"mime\":\"" + new string('a', 120) + "/b\"}", "{\"url\":\"http://example.com/a.zip\",\"fileName\":\"" + new string('b', 600) + "\"}" })
+    {
+        using var badClient = new NamedPipeClientStream(".", testPipe, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+        using var badTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await badClient.ConnectAsync(badTimeout.Token);
+        await badClient.WriteAsync(Encoding.UTF8.GetBytes(bad + (char)10), badTimeout.Token); await badClient.FlushAsync(badTimeout.Token);
+        using var badReader = new StreamReader(badClient);
+        var badReply = JsonDocument.Parse(await badReader.ReadLineAsync(badTimeout.Token) ?? throw new Exception("No reply")).RootElement;
+        Check(!badReply.GetProperty("ok").GetBoolean() && capturedRequest is null, "Malformed mime / over-long name is rejected before the UI sees it");
+    }
     Console.WriteLine("ALL DOWNLOAD OPTIONS DIALOG TESTS PASSED");
 }
 finally

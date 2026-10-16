@@ -65,10 +65,12 @@ internal static class Program
         if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException();
         if (root.TryGetProperty("action", out var action) && action.GetString() == "ping") return JsonSerializer.SerializeToUtf8Bytes(new { ok = true, host = "com.ndm.bridge" });
         if (root.TryGetProperty("method", out var method) && method.GetString() != "GET") throw new InvalidDataException();
-        string url = Field(root,"url"), fileName = Field(root,"fileName",255), referer = Field(root,"referer"), cookie = Field(root,"cookie",32768);
+        string url = Field(root,"url"), fileName = Field(root,"fileName",255), referer = Field(root,"referer"), cookie = Field(root,"cookie",32768), mime = Field(root,"mime",100);
         if (!Http(url) || (referer.Length > 0 && !Http(referer))) throw new InvalidDataException();
         if (fileName.IndexOfAny(new[] {'/','\\',':','<','>','"','|','?','*'}) >= 0 || fileName is "." or "..") throw new InvalidDataException();
-        byte[] payload = JsonSerializer.SerializeToUtf8Bytes(new {url,fileName,referer,cookie});
+        if (mime.Length > 0 && !System.Text.RegularExpressions.Regex.IsMatch(mime, @"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*$")) throw new InvalidDataException();
+        // mime is optional: older extensions never send it and the app receives exactly the four original fields then.
+        byte[] payload = mime.Length > 0 ? JsonSerializer.SerializeToUtf8Bytes(new {url,fileName,referer,cookie,mime}) : JsonSerializer.SerializeToUtf8Bytes(new {url,fileName,referer,cookie});
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10)); var ct = deadline.Token;
         using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         try { using var first = CancellationTokenSource.CreateLinkedTokenSource(ct); first.CancelAfter(300); await pipe.ConnectAsync(first.Token); }
@@ -113,6 +115,23 @@ internal static class Program
             await serve;
             if (Encoding.UTF8.GetString(actual) != expected) return 1;
         }
-        Console.Error.WriteLine("PASS framing: UTF-8, little-endian, EOF, zero/oversized/truncated frames; current-user pipe request and exact positive/negative ACK"); return 0;
+        {
+            // Optional browser file name + mime are forwarded; malformed ones are rejected before anything reaches the app.
+            string name = "NDM.SelfTest." + Guid.NewGuid().ToString("N");
+            using var server = new NamedPipeServerStream(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            var serve = Task.Run(async () => {
+                await server.WaitForConnectionAsync();
+                using var reader = new StreamReader(server, Encoding.UTF8, false, 1024, true);
+                using var request = JsonDocument.Parse((await reader.ReadLineAsync())!);
+                var r = request.RootElement;
+                if (r.GetProperty("fileName").GetString() != "tool.zip" || r.GetProperty("mime").GetString() != "application/zip") throw new InvalidDataException();
+                await server.WriteAsync(Encoding.UTF8.GetBytes("{\"ok\":true,\"id\":\"m\"}" + (char)10)); await server.FlushAsync();
+            });
+            await Handle(Encoding.UTF8.GetBytes("{\"url\":\"https://example.org/a\",\"fileName\":\"tool.zip\",\"mime\":\"application/zip\"}"), new Config("hohmmojlhbkelkobobpkochpdempcihd", null), name);
+            await serve;
+            foreach (var bad in new[] { "{\"url\":\"https://example.org/a\",\"mime\":\"not a mime\"}", "{\"url\":\"https://example.org/a\",\"mime\":\"" + new string('a', 101) + "/b\"}", "{\"url\":\"https://example.org/a\",\"fileName\":\"a/b.zip\"}", "{\"url\":\"https://example.org/a\",\"mime\":5}" })
+            { try { await Handle(Encoding.UTF8.GetBytes(bad), new Config("hohmmojlhbkelkobobpkochpdempcihd", null), "NDM.SelfTest.none"); return 1; } catch (InvalidDataException) { } }
+        }
+        Console.Error.WriteLine("PASS framing: UTF-8, little-endian, EOF, zero/oversized/truncated frames; current-user pipe request and exact positive/negative ACK; optional fileName/mime forwarded, bad values rejected"); return 0;
     }
 }

@@ -48,7 +48,8 @@ public sealed partial class DownloadManager : IDisposable
             AllowAutoRedirect = false,
             MaxConnectionsPerServer = options.MaxConcurrentDownloads * options.MaxSegments,
             ConnectTimeout = options.RequestTimeout,
-            UseCookies = false
+            UseCookies = false,
+            ResponseHeaderEncodingSelector = (_, _) => System.Text.Encoding.Latin1 // raw bytes; FileNameResolver re-decodes UTF-8 file names
         };
         ProxyHttp.Apply(handler, options.Proxy);
         client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
@@ -66,7 +67,9 @@ public sealed partial class DownloadManager : IDisposable
         {
             ThrowIfDisposed();
             var uri = new Uri(request.Url);
-            var candidate = request.FileName ?? Uri.UnescapeDataString(uri.AbsolutePath.Split('/').LastOrDefault() ?? "download.bin");
+            // Provisional name from the URL; the real one is settled from the server's answer when the transfer starts.
+            var candidate = request.FileName ?? FileNameResolver.Resolve(uri, null, null, null).Name;
+            if (request.FileName is null && !request.AutoName) request = request with { AutoName = true };
             var name = AvailableName(DownloadFileNames.Sanitize(candidate));
             var targetDir = pathResolver?.Invoke(name) ?? downloads;
             var work = new Work
@@ -349,6 +352,7 @@ public sealed partial class DownloadManager : IDisposable
                     try { probe = await ProbeAsync(w, token).ConfigureAwait(false); }
                     finally { lock (gate) w.Probing = false; }
                     lock (gate) w.Job.ResumeSupported = probe.Ranges;
+                    if (probe.Description is not null) SettleName(w, probe.Description, null);
                     if (probe.Ranges)
                     {
                         PrepareSegments(w, probe);
@@ -420,7 +424,7 @@ public sealed partial class DownloadManager : IDisposable
                 var next = new Uri(current.RequestUri!, response.Headers.Location);
                 response.Dispose();
                 if (hop >= 9 || next.Scheme is not ("http" or "https")) throw new HttpRequestException("Invalid redirect or redirect limit exceeded.");
-                var redirected = new HttpRequestMessage(HttpMethod.Get, next);
+                var redirected = new HttpRequestMessage(request.Method, next);
                 foreach (var header in request.Headers)
                 {
                     // Cookies captured by Chrome belong to the original origin only.
@@ -440,7 +444,7 @@ public sealed partial class DownloadManager : IDisposable
         using var request = Request(w);
         request.Headers.Range = new RangeHeaderValue(0, 0);
         using var response = await SendAsync(request, token).ConfigureAwait(false);
-        if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable) return new Probe(false, 0, null, null, response.RequestMessage?.RequestUri?.AbsoluteUri ?? w.Request.Url);
+        if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable) return new Probe(false, 0, null, null, response.RequestMessage?.RequestUri?.AbsoluteUri ?? w.Request.Url, Describe(response, Array.Empty<byte>()));
         response.EnsureSuccessStatusCode();
         var range = response.Content.Headers.ContentRange;
         var etag = response.Headers.ETag is { IsWeak: false } tag ? tag.ToString() : null;
@@ -463,7 +467,7 @@ public sealed partial class DownloadManager : IDisposable
             var extra = await ReadAsync(stream, buffer.AsMemory(1, 1), token).ConfigureAwait(false);
             valid = count == 1 && extra == 0;
         }
-        return new Probe(valid, length, etag, modified, response.RequestMessage?.RequestUri?.AbsoluteUri ?? w.Request.Url);
+        return new Probe(valid, length, etag, modified, response.RequestMessage?.RequestUri?.AbsoluteUri ?? w.Request.Url, Describe(response, Array.Empty<byte>()));
     }
 
     private void PrepareSegments(Work w, Probe probe)
@@ -629,6 +633,7 @@ public sealed partial class DownloadManager : IDisposable
                 await output.FlushAsync(token).ConfigureAwait(false);
                 output.Flush(true);
             }
+            if (w.Request.AutoName) SettleName(w, null, ReadHead(staging));
             lock (gate)
             {
                 token.ThrowIfCancellationRequested();
@@ -773,7 +778,7 @@ public sealed partial class DownloadManager : IDisposable
         finally { client.Dispose(); ownership.Dispose(); }
     }
 
-    private sealed record Probe(bool Ranges, long Length, string? ETag, DateTimeOffset? Modified, string ResolvedUrl);
+    private sealed record Probe(bool Ranges, long Length, string? ETag, DateTimeOffset? Modified, string ResolvedUrl, NameProbeResult? Description = null);
     private sealed class RangeRejectedException : IOException { public RangeRejectedException() : base("Server rejected or changed a byte range.") { } }
     private sealed class Work
     {

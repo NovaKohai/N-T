@@ -132,6 +132,12 @@ chrome.webRequest.onBeforeRequest.addListener(details => {
 const forget = details => methods.delete(details.requestId);
 chrome.webRequest.onCompleted.addListener(forget, { urls: ['http://*/*', 'https://*/*'] });
 chrome.webRequest.onErrorOccurred.addListener(forget, { urls: ['http://*/*', 'https://*/*'] });
+// The browser's own decision (Content-Disposition, redirects, sniffed type) arrives here; it is remembered for the capture below. suggest() is never called, so the browser is not delayed.
+const suggested = new Map();
+chrome.downloads.onDeterminingFilename?.addListener(item => {
+  suggested.set(item.id, { filename: item.filename, mime: item.mime });
+  if (suggested.size > 100) suggested.delete(suggested.keys().next().value);
+});
 chrome.downloads.onCreated.addListener(async item => {
   const p = await prefs();
   if (!p.capture || isPaused(p.pause, item.referrer, item.finalUrl, item.url)) return;
@@ -140,7 +146,8 @@ chrome.downloads.onCreated.addListener(async item => {
   const fresh = o => o?.method === 'GET' && Date.now() - o.time < 60000;
   // transfer(): cancel + erase the browser download immediately, THEN NeoDM shows its dialog (up to 5 min).
   // Only app-unreachable/error restarts the browser download; the user's Cancel in NeoDM discards it.
-  const result = await transfer(item, chrome.downloads, req => send(req), fresh(observed) && fresh(final));
+  const hint = suggested.get(item.id); suggested.delete(item.id);
+  const result = await transfer(item, chrome.downloads, req => send(req), fresh(observed) && fresh(final), hint);
   if (!result.skipped) await status(result.ok ? 'Taken over by NeoDM; the browser download was removed' : result.error);
 });
 

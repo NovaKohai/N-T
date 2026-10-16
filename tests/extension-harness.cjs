@@ -30,7 +30,7 @@ function makeBackground({ settings = {}, nativeReply = req => (req.action === 'p
     action: { setBadgeText: async o => badge.push(o), setBadgeBackgroundColor: async () => {} },
     contextMenus: { removeAll: async () => {}, create: m => nativeRequests.push({ menu: m.id }), onClicked: event('menu') },
     webRequest: { onBeforeRequest: event('request'), onCompleted: event('complete'), onErrorOccurred: event('error'), onHeadersReceived: event('headers') },
-    downloads: { onCreated: event('download'), calls: [], pause: async () => { throw new Error('pause must not be used'); } },
+    downloads: { onCreated: event('download'), onDeterminingFilename: event('determining'), calls: [], pause: async () => { throw new Error('pause must not be used'); } },
     permissions: { contains: async () => granted },
     cookies: { getAllCookieStores: async () => [{ id: 's', tabIds: [1] }], getAll: async () => [{ name: 'a', value: 'b' }] },
   };

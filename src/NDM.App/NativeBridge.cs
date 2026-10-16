@@ -13,7 +13,7 @@ public sealed class NativeBridge : IDisposable
     public const string PipeName = "NDM.Downloads";
     public const int MaximumRequestBytes = 64 * 1024;
     
-    public record BrowserDownloadRequest(string Url, string? FileName, string? Referer, string? Cookie, Action<BrowserDownloadResponse> Respond);
+    public record BrowserDownloadRequest(string Url, string? FileName, string? Referer, string? Cookie, Action<BrowserDownloadResponse> Respond, string? Mime = null);
     public record BrowserDownloadResponse(bool Ok, string? Id = null, string? Error = null, bool Cancelled = false);
     
     /// <summary>Instance-control message from a second launch (show window, hand over a magnet link or .torrent path).</summary>
@@ -107,9 +107,12 @@ public sealed class NativeBridge : IDisposable
             var fileName = ReadString(root, "fileName");
             var referer = ReadString(root, "referer");
             var cookie = ReadString(root, "cookie");
+            var mime = ReadString(root, "mime");
+            if (fileName is { Length: > 512 }) throw new FormatException("File name too long.");
+            if (mime is not null && !ValidMime(mime)) throw new FormatException("Invalid content type.");
             
             // Queue the request and notify the UI thread
-            var browserRequest = new BrowserDownloadRequest(url, fileName, referer, cookie, response => responseSource.SetResult(response));
+            var browserRequest = new BrowserDownloadRequest(url, fileName, referer, cookie, response => responseSource.SetResult(response), mime);
             _onRequestReceived(browserRequest);
             
             // Wait for the UI thread to respond (with timeout)
@@ -169,6 +172,9 @@ public sealed class NativeBridge : IDisposable
         try { return _onControl!(new ControlRequest(action, value)); }
         catch (Exception) { return "The running instance could not handle the request."; }
     }
+
+    /// <summary>type/subtype only: the browser's content type for the download, at most 100 characters of token characters.</summary>
+    public static bool ValidMime(string value) => value.Length is > 2 and <= 100 && System.Text.RegularExpressions.Regex.IsMatch(value, @"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*$");
 
     public static void ValidateUrl(string url)
     {

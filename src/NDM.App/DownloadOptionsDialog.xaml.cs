@@ -17,37 +17,93 @@ public partial class DownloadOptionsDialog : Window
     public string Category { get; private set; } = "General";
 
     private readonly string _defaultDownloadDirectory;
+    private readonly Uri _uri;
+    private readonly string? _browserName, _browserMime;
+    private readonly Func<CancellationToken, Task<NameProbeResult?>>? _probe;
+    private readonly CancellationTokenSource _probeCancel = new();
+    private bool _programmatic, _nameEdited, _pathEdited, _categoryEdited;
+    private NameProbeResult? _seen;
 
-    public DownloadOptionsDialog(string url, string? suggestedFileName, string? referer, string? cookie, string defaultDownloadDirectory)
+    /// <summary>True once the user pressed Start / Add to Queue / Schedule (a closed window or Cancel is false).</summary>
+    public bool Accepted { get; private set; }
+    /// <summary>The file name as currently shown (used as the tray menu label).</summary>
+    public string FileNameText => NameInput.Text;
+    /// <summary>What the quick probe learned (null until it finished, or when the server could not be reached).</summary>
+    public NameProbeResult? Detected => _seen;
+    public Task ProbeTask { get; private set; } = Task.CompletedTask;
+
+    /// <param name="suggestedFileName">The name the browser itself decided (may be empty).</param>
+    /// <param name="mime">The browser's content type for the download (may be empty).</param>
+    /// <param name="probe">Quick HEAD / ranged-GET look at the link; fills the name, size and type when it answers.</param>
+    public DownloadOptionsDialog(string url, string? suggestedFileName, string? referer, string? cookie, string defaultDownloadDirectory,
+        string? mime = null, Func<CancellationToken, Task<NameProbeResult?>>? probe = null)
     {
         _defaultDownloadDirectory = defaultDownloadDirectory;
+        _uri = new Uri(url);
+        _browserName = string.IsNullOrWhiteSpace(suggestedFileName) ? null : suggestedFileName;
+        _browserMime = string.IsNullOrWhiteSpace(mime) ? null : mime;
+        _probe = probe;
         InitializeComponent();
         
         UrlDisplay.Text = url;
         
-        // Determine filename
-        var fileName = suggestedFileName;
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            var uri = new Uri(url);
-            fileName = Uri.UnescapeDataString(uri.AbsolutePath.Split('/').LastOrDefault() ?? "download.bin");
-        }
-        fileName = DownloadFileNames.Sanitize(fileName);
-        NameInput.Text = fileName;
-        
-        // Detect category and set save path
-        var category = DetectCategory(fileName);
-        Category = category;
-        SelectCategory(category);
-        
-        var categoryPath = GetCategoryPath(category);
-        PathInput.Text = categoryPath;
-        SavePath = categoryPath;
+        // Best name known before the server answers: the browser's, else the address.
+        SetName(FileNameResolver.Resolve(_uri, _browserName, _browserMime, null).Name);
         
         // Store referer and cookie for later use
         Tag = new { Referer = referer, Cookie = cookie };
-        
+
+        NameInput.TextChanged += (_, _) => { if (!_programmatic) _nameEdited = true; if (NameInput.Text.Trim().Length > 0) Title = NameInput.Text.Trim(); };
+        PathInput.TextChanged += (_, _) => { if (!_programmatic) _pathEdited = true; };
+        CategoryDropdown.SelectionChanged += (_, _) => { if (!_programmatic) _categoryEdited = true; };
+        Closed += (_, _) => _probeCancel.Cancel();
         Loaded += (_, _) => { NameInput.Focus(); NameInput.SelectAll(); };
+        if (_probe is null) DetectedInfo.Visibility = Visibility.Collapsed;
+        else
+        {
+            DetectedInfo.Text = "Checking the link for the real file name, size and type...";
+            ProbeTask = RunProbeAsync();
+        }
+    }
+
+    /// <summary>Sets the file name (and the category / folder that follow its extension) unless the user already edited those fields.</summary>
+    private void SetName(string name)
+    {
+        _programmatic = true;
+        try
+        {
+            if (!_nameEdited) { NameInput.Text = name; Title = name; }
+            if (!_categoryEdited || !_pathEdited)
+            {
+                var category = DetectCategory(_nameEdited ? NameInput.Text : name);
+                if (!_categoryEdited) { Category = category; SelectCategory(category); }
+                if (!_pathEdited) { var path = GetCategoryPath(Category); PathInput.Text = path; SavePath = path; }
+            }
+        }
+        finally { _programmatic = false; }
+    }
+
+    private async Task RunProbeAsync()
+    {
+        NameProbeResult? seen = null;
+        try { seen = await _probe!(_probeCancel.Token); }
+        catch (Exception ex) when (ex is not OutOfMemoryException) { }
+        if (_probeCancel.IsCancellationRequested) return;
+        _seen = seen;
+        if (seen is null) { DetectedInfo.Text = "Could not check the link. The name comes from the address and is completed when the download starts."; return; }
+        SetName(FileNameResolver.Resolve(_uri, _browserName, _browserMime, seen).Name);
+        var parts = new List<string>();
+        if (seen.Length is > 0) parts.Add("Size: " + DownloadRow.FormatBytes(seen.Length.Value));
+        var type = seen.ContentType?.Split(';')[0].Trim();
+        if (!string.IsNullOrEmpty(type)) parts.Add("Type: " + type);
+        DetectedInfo.Text = parts.Count > 0 ? string.Join("  \u00b7  ", parts) : "Detected from the server.";
+    }
+
+    private void Finish(bool accepted)
+    {
+        Accepted = accepted;
+        try { DialogResult = accepted; } // only valid for ShowDialog
+        catch (InvalidOperationException) { Close(); }
     }
 
     private static string DetectCategory(string fileName)
@@ -108,13 +164,14 @@ public partial class DownloadOptionsDialog : Window
         if (dialog.ShowDialog() == true)
         {
             PathInput.Text = dialog.FolderName;
+            _pathEdited = true;
         }
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         UserAction = DialogAction.Cancel;
-        DialogResult = false;
+        Finish(false);
     }
 
     private void Queue_Click(object sender, RoutedEventArgs e)
@@ -122,7 +179,7 @@ public partial class DownloadOptionsDialog : Window
         if (ValidateAndPrepare())
         {
             UserAction = DialogAction.Queue;
-            DialogResult = true;
+            Finish(true);
         }
     }
 
@@ -136,7 +193,7 @@ public partial class DownloadOptionsDialog : Window
         {
             ScheduledAt = DownloadDialogValidation.ParseSchedule(ScheduleInput.Text);
             UserAction = DialogAction.Schedule;
-            DialogResult = true;
+            Finish(true);
         }
         catch (FormatException ex)
         {
@@ -151,7 +208,7 @@ public partial class DownloadOptionsDialog : Window
         if (ValidateAndPrepare())
         {
             UserAction = DialogAction.StartNow;
-            DialogResult = true;
+            Finish(true);
         }
     }
 
@@ -191,7 +248,10 @@ public partial class DownloadOptionsDialog : Window
             SpeedLimit = DownloadDialogValidation.ParseSpeed(SpeedInput.Text);
             
             var metadata = (dynamic?)Tag;
-            Request = new DownloadRequest(url, name, metadata?.Referer, metadata?.Cookie);
+            // The user's own name, or the browser's, is kept as is. Only a name derived from the address alone that the server has not confirmed yet
+            // stays open for the engine to refine from the server's answer when the transfer starts.
+            bool open = !_nameEdited && _browserName is null && _seen is null;
+            Request = new DownloadRequest(url, name, metadata?.Referer, metadata?.Cookie, open);
             SavePath = savePath;
             
             var selectedCategory = (CategoryDropdown.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string;

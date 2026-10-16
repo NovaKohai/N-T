@@ -70,6 +70,7 @@ internal sealed class FixtureServer : IDisposable
             var headers = lines.Skip(1).Where(s => s.Contains(':')).ToDictionary(s => s[..s.IndexOf(':')], s => s[(s.IndexOf(':') + 1)..].Trim(), StringComparer.OrdinalIgnoreCase);
             Headers.Enqueue((path, headers.GetValueOrDefault("Referer"), headers.GetValueOrDefault("Cookie")));
             var requestCount = counts.AddOrUpdate(path, 1, (_, n) => n + 1);
+            if (path.StartsWith("/n/", StringComparison.Ordinal)) { await ServeNamed(stream, lines[0].Split(' ')[0], lines[0].Split(' ')[1], path); return; }
             if (path is "/redirect" or "/redirect-loop" or "/redirect-switch")
             {
                 var location = path == "/redirect-loop" ? BaseUrl + path : path == "/redirect-switch" ? BaseUrl + (headers.GetValueOrDefault("Range") == "bytes=0-0" ? "/range" : "/v2-range") : (RedirectTarget ?? BaseUrl) + "/range";
@@ -141,6 +142,56 @@ internal sealed class FixtureServer : IDisposable
         catch (SocketException) { }
         catch (OperationCanceledException) { }
         finally { if (counted) Interlocked.Decrement(ref activeRanges); }
+    }
+    public readonly ConcurrentQueue<(string Method, string Target)> NamedRequests = new();
+    private static readonly byte[] Pk = { 0x50, 0x4B, 3, 4, 20, 0, 0, 0, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+    private static readonly byte[] Png = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 73, 72, 68, 82 };
+    private static readonly byte[] Mp4 = { 0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6F, 0x6D, 0, 0, 2, 0 };
+    private static readonly byte[] Text = Encoding.ASCII.GetBytes("plain text body for name tests\n");
+
+    /// <summary>Named-file routes under /n/ for file-name detection tests: Content-Disposition, redirects, Content-Type, magic bytes, HEAD refusal.</summary>
+    private async Task ServeNamed(NetworkStream stream, string method, string target, string path)
+    {
+        NamedRequests.Enqueue((method, target));
+        string type = "application/octet-stream"; string? disposition = null; byte[] body = Text; string? location = null;
+        switch (path)
+        {
+            case "/n/cd-plain": disposition = "attachment; filename=\"report final.pdf\""; break;
+            case "/n/cd-star": disposition = "attachment; filename=\"fallback.txt\"; filename*=UTF-8''%E6%97%A5%E6%9C%AC%20%E2%82%AC.zip"; break;
+            case "/n/cd-unquoted": disposition = "attachment; filename=unquoted.csv"; break;
+            case "/n/cd-traversal": disposition = "attachment; filename=\"../..\\evil.txt\""; break;
+            case "/n/cd-dots": disposition = "attachment; filename=\"...\""; type = "application/zip"; body = Pk; break;
+            case "/n/cd-long": disposition = "attachment; filename=\"" + new string('a', 300) + ".zip\""; break;
+            case "/n/cd-raw-utf8": disposition = "attachment; filename=\"" + string.Concat(Encoding.UTF8.GetBytes("caf\u00e9.txt").Select(b => (char)b)) + "\""; break;
+            case "/n/redirect-name": location = "/n/final/Real%20Name.zip"; break;
+            case "/n/final/Real%20Name.zip": break;
+            case "/n/redirect-bare": location = "/n/final/blob"; break;
+            case "/n/final/blob": type = "application/zip"; body = Pk; break;
+            case "/n/nozip": type = "application/zip"; body = Pk; break;
+            case "/n/nopdf": type = "application/pdf; charset=binary"; body = Encoding.ASCII.GetBytes("%PDF-1.7 fake"); break;
+            case "/n/video": type = "video/mp4"; body = Mp4; break;
+            case "/n/magic-zip": body = Pk; break;
+            case "/n/magic-png": body = Png; break;
+            case "/n/magic-mp4": body = Mp4; break;
+            case "/n/q": break;
+            case "/n/script.php": type = "application/zip"; body = Pk; break;
+            case "/n/page.php": type = "text/html"; body = Encoding.ASCII.GetBytes("<html></html>"); break;
+            case "/n/keep.txt": type = "application/zip"; break;
+            case "/n/head405": disposition = "attachment; filename=\"from-get.pdf\""; if (method == "HEAD") { await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"), stop.Token); return; } break;
+            case "/n/opaque": break;
+            default:
+                if (path.Length == 3 + 32 + 1 && path[3..].All(Uri.IsHexDigit) || Guid.TryParse(path[3..], out _)) { type = "video/mp4"; body = Mp4; }
+                break;
+        }
+        var head = new StringBuilder(location != null ? "HTTP/1.1 302 Found\r\n" : "HTTP/1.1 200 OK\r\n");
+        if (location != null) head.Append("Location: ").Append(location).Append("\r\n");
+        head.Append("Connection: close\r\nContent-Type: ").Append(type).Append("\r\nContent-Length: ").Append(location != null ? 0 : body.Length).Append("\r\n");
+        if (disposition != null) head.Append("Content-Disposition: ");
+        var headerBytes = Encoding.Latin1.GetBytes(head.ToString());
+        var tail = disposition is null ? "\r\n" : disposition + "\r\n\r\n";
+        await stream.WriteAsync(headerBytes, stop.Token);
+        await stream.WriteAsync(Encoding.Latin1.GetBytes(tail), stop.Token);
+        if (location == null && method != "HEAD") await stream.WriteAsync(body, stop.Token);
     }
     public void Dispose()
     {

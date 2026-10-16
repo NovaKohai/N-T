@@ -12,6 +12,7 @@ public partial class App : Application
     private bool _ownsMutex;
     private DownloadManager? _manager;
     private NativeBridge? _bridge;
+    private readonly TrayWindowList _fallbackWindows = new();
     private ITorrentFeature? _torrentFeature;
     private TorrentController? _torrents;
     [DllImport("user32.dll")] private static extern bool AllowSetForegroundWindow(int processId);
@@ -141,16 +142,15 @@ public partial class App : Application
             try
             {
                 // The browser download is already gone (the extension cancels it before asking), so this dialog must never end up hidden:
-                // it has its own taskbar button, is not owned by a minimised/tray-hidden main window and is brought above the browser when it opens.
-                var dialog = new DownloadOptionsDialog(request.Url, request.FileName, request.Referer, request.Cookie, Settings.DownloadDirectory)
-                {
-                    // A --tray start never showed the main window, and WPF refuses an unshown owner; an owned dialog would also minimise with it.
-                    Owner = MainWindow is { IsVisible: true, WindowState: not WindowState.Minimized } ? MainWindow : null,
-                    ShowInTaskbar = true
-                };
-                dialog.ContentRendered += (_, _) => WindowActivation.BringToFront(dialog);
+                // it is its own top-level window (no owner, own taskbar button, listed in the tray menu), comes up above the browser, and the main
+                // window - minimised, hidden or closed to the tray - is neither shown nor activated. Several captures are several independent dialogs.
+                var windows = (MainWindow as MainWindow)?.TrayWindows ?? _fallbackWindows;
+                var manager = _manager!;
+                var dialog = new DownloadOptionsDialog(request.Url, request.FileName, request.Referer, request.Cookie, Settings.DownloadDirectory, request.Mime,
+                    ct => manager.ProbeNameAsync(new DownloadRequest(request.Url, null, request.Referer, request.Cookie), ct));
+                bool accepted = await CaptureFlow.ShowAsync(dialog, windows);
 
-                if (dialog.ShowDialog() != true || dialog.Request is null)
+                if (!accepted || dialog.Request is null)
                 {
                     // The user pressed Cancel: discard on purpose (the extension does not restart the browser download for this reply).
                     request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in NeoDM.", Cancelled: true));

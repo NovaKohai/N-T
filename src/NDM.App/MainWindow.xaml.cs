@@ -33,6 +33,8 @@ public partial class MainWindow : Window
     public bool HasProgressWindow(string id) => _progressWindows.ContainsKey(id);
     public int ProgressWindowCount => _progressWindows.Count;
     private readonly TaskbarIcon? _trayIcon;
+    /// <summary>Capture dialogs and progress windows, each an independent window; also listed in the tray menu so a minimised one can be restored.</summary>
+    public TrayWindowList TrayWindows { get; } = new();
     private readonly bool _enableTray;
     private bool _exitRequested, _exitWithoutPrompt, _finishing;
     private readonly QueueFinishTrigger _finishTrigger;
@@ -117,6 +119,9 @@ public partial class MainWindow : Window
                 ToolTipText = "NeoDM"
             };
             _trayIcon.TrayMouseDoubleClick += (_, _) => RestoreFromTray();
+            _trayIcon.TrayLeftMouseUp += (_, _) => TrayWindows.RestorePendingDialog(); // a waiting capture dialog first; the main window stays where it is
+            _trayIcon.TrayContextMenuOpen += (_, _) => TrayWindows.Fill(_trayIcon.ContextMenu, 1);
+            TrayWindows.Changed += UpdateTrayVisibility;
             var trayMenu = new System.Windows.Controls.ContextMenu();
             var showItem = new MenuItem { Header = "Show" };
             showItem.Click += (_, _) => RestoreFromTray();
@@ -186,7 +191,16 @@ public partial class MainWindow : Window
         Hide();
         if (_trayIcon is not null) _trayIcon.Visibility = Visibility.Visible;
     }
-    private void RestoreFromTray() => BringToFront();
+    private void RestoreFromTray()
+    {
+        if (!TrayWindows.RestorePendingDialog()) BringToFront(); // a pending capture dialog is restored first, else the main window
+    }
+    /// <summary>The tray icon is shown while the main window is hidden, and while an independent window is open (so it can be found even if minimised).</summary>
+    private void UpdateTrayVisibility()
+    {
+        if (_trayIcon is null || _closed) return;
+        _trayIcon.Visibility = !IsVisible || TrayWindows.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
     /// <summary>Shows the window (from tray or never-shown --tray start) and takes focus.</summary>
     public void BringToFront()
     {
@@ -194,7 +208,7 @@ public partial class MainWindow : Window
         Show();
         WindowState = WindowState.Normal;
         WindowActivation.BringToFront(this); // foreground-lock workaround included
-        if (_trayIcon is not null) _trayIcon.Visibility = Visibility.Collapsed;
+        UpdateTrayVisibility();
     }
     /// <summary>--tray start: no window, tray icon visible, everything keeps running.</summary>
     public void StartInTray()
@@ -219,7 +233,7 @@ public partial class MainWindow : Window
         // A per-download choice overrides the global one; an open progress window already shows "Complete", so no second dialog.
         bool wanted = JobCompletion.Get(job.Id)?.ShowDialog ?? _settings.ShowCompletionDialog;
         if (_closed || !wanted || _progressWindows.ContainsKey(job.Id)) { acknowledged(); return; }
-        var dialog = new DownloadCompleteWindow(job, _settings, _saveSettings, () => _manager.Jobs.Any(j => j.Id == job.Id && j.Status == "Completed")) { Owner = this, ShowInTaskbar = false };
+        var dialog = new DownloadCompleteWindow(job, _settings, _saveSettings, () => _manager.Jobs.Any(j => j.Id == job.Id && j.Status == "Completed")) { Owner = IsVisible && WindowState != WindowState.Minimized ? this : null, ShowInTaskbar = false };
         _completionWindow = dialog;
         dialog.Closed += (_, _) => { _completionWindow = null; acknowledged(); };
         dialog.Show(); // Deliberately modeless; never block transfers, test loops or the main window.
@@ -521,10 +535,11 @@ public partial class MainWindow : Window
         {
             try { window = new DownloadProgressWindow(_manager, id, JobCompletion, _settings); }
             catch (ArgumentException) { return null; }
-            // An owned window would minimise with a minimised or tray-hidden main window and so could not stay visible on its own.
-            if (IsVisible && WindowState != WindowState.Minimized) window.Owner = this;
+            // Independent top-level window (no owner): own taskbar button, never minimised or raised together with the main window.
+            window.Owner = null;
             _progressWindows[id] = window;
             var created = window;
+            TrayWindows.Add(window, TrayWindowKind.Progress, () => $"{created.Row.FileName} ({created.Row.Percent})");
             window.Closed += (_, _) => { if (_progressWindows.TryGetValue(id, out var current) && ReferenceEquals(current, created)) _progressWindows.Remove(id); };
             window.Show();
         }
