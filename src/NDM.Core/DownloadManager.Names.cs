@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
 
 namespace NDM.Core;
 
@@ -45,6 +46,11 @@ public sealed partial class DownloadManager
             if (response.IsSuccessStatusCode)
             {
                 head = Describe(response, Array.Empty<byte>());
+                if (IsHls(head, request.Url))
+                {
+                    var hlsProbe = await ProbeHlsSizeAsync(request, head, limit.Token).ConfigureAwait(false);
+                    if (hlsProbe != null) return hlsProbe;
+                }
                 var resolved = FileNameResolver.Resolve(uri, null, null, head);
                 if (resolved.HasExtension || FileNameResolver.FromContentDisposition(head.ContentDisposition) is not null) return head;
             }
@@ -66,9 +72,148 @@ public sealed partial class DownloadManager
                 }
             }
             var described = Describe(response, bytes[..count]);
+            if (IsHls(described, request.Url))
+            {
+                var hlsProbe = await ProbeHlsSizeAsync(request, described, limit.Token).ConfigureAwait(false);
+                if (hlsProbe != null) return hlsProbe;
+            }
             return head is not null && described.Length is null ? described with { Length = head.Length } : described;
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException || (ex is OperationCanceledException && !cancellation.IsCancellationRequested)) { return head; }
+    }
+
+    private static bool IsHls(NameProbeResult? probe, string url)
+    {
+        if (url.Contains(".m3u8", StringComparison.OrdinalIgnoreCase)) return true;
+        if (probe?.ContentType != null &&
+            (probe.ContentType.Contains("mpegurl", StringComparison.OrdinalIgnoreCase) ||
+             probe.ContentType.Contains("vnd.apple.mpegurl", StringComparison.OrdinalIgnoreCase)))
+            return true;
+        return false;
+    }
+
+    private async Task<NameProbeResult?> ProbeHlsSizeAsync(DownloadRequest request, NameProbeResult? baseProbe, CancellationToken token)
+    {
+        try
+        {
+            using var m3u8Req = ProbeMessage(HttpMethod.Get, request);
+            using var m3u8Resp = await SendAsync(m3u8Req, token).ConfigureAwait(false);
+            if (!m3u8Resp.IsSuccessStatusCode) return baseProbe;
+            var m3u8Content = await m3u8Resp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+            var playlistUri = m3u8Resp.RequestMessage?.RequestUri ?? new Uri(request.Url);
+
+            long bestBandwidth = 0;
+            if (m3u8Content.Contains("#EXT-X-STREAM-INF", StringComparison.OrdinalIgnoreCase))
+            {
+                var lines = m3u8Content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                string? bestVariantUri = null;
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    var line = lines[i].Trim();
+                    if (line.StartsWith("#EXT-X-STREAM-INF:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var bwMatch = Regex.Match(line, @"BANDWIDTH=(\d+)", RegexOptions.IgnoreCase);
+                        long bw = bwMatch.Success && long.TryParse(bwMatch.Groups[1].Value, out var b) ? b : 0;
+                        for (int j = i + 1; j < lines.Length; j++)
+                        {
+                            var next = lines[j].Trim();
+                            if (string.IsNullOrEmpty(next) || next.StartsWith("#")) continue;
+                            if (bw > bestBandwidth || bestVariantUri == null)
+                            {
+                                bestBandwidth = bw;
+                                bestVariantUri = next;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                if (bestVariantUri != null)
+                {
+                    var variantFullUri = new Uri(playlistUri, bestVariantUri);
+                    using var variantReq = ProbeMessage(HttpMethod.Get, request with { Url = variantFullUri.AbsoluteUri });
+                    using var variantResp = await SendAsync(variantReq, token).ConfigureAwait(false);
+                    if (variantResp.IsSuccessStatusCode)
+                    {
+                        m3u8Content = await variantResp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                        playlistUri = variantResp.RequestMessage?.RequestUri ?? variantFullUri;
+                    }
+                }
+            }
+
+            var pLines = m3u8Content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            double totalDuration = 0;
+            string? firstSegmentUrl = null;
+            double firstSegmentDur = 0;
+
+            for (int i = 0; i < pLines.Length; i++)
+            {
+                var line = pLines[i].Trim();
+                if (line.StartsWith("#EXTINF:", StringComparison.OrdinalIgnoreCase))
+                {
+                    var durStr = line.Substring(8).Split(',')[0].Trim();
+                    if (double.TryParse(durStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double dur))
+                    {
+                        totalDuration += dur;
+                        if (firstSegmentUrl == null)
+                        {
+                            firstSegmentDur = dur;
+                            for (int j = i + 1; j < pLines.Length; j++)
+                            {
+                                var next = pLines[j].Trim();
+                                if (string.IsNullOrEmpty(next) || next.StartsWith("#")) continue;
+                                var segUri = new Uri(playlistUri, next);
+                                if (string.IsNullOrEmpty(segUri.Query) && !string.IsNullOrEmpty(playlistUri.Query))
+                                    segUri = new UriBuilder(segUri) { Query = playlistUri.Query.TrimStart('?') }.Uri;
+                                firstSegmentUrl = segUri.AbsoluteUri;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (totalDuration <= 0) return baseProbe;
+
+            long estimatedSize = 0;
+            if (bestBandwidth > 0)
+            {
+                estimatedSize = (long)(totalDuration * (bestBandwidth / 8.0));
+            }
+            else if (!string.IsNullOrEmpty(firstSegmentUrl) && firstSegmentDur > 0)
+            {
+                try
+                {
+                    using var segReq = ProbeMessage(HttpMethod.Head, request with { Url = firstSegmentUrl });
+                    using var segResp = await SendAsync(segReq, token).ConfigureAwait(false);
+                    long? segLen = segResp.Content.Headers.ContentLength;
+                    if (segLen is > 0)
+                    {
+                        var segRate = segLen.Value / firstSegmentDur;
+                        estimatedSize = (long)(totalDuration * segRate);
+                    }
+                }
+                catch { }
+            }
+
+            if (estimatedSize <= 0)
+            {
+                estimatedSize = (long)(totalDuration * 187_500); // 1.5 Mbps
+            }
+
+            return new NameProbeResult(
+                playlistUri.AbsoluteUri,
+                baseProbe?.ContentDisposition,
+                "video/mp4",
+                estimatedSize,
+                baseProbe?.Head ?? Array.Empty<byte>(),
+                200
+            );
+        }
+        catch
+        {
+            return baseProbe;
+        }
     }
 
     private static HttpRequestMessage ProbeMessage(HttpMethod method, DownloadRequest request)

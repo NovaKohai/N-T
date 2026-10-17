@@ -11,7 +11,7 @@ public static class CompletionActionInfo
         CompletionActionKind.None => "Do nothing",
         CompletionActionKind.PlaySound => "Play sound",
         CompletionActionKind.OpenFolder => "Open downloads folder",
-        CompletionActionKind.ExitApp => "Exit NeoDM",
+        CompletionActionKind.ExitApp => "Exit N&T",
         CompletionActionKind.Lock => "Lock computer",
         CompletionActionKind.Sleep => "Sleep",
         CompletionActionKind.Hibernate => "Hibernate",
@@ -25,7 +25,7 @@ public static class CompletionActionInfo
         CompletionActionKind.None => "Nothing happens when the queue finishes.",
         CompletionActionKind.PlaySound => "Plays a notification sound once the last active download finishes.",
         CompletionActionKind.OpenFolder => "Opens the download folder in File Explorer.",
-        CompletionActionKind.ExitApp => "Closes NeoDM completely (not just to the tray).",
+        CompletionActionKind.ExitApp => "Closes N&T completely (not just to the tray).",
         CompletionActionKind.Lock => "Locks this Windows session. Downloads are already finished.",
         CompletionActionKind.Sleep => "Puts the computer to sleep after a 30 second warning you can cancel.",
         CompletionActionKind.Hibernate => "Hibernates the computer after a 30 second warning you can cancel. Requires hibernation to be enabled in Windows.",
@@ -37,7 +37,7 @@ public static class CompletionActionInfo
     /// <summary>Actions that end or suspend the user's session and therefore get the cancellable countdown.</summary>
     public static bool IsPower(CompletionActionKind kind) => kind is CompletionActionKind.Sleep or CompletionActionKind.Hibernate or CompletionActionKind.LogOff or CompletionActionKind.Restart or CompletionActionKind.Shutdown;
     public static bool UsesForce(CompletionActionKind kind) => kind is CompletionActionKind.Restart or CompletionActionKind.Shutdown;
-    /// <summary>Verb phrase for "NeoDM will ... in N seconds".</summary>
+    /// <summary>Verb phrase for "N&T will ... in N seconds".</summary>
     public static string Verb(CompletionActionKind kind) => kind switch
     {
         CompletionActionKind.Sleep => "put the computer to sleep",

@@ -46,7 +46,8 @@ public static class FileNameResolver
         ["text/plain"] = ".txt", ["text/csv"] = ".csv", ["application/json"] = ".json", ["application/xml"] = ".xml", ["text/xml"] = ".xml",
         ["application/x-bittorrent"] = ".torrent", ["application/rtf"] = ".rtf", ["application/x-sh"] = ".sh", ["application/java-archive"] = ".jar",
         ["application/x-debian-package"] = ".deb", ["application/x-rpm"] = ".rpm",
-        ["application/vnd.ms-cab-compressed"] = ".cab", ["font/ttf"] = ".ttf", ["font/otf"] = ".otf", ["font/woff"] = ".woff", ["font/woff2"] = ".woff2"
+        ["application/vnd.ms-cab-compressed"] = ".cab", ["font/ttf"] = ".ttf", ["font/otf"] = ".otf", ["font/woff"] = ".woff", ["font/woff2"] = ".woff2",
+        ["application/vnd.apple.mpegurl"] = ".mp4", ["application/x-mpegurl"] = ".mp4", ["audio/mpegurl"] = ".mp4"
     };
 
     private static readonly HashSet<string> KnownExtensions = new(MimeExtensions.Values.Concat(new[]
@@ -253,6 +254,7 @@ public static class FileNameResolver
             name = CleanName(host + "-download" + derived) ?? "download" + derived;
             source = NameSource.Fallback;
         }
+        if (name is not null && name.EndsWith(".m3u8", StringComparison.OrdinalIgnoreCase)) name = name[..^5] + ".mp4";
         name = DownloadFileNames.Sanitize(name);
         return new ResolvedName(name, source, HasUsefulExtension(name));
     }

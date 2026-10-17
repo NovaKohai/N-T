@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace NDM.Core;
 
@@ -376,7 +378,15 @@ public sealed partial class DownloadManager : IDisposable
                     finally { lock (gate) w.Probing = false; }
                     lock (gate) w.Job.ResumeSupported = probe.Ranges;
                     if (probe.Description is not null) SettleName(w, probe.Description, null);
-                    if (probe.Ranges)
+                    if (IsYoutube(w))
+                    {
+                        await DownloadYoutubeAsync(w, token).ConfigureAwait(false);
+                    }
+                    else if (IsHls(w, probe))
+                    {
+                        await DownloadHlsAsync(w, token).ConfigureAwait(false);
+                    }
+                    else if (probe.Ranges)
                     {
                         PrepareSegments(w, probe);
                         try { await DownloadSegmentsAsync(w, probe, token).ConfigureAwait(false); }
@@ -606,6 +616,863 @@ public sealed partial class DownloadManager : IDisposable
         lock (gate) { w.Total = segment.Length = segment.Done; UpdateProgressLocked(w); }
     }
 
+    private static bool IsHls(Work w, Probe probe)
+    {
+        if (probe.Description?.ContentType is { } ct && ct.Contains("mpegurl", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var url = probe.ResolvedUrl ?? w.ResolvedUrl ?? w.Request.Url;
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return uri.AbsolutePath.Contains(".m3u8", StringComparison.OrdinalIgnoreCase) ||
+                   uri.Query.Contains(".m3u8", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
+    }
+
+    private static bool IsYoutube(Work w)
+    {
+        var url = w.ResolvedUrl ?? w.Request.Url;
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        var host = uri.Host.ToLowerInvariant();
+        return (host == "youtube.com" || host.EndsWith(".youtube.com") || host == "youtu.be");
+    }
+
+    private static string? _cachedYtDlp;
+    private static bool _ytDlpSearched;
+    private static readonly object _ytDlpLock = new();
+
+    private static string? FindYtDlp()
+    {
+        lock (_ytDlpLock)
+        {
+            if (_ytDlpSearched) return _cachedYtDlp;
+            _ytDlpSearched = true;
+
+            var exeName = OperatingSystem.IsWindows() ? "yt-dlp.exe" : "yt-dlp";
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+
+            var common = new List<string>
+            {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, exeName),
+                Path.Combine(localAppData, "NDM", exeName),
+                Path.Combine(progFiles, "N&T", exeName),
+                Path.Combine(localAppData, "Programs", "yt-dlp", exeName),
+                @"C:\Program Files\N&T\" + exeName
+            };
+
+            var pathVar = Environment.GetEnvironmentVariable("PATH");
+            if (!string.IsNullOrEmpty(pathVar))
+            {
+                foreach (var dir in pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    try
+                    {
+                        var candidate = Path.Combine(dir.Trim(), exeName);
+                        if (File.Exists(candidate)) return _cachedYtDlp = candidate;
+                    }
+                    catch { }
+                }
+            }
+
+            foreach (var c in common)
+            {
+                try
+                {
+                    if (File.Exists(c)) return _cachedYtDlp = c;
+                }
+                catch { }
+            }
+
+            return null;
+        }
+    }
+
+    private async Task DownloadYoutubeAsync(Work w, CancellationToken token)
+    {
+        var ytDlp = FindYtDlp();
+        if (ytDlp == null)
+            throw new InvalidOperationException("yt-dlp was not found. Please install yt-dlp to download YouTube videos.");
+
+        var ffmpeg = FindFfmpeg();
+
+        Directory.CreateDirectory(PartDirectory(w));
+        var outputFile = PartFile(w, 0);
+        if (File.Exists(outputFile))
+        {
+            try { File.Delete(outputFile); } catch { }
+        }
+
+        lock (gate)
+        {
+            w.Streaming = true;
+            var ext = Path.GetExtension(w.Job.FileName);
+            if (!ext.Equals(".mp4", StringComparison.OrdinalIgnoreCase))
+            {
+                var newName = Path.ChangeExtension(w.Job.FileName, ".mp4");
+                var dir = Path.GetDirectoryName(w.Job.FilePath) ?? downloads;
+                w.Job.FileName = newName;
+                w.Job.FilePath = Path.Combine(dir, newName);
+            }
+            w.Total = 0;
+            w.ETag = null;
+            w.Modified = null;
+            w.Segments = new List<Segment> { new Segment { PartId = 0, Length = 0, Done = 0, Active = true } };
+            UpdateProgressLocked(w);
+        }
+        Notify();
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = ytDlp,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true
+        };
+        startInfo.ArgumentList.Add("--no-playlist");
+        startInfo.ArgumentList.Add("--newline");
+        if (!string.IsNullOrEmpty(ffmpeg))
+        {
+            var ffmpegDir = Path.GetDirectoryName(ffmpeg);
+            if (!string.IsNullOrEmpty(ffmpegDir))
+            {
+                startInfo.ArgumentList.Add("--ffmpeg-location");
+                startInfo.ArgumentList.Add(ffmpegDir);
+            }
+        }
+        startInfo.ArgumentList.Add("-f");
+        startInfo.ArgumentList.Add("bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best");
+        startInfo.ArgumentList.Add("--merge-output-format");
+        startInfo.ArgumentList.Add("mp4");
+        startInfo.ArgumentList.Add("-o");
+        startInfo.ArgumentList.Add(outputFile);
+        startInfo.ArgumentList.Add(w.ResolvedUrl ?? w.Request.Url);
+
+        using var process = new Process { StartInfo = startInfo };
+        var stderrLines = new Queue<string>();
+        var dlRegex = new Regex(@"\[download\]\s+([\d.]+)%\s+of\s+~?([\d.]+)\s*([KMG]i?B)(?:\s+at\s+([\d.]+)\s*([KMG]i?B/s))?", RegexOptions.Compiled);
+
+        void ParseLine(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line)) return;
+            var m = dlRegex.Match(line);
+            if (m.Success && double.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double pct) &&
+                double.TryParse(m.Groups[2].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double sizeVal))
+            {
+                var unit = m.Groups[3].Value.ToUpperInvariant();
+                double multiplier = unit.StartsWith("G") ? 1024 * 1024 * 1024 : unit.StartsWith("M") ? 1024 * 1024 : 1024;
+                long total = (long)(sizeVal * multiplier);
+                long done = (long)(total * (pct / 100.0));
+
+                double speed = 0;
+                if (m.Groups[4].Success && double.TryParse(m.Groups[4].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double spVal))
+                {
+                    var spUnit = m.Groups[5].Value.ToUpperInvariant();
+                    double spMult = spUnit.StartsWith("G") ? 1024 * 1024 * 1024 : spUnit.StartsWith("M") ? 1024 * 1024 : 1024;
+                    speed = spVal * spMult;
+                }
+
+                lock (gate)
+                {
+                    if (total > w.Total) w.Total = total;
+                    if (w.Segments.Count > 0)
+                    {
+                        w.Segments[0].Length = total;
+                        w.Segments[0].Done = done;
+                    }
+                    w.Job.DownloadedBytes = done;
+                    w.Job.TotalBytes = total;
+                    if (speed > 0) w.Job.SpeedBytesPerSecond = speed;
+                    UpdateProgressLocked(w);
+                }
+                Notify();
+            }
+        }
+
+        process.OutputDataReceived += (_, e) => { if (!string.IsNullOrWhiteSpace(e.Data)) ParseLine(e.Data); };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                lock (stderrLines)
+                {
+                    if (stderrLines.Count >= 25) stderrLines.Dequeue();
+                    stderrLines.Enqueue(e.Data.Trim());
+                }
+                ParseLine(e.Data);
+            }
+        };
+
+        try
+        {
+            if (!process.Start()) throw new IOException("Failed to start yt-dlp process.");
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            using var reg = token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch { } });
+            await process.WaitForExitAsync(token).ConfigureAwait(false);
+
+            if (process.ExitCode != 0)
+            {
+                string err;
+                lock (stderrLines) { err = string.Join(" ", stderrLines); }
+                throw new IOException($"yt-dlp failed with exit code {process.ExitCode}: {(string.IsNullOrWhiteSpace(err) ? "Unknown error" : err)}");
+            }
+
+            if (!File.Exists(outputFile) && File.Exists(outputFile + ".mp4"))
+            {
+                File.Move(outputFile + ".mp4", outputFile, true);
+            }
+
+            var finalLength = File.Exists(outputFile) ? new FileInfo(outputFile).Length : 0;
+            if (finalLength == 0) throw new IOException("yt-dlp produced an empty output file.");
+
+            lock (gate)
+            {
+                w.Total = finalLength;
+                if (w.Segments.Count > 0)
+                {
+                    w.Segments[0].Length = finalLength;
+                    w.Segments[0].Done = finalLength;
+                    w.Segments[0].Active = false;
+                }
+                w.Job.DownloadedBytes = finalLength;
+                w.Job.TotalBytes = finalLength;
+                w.Job.SpeedBytesPerSecond = 0;
+                w.Streaming = false;
+                UpdateProgressLocked(w);
+            }
+            Notify();
+        }
+        finally
+        {
+            lock (gate)
+            {
+                w.Streaming = false;
+                foreach (var s in w.Segments) s.Active = false;
+            }
+        }
+    }
+
+    private static string? _cachedFfmpeg;
+    private static bool _ffmpegSearched;
+    private static readonly object _ffmpegLock = new();
+
+    private static string? FindFfmpeg()
+    {
+        lock (_ffmpegLock)
+        {
+            if (_ffmpegSearched) return _cachedFfmpeg;
+            _ffmpegSearched = true;
+
+            var exeName = OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
+            var pathVar = Environment.GetEnvironmentVariable("PATH");
+            if (!string.IsNullOrEmpty(pathVar))
+            {
+                foreach (var dir in pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    try
+                    {
+                        var candidate = Path.Combine(dir.Trim(), exeName);
+                        if (File.Exists(candidate)) return _cachedFfmpeg = candidate;
+                    }
+                    catch { }
+                }
+            }
+
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var common = new List<string>
+            {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, exeName),
+                Path.Combine(localAppData, "Programs", "ffmpeg", "bin", exeName),
+                Path.Combine(progFiles, "ffmpeg", "bin", exeName),
+                @"C:\ffmpeg\bin\ffmpeg.exe",
+                @"C:\ProgramData\chocolatey\bin\ffmpeg.exe"
+            };
+
+            var wingetPackages = Path.Combine(localAppData, "Microsoft", "WinGet", "Packages");
+            if (Directory.Exists(wingetPackages))
+            {
+                try
+                {
+                    foreach (var f in Directory.EnumerateFiles(wingetPackages, exeName, SearchOption.AllDirectories))
+                    {
+                        common.Add(f);
+                        break;
+                    }
+                }
+                catch { }
+            }
+
+            foreach (var c in common)
+            {
+                try
+                {
+                    if (File.Exists(c)) return _cachedFfmpeg = c;
+                }
+                catch { }
+            }
+
+            return null;
+        }
+    }
+
+    private HttpRequestMessage Request(Work w, string overrideUrl)
+    {
+        var message = new HttpRequestMessage(HttpMethod.Get, overrideUrl);
+        message.Headers.AcceptEncoding.ParseAdd("identity");
+        message.Headers.UserAgent.ParseAdd("NeoDM/1.0");
+        if (w.Request.Referer != null) message.Headers.Referrer = new Uri(w.Request.Referer);
+        if (w.Request.Cookie != null) message.Headers.Add("Cookie", w.Request.Cookie);
+        return message;
+    }
+
+    private async Task DownloadHlsAsync(Work w, CancellationToken token)
+    {
+        var ffmpeg = FindFfmpeg();
+        if (ffmpeg == null)
+            throw new InvalidOperationException("FFmpeg was not found. Please install FFmpeg to download streaming videos as MP4.");
+
+        Directory.CreateDirectory(PartDirectory(w));
+        var outputFile = PartFile(w, 0);
+        if (File.Exists(outputFile))
+        {
+            try { File.Delete(outputFile); } catch { }
+        }
+
+        lock (gate)
+        {
+            w.Streaming = true;
+            var ext = Path.GetExtension(w.Job.FileName);
+            if (ext.Equals(".m3u8", StringComparison.OrdinalIgnoreCase) || !ext.Equals(".mp4", StringComparison.OrdinalIgnoreCase))
+            {
+                var newName = Path.ChangeExtension(w.Job.FileName, ".mp4");
+                var dir = Path.GetDirectoryName(w.Job.FilePath) ?? downloads;
+                w.Job.FileName = newName;
+                w.Job.FilePath = Path.Combine(dir, newName);
+            }
+            w.Total = 0;
+            w.ETag = null;
+            w.Modified = null;
+            UpdateProgressLocked(w);
+        }
+
+        try
+        {
+            bool parallelSucceeded = false;
+            try
+            {
+                parallelSucceeded = await DownloadHlsParallelAsync(w, outputFile, ffmpeg, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                parallelSucceeded = false;
+            }
+
+            if (!parallelSucceeded)
+            {
+                await DownloadHlsFfmpegDirectAsync(w, outputFile, ffmpeg, token).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            lock (gate)
+            {
+                w.Streaming = false;
+                foreach (var s in w.Segments) s.Active = false;
+            }
+        }
+    }
+
+    private async Task<bool> DownloadHlsParallelAsync(Work w, string outputFile, string ffmpeg, CancellationToken token)
+    {
+        var url = w.ResolvedUrl ?? w.Request.Url;
+
+        // 1. Fetch playlist
+        using var m3u8Req = Request(w, url);
+        using var m3u8Resp = await SendAsync(m3u8Req, token).ConfigureAwait(false);
+        if (!m3u8Resp.IsSuccessStatusCode) return false;
+        var m3u8Content = await m3u8Resp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+        var playlistUri = m3u8Resp.RequestMessage?.RequestUri ?? new Uri(url);
+        long bestBandwidth = -1;
+
+        // 2. Check for Master Playlist
+        if (m3u8Content.Contains("#EXT-X-STREAM-INF", StringComparison.OrdinalIgnoreCase))
+        {
+            var lines = m3u8Content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            string? bestVariantUri = null;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                if (line.StartsWith("#EXT-X-STREAM-INF", StringComparison.OrdinalIgnoreCase))
+                {
+                    long bw = 0;
+                    var bwMatch = Regex.Match(line, @"BANDWIDTH=(\d+)", RegexOptions.IgnoreCase);
+                    if (bwMatch.Success) long.TryParse(bwMatch.Groups[1].Value, out bw);
+                    for (int j = i + 1; j < lines.Length; j++)
+                    {
+                        var next = lines[j].Trim();
+                        if (string.IsNullOrEmpty(next) || next.StartsWith("#")) continue;
+                        if (bw > bestBandwidth || bestVariantUri == null)
+                        {
+                            bestBandwidth = bw;
+                            bestVariantUri = next;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (bestVariantUri != null)
+            {
+                var variantFullUri = new Uri(playlistUri, bestVariantUri);
+                using var variantReq = Request(w, variantFullUri.AbsoluteUri);
+                using var variantResp = await SendAsync(variantReq, token).ConfigureAwait(false);
+                if (!variantResp.IsSuccessStatusCode) return false;
+                m3u8Content = await variantResp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+                playlistUri = variantResp.RequestMessage?.RequestUri ?? variantFullUri;
+            }
+        }
+
+        // If encrypted (AES-128 or DRM) or live stream (no #EXT-X-ENDLIST), let direct FFmpeg handle it
+        if (!m3u8Content.Contains("#EXT-X-ENDLIST", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (m3u8Content.Contains("#EXT-X-KEY:", StringComparison.OrdinalIgnoreCase) &&
+            !Regex.IsMatch(m3u8Content, @"#EXT-X-KEY:METHOD=NONE", RegexOptions.IgnoreCase))
+            return false;
+
+        // 3. Parse media playlist
+        var pLines = m3u8Content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var segmentList = new List<(string url, double duration, string? mapUri)>();
+        string? currentMapUri = null;
+
+        for (int i = 0; i < pLines.Length; i++)
+        {
+            var line = pLines[i].Trim();
+            if (line.StartsWith("#EXT-X-MAP:", StringComparison.OrdinalIgnoreCase))
+            {
+                var mapMatch = Regex.Match(line, @"URI=""([^""]+)""", RegexOptions.IgnoreCase);
+                if (mapMatch.Success)
+                {
+                    var resolvedMap = new Uri(playlistUri, mapMatch.Groups[1].Value);
+                    if (string.IsNullOrEmpty(resolvedMap.Query) && !string.IsNullOrEmpty(playlistUri.Query))
+                        resolvedMap = new UriBuilder(resolvedMap) { Query = playlistUri.Query.TrimStart('?') }.Uri;
+                    currentMapUri = resolvedMap.AbsoluteUri;
+                }
+            }
+            else if (line.StartsWith("#EXTINF:", StringComparison.OrdinalIgnoreCase))
+            {
+                var durStr = line.Substring(8).Split(',')[0].Trim();
+                double.TryParse(durStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double dur);
+
+                for (int j = i + 1; j < pLines.Length; j++)
+                {
+                    var next = pLines[j].Trim();
+                    if (string.IsNullOrEmpty(next) || next.StartsWith("#")) continue;
+                    var segUri = new Uri(playlistUri, next);
+                    if (string.IsNullOrEmpty(segUri.Query) && !string.IsNullOrEmpty(playlistUri.Query))
+                        segUri = new UriBuilder(segUri) { Query = playlistUri.Query.TrimStart('?') }.Uri;
+                    segmentList.Add((segUri.AbsoluteUri, dur, currentMapUri));
+                    break;
+                }
+            }
+        }
+
+        if (segmentList.Count == 0) return false;
+
+        // 4. Setup multi-connection segments matching options.MaxSegments
+        int numWorkers = Math.Min(options.MaxSegments, segmentList.Count);
+        var partDir = PartDirectory(w);
+        Directory.CreateDirectory(partDir);
+
+        double totalDuration = segmentList.Sum(s => s.duration);
+        long initialEstTotal = bestBandwidth > 0
+            ? (long)(totalDuration * (bestBandwidth / 8.0))
+            : (long)(totalDuration * 187_500); // 1.5 Mbps default
+
+        var segments = new List<Segment>();
+        var initialShare = initialEstTotal > 0 ? initialEstTotal / numWorkers : 0;
+        for (int i = 0; i < numWorkers; i++)
+        {
+            var segLen = (i == numWorkers - 1) ? initialEstTotal - i * initialShare : initialShare;
+            segments.Add(new Segment { PartId = i, Start = i * initialShare, Length = segLen, Done = 0, Active = true });
+        }
+
+        lock (gate)
+        {
+            w.Segments = segments;
+            w.Total = initialEstTotal;
+            UpdateProgressLocked(w);
+        }
+        Notify();
+
+        // 5. Download map URI if present
+        if (!string.IsNullOrEmpty(currentMapUri))
+        {
+            var initFile = Path.Combine(partDir, "init.mp4");
+            using var initReq = Request(w, currentMapUri);
+            using var initResp = await SendAsync(initReq, token).ConfigureAwait(false);
+            initResp.EnsureSuccessStatusCode();
+            await using (var initOut = new FileStream(initFile, FileMode.Create, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous))
+            {
+                await initResp.Content.CopyToAsync(initOut, token).ConfigureAwait(false);
+            }
+        }
+
+        // 6. Download segments concurrently
+        var queue = new System.Collections.Concurrent.ConcurrentQueue<(int index, string url, double duration, string? mapUri)>(
+            segmentList.Select((s, idx) => (idx, s.url, s.duration, s.mapUri))
+        );
+
+        long totalDownloaded = 0;
+        int completedCount = 0;
+        int totalSegments = segmentList.Count;
+
+        var workers = Enumerable.Range(0, numWorkers).Select(workerId => Task.Run(async () =>
+        {
+            var buf = new byte[65536];
+            while (queue.TryDequeue(out var item))
+            {
+                token.ThrowIfCancellationRequested();
+                var chunkFile = Path.Combine(partDir, $"chunk_{item.index:D6}.part");
+                var tmpChunk = Path.Combine(partDir, $"chunk_{item.index:D6}.tmp");
+
+                if (File.Exists(chunkFile))
+                {
+                    var existingLen = new FileInfo(chunkFile).Length;
+                    if (existingLen > 0)
+                    {
+                        Interlocked.Add(ref totalDownloaded, existingLen);
+                        Interlocked.Increment(ref completedCount);
+                        continue;
+                    }
+                }
+
+                bool chunkOk = false;
+                for (int attempt = 0; attempt < 3 && !chunkOk; attempt++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    try
+                    {
+                        using var segReq = Request(w, item.url);
+                        using var segResp = await SendAsync(segReq, token).ConfigureAwait(false);
+                        segResp.EnsureSuccessStatusCode();
+                        using var stream = await segResp.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+
+                        await using (var outStream = new FileStream(tmpChunk, FileMode.Create, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous))
+                        {
+                            while (true)
+                            {
+                                var read = await ReadAsync(stream, buf, token).ConfigureAwait(false);
+                                if (read == 0) break;
+                                await ThrottleAsync(w, read, token).ConfigureAwait(false);
+                                await outStream.WriteAsync(buf.AsMemory(0, read), token).ConfigureAwait(false);
+
+                                Interlocked.Add(ref totalDownloaded, read);
+                                lock (gate)
+                                {
+                                    w.Segments[workerId].Done += read;
+                                    var curComp = Volatile.Read(ref completedCount);
+                                    var ratio = (double)Math.Max(1, curComp) / totalSegments;
+                                    var estTotal = (long)(Volatile.Read(ref totalDownloaded) / ratio);
+                                    w.Total = Math.Max(Volatile.Read(ref totalDownloaded) + 1, estTotal);
+                                    var share = w.Total / numWorkers;
+                                    for (int si = 0; si < numWorkers; si++)
+                                    {
+                                        w.Segments[si].Start = si * share;
+                                        w.Segments[si].Length = (si == numWorkers - 1) ? w.Total - si * share : share;
+                                    }
+                                    UpdateProgressLocked(w);
+                                }
+                            }
+                        }
+                        chunkOk = true;
+                    }
+                    catch (Exception) when (attempt < 2 && !token.IsCancellationRequested)
+                    {
+                        await Task.Delay(250 * (attempt + 1), token).ConfigureAwait(false);
+                    }
+                }
+
+                if (!chunkOk) throw new IOException($"Failed to download stream fragment {item.index}.");
+
+                File.Move(tmpChunk, chunkFile, true);
+                Interlocked.Increment(ref completedCount);
+                lock (gate)
+                {
+                    var curComp = Volatile.Read(ref completedCount);
+                    var ratio = (double)curComp / totalSegments;
+                    var estTotal = (long)(Volatile.Read(ref totalDownloaded) / ratio);
+                    w.Total = Math.Max(Volatile.Read(ref totalDownloaded) + 1, estTotal);
+                    var share = w.Total / numWorkers;
+                    for (int si = 0; si < numWorkers; si++)
+                    {
+                        w.Segments[si].Start = si * share;
+                        w.Segments[si].Length = (si == numWorkers - 1) ? w.Total - si * share : share;
+                    }
+                    UpdateProgressLocked(w);
+                }
+                Notify();
+            }
+
+            lock (gate) { w.Segments[workerId].Active = false; }
+            Notify();
+        }, token)).ToArray();
+
+        await Task.WhenAll(workers).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+
+        // 7. Write local playlist
+        var localPlaylist = Path.Combine(partDir, "local.m3u8");
+        var sb = new StringBuilder();
+        sb.AppendLine("#EXTM3U");
+        sb.AppendLine("#EXT-X-VERSION:3");
+        sb.AppendLine("#EXT-X-TARGETDURATION:15");
+        if (!string.IsNullOrEmpty(currentMapUri))
+            sb.AppendLine("#EXT-X-MAP:URI=\"init.mp4\"");
+
+        for (int i = 0; i < segmentList.Count; i++)
+        {
+            var chunkName = $"chunk_{i:D6}.part";
+            sb.AppendLine($"#EXTINF:{segmentList[i].duration.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)},");
+            sb.AppendLine(chunkName);
+        }
+        sb.AppendLine("#EXT-X-ENDLIST");
+        await File.WriteAllTextAsync(localPlaylist, sb.ToString(), token).ConfigureAwait(false);
+
+        // 8. Remux to MP4 using FFmpeg
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = ffmpeg,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true
+        };
+        startInfo.ArgumentList.Add("-y");
+        startInfo.ArgumentList.Add("-allowed_extensions");
+        startInfo.ArgumentList.Add("ALL");
+        startInfo.ArgumentList.Add("-i");
+        startInfo.ArgumentList.Add(localPlaylist);
+        startInfo.ArgumentList.Add("-c");
+        startInfo.ArgumentList.Add("copy");
+        startInfo.ArgumentList.Add("-f");
+        startInfo.ArgumentList.Add("mp4");
+        startInfo.ArgumentList.Add(outputFile);
+
+        using var process = new Process { StartInfo = startInfo };
+        var stderrLines = new Queue<string>();
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                lock (stderrLines)
+                {
+                    if (stderrLines.Count >= 25) stderrLines.Dequeue();
+                    stderrLines.Enqueue(e.Data.Trim());
+                }
+            }
+        };
+
+        if (!process.Start()) throw new IOException("Failed to start FFmpeg to remux downloaded segments.");
+        process.BeginErrorReadLine();
+
+        using var reg = token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch { } });
+        await process.WaitForExitAsync(token).ConfigureAwait(false);
+
+        if (process.ExitCode != 0)
+        {
+            string err;
+            lock (stderrLines) { err = string.Join(" ", stderrLines); }
+            throw new IOException($"FFmpeg remux failed: {err}");
+        }
+
+        var finalLength = File.Exists(outputFile) ? new FileInfo(outputFile).Length : 0;
+        if (finalLength == 0) throw new IOException("FFmpeg produced an empty output file.");
+
+        lock (gate)
+        {
+            w.Total = finalLength;
+            for (int i = 0; i < numWorkers; i++)
+            {
+                w.Segments[i].Length = w.Segments[i].Done;
+                w.Segments[i].Active = false;
+            }
+            UpdateProgressLocked(w);
+        }
+        Notify();
+
+        return true;
+    }
+
+    private async Task DownloadHlsFfmpegDirectAsync(Work w, string outputFile, string ffmpeg, CancellationToken token)
+    {
+        var numConnections = Math.Max(1, options.MaxSegments);
+        var segments = new List<Segment>();
+        for (int i = 0; i < numConnections; i++)
+            segments.Add(new Segment { PartId = i, Length = 0, Done = 0, Active = (i == 0) });
+
+        lock (gate)
+        {
+            w.Segments = segments;
+            w.Total = 0;
+            UpdateProgressLocked(w);
+        }
+        Notify();
+
+        var headerBuilder = new StringBuilder();
+        headerBuilder.Append("User-Agent: NeoDM/1.0\r\n");
+        if (!string.IsNullOrEmpty(w.Request.Referer)) headerBuilder.Append($"Referer: {w.Request.Referer}\r\n");
+        if (!string.IsNullOrEmpty(w.Request.Cookie)) headerBuilder.Append($"Cookie: {w.Request.Cookie}\r\n");
+
+        var url = w.ResolvedUrl ?? w.Request.Url;
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = ffmpeg,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true
+        };
+
+        startInfo.ArgumentList.Add("-y");
+        if (headerBuilder.Length > 0)
+        {
+            startInfo.ArgumentList.Add("-headers");
+            startInfo.ArgumentList.Add(headerBuilder.ToString());
+        }
+        startInfo.ArgumentList.Add("-i");
+        startInfo.ArgumentList.Add(url);
+        startInfo.ArgumentList.Add("-c");
+        startInfo.ArgumentList.Add("copy");
+        startInfo.ArgumentList.Add("-f");
+        startInfo.ArgumentList.Add("mp4");
+        startInfo.ArgumentList.Add(outputFile);
+
+        using var process = new Process { StartInfo = startInfo };
+        var stderrLines = new Queue<string>();
+        double totalDurationSeconds = 0;
+        double currentSeconds = 0;
+        var durRegex = new Regex(@"Duration:\s*(\d{2}):(\d{2}):(\d{2})\.(\d+)", RegexOptions.Compiled);
+        var timeRegex = new Regex(@"time=(\d{2}):(\d{2}):(\d{2})\.(\d+)", RegexOptions.Compiled);
+
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                lock (stderrLines)
+                {
+                    if (stderrLines.Count >= 25) stderrLines.Dequeue();
+                    stderrLines.Enqueue(e.Data.Trim());
+                }
+
+                if (totalDurationSeconds <= 0)
+                {
+                    var m = durRegex.Match(e.Data);
+                    if (m.Success &&
+                        int.TryParse(m.Groups[1].Value, out int h) &&
+                        int.TryParse(m.Groups[2].Value, out int min) &&
+                        int.TryParse(m.Groups[3].Value, out int s))
+                    {
+                        var fracStr = m.Groups[4].Value;
+                        double frac = double.TryParse("0." + fracStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double f) ? f : 0;
+                        totalDurationSeconds = h * 3600 + min * 60 + s + frac;
+                    }
+                }
+
+                var tm = timeRegex.Match(e.Data);
+                if (tm.Success &&
+                    int.TryParse(tm.Groups[1].Value, out int th) &&
+                    int.TryParse(tm.Groups[2].Value, out int tmin) &&
+                    int.TryParse(tm.Groups[3].Value, out int ts))
+                {
+                    var fracStr = tm.Groups[4].Value;
+                    double frac = double.TryParse("0." + fracStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double f) ? f : 0;
+                    currentSeconds = th * 3600 + tmin * 60 + ts + frac;
+                }
+            }
+        };
+
+        if (!process.Start()) throw new IOException("Failed to start FFmpeg process.");
+        process.BeginErrorReadLine();
+
+        using var registration = token.Register(() =>
+        {
+            try { if (!process.HasExited) process.Kill(true); } catch { }
+        });
+
+        while (!process.HasExited)
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                if (File.Exists(outputFile))
+                {
+                    var currentLength = new FileInfo(outputFile).Length;
+                    lock (gate)
+                    {
+                        w.Segments[0].Done = currentLength;
+                        if (totalDurationSeconds > 0 && currentSeconds > 0)
+                        {
+                            var ratio = Math.Clamp(currentSeconds / totalDurationSeconds, 0.001, 0.999);
+                            var estTotal = (long)(currentLength / ratio);
+                            w.Total = Math.Max(currentLength + 1, estTotal);
+                            var share = w.Total / numConnections;
+                            for (int si = 0; si < numConnections; si++)
+                            {
+                                w.Segments[si].Start = si * share;
+                                w.Segments[si].Length = (si == numConnections - 1) ? w.Total - si * share : share;
+                            }
+                        }
+                        else
+                        {
+                            w.Total = 0; // indeterminate until duration is discovered
+                        }
+                        UpdateProgressLocked(w);
+                    }
+                    Notify();
+                }
+            }
+            catch { }
+            await Task.Delay(250, token).ConfigureAwait(false);
+        }
+
+        await process.WaitForExitAsync(token).ConfigureAwait(false);
+
+        if (process.ExitCode != 0)
+        {
+            token.ThrowIfCancellationRequested();
+            string err;
+            lock (stderrLines) { err = string.Join(" ", stderrLines); }
+            throw new IOException($"FFmpeg failed with exit code {process.ExitCode}: {(string.IsNullOrWhiteSpace(err) ? "Unknown error" : err)}");
+        }
+
+        var finalLength = File.Exists(outputFile) ? new FileInfo(outputFile).Length : 0;
+        if (finalLength == 0) throw new IOException("FFmpeg produced an empty output file.");
+
+        lock (gate)
+        {
+            w.Total = finalLength;
+            w.Segments[0].Done = w.Segments[0].Length = finalLength;
+            for (int i = 0; i < w.Segments.Count; i++)
+            {
+                w.Segments[i].Active = false;
+                w.Segments[i].Length = (i == 0) ? finalLength : 0;
+            }
+            UpdateProgressLocked(w);
+        }
+        Notify();
+    }
+
+
     private async Task<int> ReadAsync(Stream stream, Memory<byte> buffer, CancellationToken token)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -645,13 +1512,22 @@ public sealed partial class DownloadManager : IDisposable
         {
             await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous))
             {
-                for (var i = 0; i < w.Segments.Count; i++)
+                var parts = w.Segments.Where(s => s.PartId != null).Select(s => PartFile(w, s.PartId!.Value)).Distinct().ToArray();
+                if (parts.Length > 1 && !File.Exists(parts[1]) && File.Exists(parts[0]))
                 {
-                    var s = w.Segments[i];
-                    if (s.Done != s.Length) throw new IOException("Incomplete segment cannot be published.");
-                    await using var input = new FileStream(PartFile(w, s.PartId!.Value), FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    if (input.Length != s.Length) throw new IOException("Partial file length changed.");
+                    await using var input = new FileStream(parts[0], FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
                     await input.CopyToAsync(output, 65536, token).ConfigureAwait(false);
+                }
+                else
+                {
+                    for (var i = 0; i < w.Segments.Count; i++)
+                    {
+                        var s = w.Segments[i];
+                        if (s.Done != s.Length) throw new IOException("Incomplete segment cannot be published.");
+                        await using var input = new FileStream(PartFile(w, s.PartId!.Value), FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                        if (input.Length != s.Length) throw new IOException("Partial file length changed.");
+                        await input.CopyToAsync(output, 65536, token).ConfigureAwait(false);
+                    }
                 }
                 await output.FlushAsync(token).ConfigureAwait(false);
                 output.Flush(true);

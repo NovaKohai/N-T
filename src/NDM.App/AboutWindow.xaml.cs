@@ -12,7 +12,7 @@ public sealed record ChangelogRelease(string Version, string Date, IReadOnlyList
 /// <summary>Reads the embedded CHANGELOG.md (Keep a Changelog layout) and the assembly version for the About window.</summary>
 public static class AboutInfo
 {
-    public const string CreatorText = "NeoDM is an open source project created by unlimitedera.";
+    public const string CreatorText = "N&T is an open source project created by unlimitedera.";
     public const string LicenseLine = "Released under the MIT License.";
 
     public static string Version

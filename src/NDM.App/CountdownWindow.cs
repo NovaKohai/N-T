@@ -18,7 +18,7 @@ public sealed class CountdownWindow : Window
     public CountdownWindow(CompletionActionKind kind, int seconds, int tickMilliseconds = 1000)
     {
         this.kind = kind; Remaining = Math.Max(1, seconds);
-        Title = "NeoDM"; Topmost = true; ShowInTaskbar = true; ResizeMode = ResizeMode.NoResize;
+        Title = "N&T"; Topmost = true; ShowInTaskbar = true; ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.WidthAndHeight; MinWidth = 380; WindowStartupLocation = WindowStartupLocation.CenterScreen;
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 18, 0, 0) };
         buttons.Children.Add(CancelButton); buttons.Children.Add(NowButton);
@@ -39,7 +39,7 @@ public sealed class CountdownWindow : Window
         Loaded += (_, _) => { timer.Start(); Activate(); };
     }
     private const TextWrapping WrapMode = TextWrapping.Wrap;
-    private void UpdateText() => message.Text = $"NeoDM will {CompletionActionInfo.Verb(kind)} in {Remaining} {(Remaining == 1 ? "second" : "seconds")}";
+    private void UpdateText() => message.Text = $"N&T will {CompletionActionInfo.Verb(kind)} in {Remaining} {(Remaining == 1 ? "second" : "seconds")}";
     /// <summary>One countdown step; public so tests can drive it without waiting.</summary>
     public void Tick()
     {

@@ -137,11 +137,12 @@ test('popup renders: capture on by default, all eight type checkboxes with the r
   assert.deepEqual(Object.fromEntries(boxes.map(x => [x.dataset.type, x.checked])), S.DEFAULT_TYPES);
   assert.match(doc.getElementById('types').textContent, /Video[\s\S]*Audio[\s\S]*Images[\s\S]*GIF[\s\S]*Archives[\s\S]*Programs[\s\S]*Documents[\s\S]*Other/);
   assert.match(doc.getElementById('pauseSiteLabel').textContent, /site\.example/); assert.equal(doc.getElementById('resume').hidden, true);
-  assert.equal(doc.getElementById('pauseState').textContent, 'NeoDM is active.');
+  assert.equal(doc.getElementById('pauseState').textContent, 'N&T is active.');
   for (const id of ['capture', 'cookies', 'ribbon']) assert.ok(doc.getElementById(id), id);
 });
 test('popup: ticking a type stores it; pausing this site / all sites messages the worker; re-enable is one click', async () => {
   const p = await popup(), { doc } = p; const click = el => { el.checked = !el.checked; el.dispatchEvent(new p.w.Event('change')); };
+  if (!doc) throw new Error('popup did not return document');
   click(doc.querySelector('[data-type=gif]')); await tick(); assert.equal(p.local.mediaTypes.gif, true); assert.equal(p.local.mediaTypes.image, false);
   click(doc.querySelector('[data-type=archive]')); await tick(); assert.equal(p.local.mediaTypes.archive, false); assert.equal(p.local.mediaTypes.gif, true);
   click(doc.getElementById('pauseSite')); await tick();
@@ -150,7 +151,7 @@ test('popup: ticking a type stores it; pausing this site / all sites messages th
   click(doc.getElementById('pauseAll')); await tick(); assert.equal(p.messages.at(-1).scope, 'all'); assert.match(doc.getElementById('pauseState').textContent, /all sites/);
   assert.equal(doc.getElementById('pauseSite').disabled, true, 'site switch is covered by all-sites');
   doc.getElementById('resume').click(); await tick(12);
-  assert.equal(doc.getElementById('pauseState').textContent, 'NeoDM is active.'); assert.equal(doc.getElementById('resume').hidden, true);
+  assert.equal(doc.getElementById('pauseState').textContent, 'N&T is active.'); assert.equal(doc.getElementById('resume').hidden, true);
   assert.equal(doc.getElementById('pauseAll').checked, false); assert.equal(doc.getElementById('pauseSite').checked, false);
 });
 test('popup shows the stored state: pause active on open, stored types, explicit capture off', async () => {

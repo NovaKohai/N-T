@@ -28,7 +28,7 @@
           <CheckBox x:Name="ShowWindowBox" Content="Show this window when the download finishes" Checked="Options_Changed" Unchecked="Options_Changed" Margin="0,8,0,0"/>
           <CheckBox x:Name="PlaySoundBox" Content="Play sound when done" Checked="Options_Changed" Unchecked="Options_Changed" Margin="0,8,0,0"/>
           <TextBlock x:Name="OptionsNote" Text="These settings are unavailable when &quot;Show download complete dialog&quot; is turned on" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,8"/>
-          <CheckBox x:Name="ExitAppBox" Content="Exit NeoDM when done" Checked="Options_Changed" Unchecked="Options_Changed" Margin="0,0,0,6"/>
+          <CheckBox x:Name="ExitAppBox" Content="Exit N&amp;&amp;T when done" Checked="Options_Changed" Unchecked="Options_Changed" Margin="0,0,0,6"/>
           <StackPanel Orientation="Horizontal"><CheckBox x:Name="TurnOffBox" Content="Turn off computer when done" VerticalAlignment="Center" Checked="Options_Changed" Unchecked="Options_Changed"/><ComboBox x:Name="TurnOffKind" Width="140" Margin="16,0,0,0" SelectionChanged="Options_Changed" AutomationProperties.Name="Action when done"/></StackPanel>
           <CheckBox x:Name="ForceBox" Content="Force processes to terminate" Margin="24,6,0,0" Checked="Options_Changed" Unchecked="Options_Changed"/>
           <CheckBox x:Name="RememberBox" Content="Remember this choice for future sessions" Margin="0,12,0,0" Checked="Options_Changed" Unchecked="Options_Changed"/>

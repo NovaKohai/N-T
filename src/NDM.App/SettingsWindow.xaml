@@ -44,13 +44,13 @@
         <Button x:Name="OpenAppearanceButton" Content="Open _Appearance…" Click="OpenAppearance_Click" HorizontalAlignment="Left" Margin="0,0,0,24"/>
         <TextBlock Text="Updates" Style="{StaticResource SectionTitle}"/>
         <CheckBox x:Name="CheckForUpdates" Content="Check for _updates automatically" Margin="0,0,0,6"/>
-        <TextBlock Text="NeoDM contacts api.github.com once a day at most to look for a new release. Nothing is installed without your confirmation." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+        <TextBlock Text="N&amp;T contacts api.github.com once a day at most to look for a new release. Nothing is installed without your confirmation." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <StackPanel x:Name="SkippedPanel" Orientation="Horizontal" Margin="0,8,0,0" Visibility="Collapsed"><TextBlock x:Name="SkippedText" VerticalAlignment="Center" Style="{StaticResource Muted}"/><Button x:Name="ForgetSkipButton" Content="_Forget skipped version" Click="ForgetSkip_Click" Margin="12,0,0,0"/></StackPanel>
         <TextBlock x:Name="UpdateGap" Margin="0,0,0,20"/>
         <TextBlock Text="Browser integration" Style="{StaticResource SectionTitle}"/>
         <TextBlock Text="Chrome extension and native host setup are separate. Live browser integration has not been verified on this machine." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <Button Content="Open Chrome extension _setup help" Click="BrowserSetup_Click" HorizontalAlignment="Left" Margin="0,14,0,12"/>
-        <TextBlock Text="File types and browser capture preferences are configured independently in the extension's Options. NeoDM does not change those preferences here." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+        <TextBlock Text="File types and browser capture preferences are configured independently in the extension's Options. N&amp;T does not change those preferences here." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
       </StackPanel></ScrollViewer></TabItem>
       <TabItem x:Name="AppearanceTab" Header="_Appearance"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Theme" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
@@ -70,7 +70,7 @@
         <Label Content="_Folder" Target="{Binding ElementName=Destination}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox x:Name="Destination" AutomationProperties.Name="Download destination"/><Button Grid.Column="1" Content="_Browse…" Click="Browse_Click" Margin="8,0,0,0"/></Grid>
         <TextBlock Text="The folder must be writable. It is checked before preferences are saved." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,16,0,0"/>
-        <TextBlock Text="Restart required: new downloads use this destination after restarting NeoDM. Existing downloads keep their saved paths." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,16,0,0"/>
+        <TextBlock Text="Restart required: new downloads use this destination after restarting N&amp;T. Existing downloads keep their saved paths." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,16,0,0"/>
         <TextBlock Text="Category folders" Style="{StaticResource SectionTitle}" Margin="0,24,0,0"/>
         <CheckBox x:Name="EnableCategoryFolders" Content="Organize downloads into category _folders (on by default)" Checked="EnableCategoryFolders_Changed" Unchecked="EnableCategoryFolders_Changed"/>
         <TextBlock Text="Saves downloads into subfolders of the download folder by file type (Programs, Compressed, Music, Video, Documents). Other files stay in the base folder. Turn off to save everything in one folder." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
@@ -92,7 +92,7 @@
           <Label Grid.Row="3" Content="Request _timeout in seconds (1 to 300)" Target="{Binding ElementName=Timeout}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/><TextBox x:Name="Timeout" Grid.Row="3" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Request timeout seconds"/>
         </Grid>
           <CheckBox x:Name="DynamicSegmentation" Content="Enable d_ynamic segmentation" Margin="0,8,0,8"/>
-          <TextBlock Text="Restart required: connection changes take effect the next time NeoDM starts. Running downloads are not modified." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+          <TextBlock Text="Restart required: connection changes take effect the next time N&amp;T starts. Running downloads are not modified." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         </StackPanel></GroupBox>
         <TextBlock Text="When a download finishes" Style="{StaticResource SectionTitle}"/>
         <CheckBox x:Name="CompletionDialog" Content="Show download _completion dialog"/>
@@ -131,7 +131,7 @@
         <CheckBox x:Name="ProxyForTrackers" Content="Torrent trac_kers (HTTP/HTTPS announce and web seeds)"/>
         <TextBlock x:Name="ProxyTorrentNote" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,-6,0,12" Text="Not proxied: DHT, local peer discovery, UPnP and UDP trackers use UDP, which this proxy support cannot carry. While peer connections use the proxy they are switched off so your address is not exposed. Incoming connections still arrive directly."/>
         <StackPanel Orientation="Horizontal"><Button x:Name="ProxyTestButton" Content="Test _connection" Click="ProxyTest_Click" MinWidth="130"/><TextBlock x:Name="ProxyTestResult" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="380" AutomationProperties.LiveSetting="Polite"/></StackPanel>
-        <TextBlock x:Name="ProxyRestartNote" Text="HTTP/HTTPS downloads pick up proxy changes the next time NeoDM starts. Torrent changes apply immediately after saving. SOCKS4 is not supported." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,14,0,0"/>
+        <TextBlock x:Name="ProxyRestartNote" Text="HTTP/HTTPS downloads pick up proxy changes the next time N&amp;T starts. Torrent changes apply immediately after saving. SOCKS4 is not supported." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,14,0,0"/>
       </StackPanel></ScrollViewer></TabItem>
       <TabItem x:Name="TorrentsTab" Header="_Torrents"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Torrent downloads" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>

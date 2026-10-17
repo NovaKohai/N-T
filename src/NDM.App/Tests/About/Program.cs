@@ -52,9 +52,9 @@ internal static class AboutTests
             var window = new AboutWindow { ShowInTaskbar = false };
             window.Show(); window.UpdateLayout();
             string Text(string name) => ((TextBlock)window.FindName(name)).Text;
-            Check(Text("AppName") == "NeoDM", "Shows the app name");
+            Check(Text("AppName") == "N&T", "Shows the app name");
             Check(Text("VersionText") == "Version " + assemblyVersion, "Shows 'Version <assembly version>': " + Text("VersionText"));
-            Check(Text("CreatorText") == "NeoDM is an open source project created by unlimitedera.", "Shows the exact creator text");
+            Check(Text("CreatorText") == "N&T is an open source project created by unlimitedera.", "Shows the exact creator text");
             Check(Text("LicenseText").Contains("MIT"), "Shows the MIT license line");
             Check(window.Icon is not null && Descendants<Image>(window).Any(i => i.Source is not null), "Has an icon in the window and the header");
             Check(window.FindName("ChangelogScroll") is ScrollViewer { VerticalScrollBarVisibility: ScrollBarVisibility.Auto }, "What's new is scrollable");

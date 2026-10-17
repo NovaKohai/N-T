@@ -26,10 +26,28 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
     public int ActiveConnectionCount { get; private set; }
     public int ConnectionLimit { get; private set; }
     public IReadOnlyList<DownloadSegmentSnapshot> Segments { get; private set; } = Array.Empty<DownloadSegmentSnapshot>();
-    /// <summary>One row per connection for the progress window; a job that is still connecting shows one placeholder row.</summary>
-    public IReadOnlyList<DownloadSegmentRow> ConnectionRows => Segments.Count == 0 && Status is "Connecting" or "Downloading"
-        ? new[] { new DownloadSegmentRow(1, new DownloadSegmentSnapshot(0, 0, 0, false), true) }
-        : Segments.Select((s, i) => new DownloadSegmentRow(i + 1, s, Status is "Downloading" or "Connecting")).ToArray();
+    /// <summary>One row per connection for the progress window; displays configured connections up to ConnectionLimit.</summary>
+    public IReadOnlyList<DownloadSegmentRow> ConnectionRows
+    {
+        get
+        {
+            var running = Status is "Downloading" or "Connecting";
+            var limit = Math.Max(1, ConnectionLimit);
+            if (Segments.Count == 0)
+            {
+                return Enumerable.Range(1, limit)
+                    .Select(i => new DownloadSegmentRow(i, new DownloadSegmentSnapshot(0, 0, 0, false), running, Status))
+                    .ToArray();
+            }
+            var list = Segments.Select((s, i) => new DownloadSegmentRow(i + 1, s, running, Status)).ToList();
+            if (running && limit > list.Count)
+            {
+                for (int i = list.Count + 1; i <= limit; i++)
+                    list.Add(new DownloadSegmentRow(i, new DownloadSegmentSnapshot(0, 0, 0, false), false, Status));
+            }
+            return list;
+        }
+    }
     public IReadOnlyList<DownloadSegmentRow> SegmentRows => Segments.Select((s, i) => new DownloadSegmentRow(i + 1, s)).ToArray();
     // Torrent adapter: a torrent snapshot is projected onto the same columns; Id is "bt:<info hash>" so it can never collide with a job id.
     public bool IsTorrent { get; private set; }
@@ -90,13 +108,18 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 }
 
-public sealed record DownloadSegmentRow(int Number, DownloadSegmentSnapshot Snapshot, bool JobRunning = false)
+public sealed record DownloadSegmentRow(int Number, DownloadSegmentSnapshot Snapshot, bool JobRunning = false, string JobStatus = "")
 {
     public string Downloaded => Snapshot.DownloadedBytes > 0 || Snapshot.IsActive ? DownloadRow.FormatBytes(Snapshot.DownloadedBytes) : "";
-    public string Info => Snapshot.IsActive ? "Receiving data..." : Snapshot.Length > 0 && Snapshot.DownloadedBytes >= Snapshot.Length ? "Complete." : JobRunning ? "Connecting..." : "Disconnect.";
+    public string Info => !JobRunning && Snapshot.DownloadedBytes > 0 ? "Complete." :
+                          Snapshot.IsActive ? "Receiving data..." :
+                          Snapshot.Length > 0 && Snapshot.DownloadedBytes >= Snapshot.Length ? "Complete." :
+                          JobStatus == "Connecting" ? "Connecting..." :
+                          "Disconnect.";
     public string Range => Snapshot.Length > 0 ? $"{Snapshot.Start:N0} to {Snapshot.Start + Snapshot.Length - 1:N0}" : "Unknown";
     public string Bytes => $"{DownloadRow.FormatBytes(Snapshot.DownloadedBytes)} / {DownloadRow.FormatBytes(Snapshot.Length)}";
     public double Progress => Snapshot.Length > 0 ? Math.Clamp(100d * Snapshot.DownloadedBytes / Snapshot.Length, 0, 100) : 0;
-    public string State => Snapshot.DownloadedBytes >= Snapshot.Length && Snapshot.Length > 0 ? "Complete" : Snapshot.IsActive ? "Receiving" : "Waiting";
+    public string State => !JobRunning && Snapshot.DownloadedBytes > 0 ? "Complete" : Snapshot.DownloadedBytes >= Snapshot.Length && Snapshot.Length > 0 ? "Complete" : Snapshot.IsActive ? "Receiving" : "Waiting";
 }
+
 

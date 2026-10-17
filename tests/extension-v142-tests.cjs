@@ -191,3 +191,16 @@ test('popup list: entries can be downloaded from the popup', async () => {
   assert.equal(r.ok, true); assert.equal(b.nativeRequests.at(-1).fileName, 'Film.mp4');
   assert.equal(await b.message({ action: 'popup-media', tabId: 7 }, b.pageSender()), undefined, 'page scripts cannot use the popup actions');
 });
+
+test('full videos with numeric IDs (Instagram, CDN) are classified as downloadable files and not segments', async () => {
+  const b = makeBackground();
+  const url = 'https://scontent.cdninstagram.com/v/t50.2886-16/480572019_1150388279930713_4826190740925761358_n.mp4?bytestart=0&byteend=9999';
+  const clean = 'https://scontent.cdninstagram.com/v/t50.2886-16/480572019_1150388279930713_4826190740925761358_n.mp4';
+  await feed(b, [part(url, 0, 9999, 15 * MB)]);
+  const items = (await ribbonList(b)).items;
+  assert.equal(items.length, 1);
+  assert.equal(items[0].url, clean);
+  assert.equal(items[0].size, 15 * MB);
+  assert.equal(items[0].complete, true);
+});
+

@@ -23,8 +23,34 @@ test('sniff: 206 responses use the Content-Range total, not the chunk length', (
   const star = response('https://cdn.example/a.webm', 'video/webm', 900000, { statusCode: 206 }); star.responseHeaders.push({ name: 'Content-Range', value: 'bytes 0-899999/*' });
   assert.equal(S.classify(star), null);
 });
-test('sniff: HLS/DASH manifests, segments, non-media, POST, errors and non-tab requests are excluded', () => {
-  for (const [url, type] of [['https://c.example/x.m3u8', 'application/vnd.apple.mpegurl'], ['https://c.example/x', 'application/x-mpegURL'], ['https://c.example/x', 'audio/mpegurl'], ['https://c.example/x.mpd', 'application/dash+xml'], ['https://c.example/x', 'video/vnd.mpeg.dash.mpd'], ['https://c.example/seg1', 'video/MP2T'], ['https://c.example/s.ts', 'video/mp4'], ['https://c.example/s.m4s', 'video/mp4'], ['https://c.example/seg', 'video/iso.segment'], ['https://c.example/p', 'text/html'], ['https://c.example/p', 'application/octet-stream']])
+test('sniff: HLS streams are captured as complete MP4 stream items', () => {
+  for (const [url, type] of [
+    ['https://c.example/x.m3u8', 'application/vnd.apple.mpegurl'],
+    ['https://c.example/x', 'application/x-mpegURL'],
+    ['https://c.example/x', 'audio/mpegurl'],
+    ['https://c.example/stream.php?file=master.m3u8', 'application/octet-stream'],
+    ['https://c.example/live?source=manifest.m3u8&token=xyz', 'text/plain'],
+  ]) {
+    const item = S.classify(response(url, type, 9 * MB));
+    assert.ok(item, url + ' ' + type);
+    assert.equal(item.isHls, true);
+    assert.equal(item.track, 'stream');
+    assert.equal(item.complete, true);
+  }
+});
+test('sniff: DASH manifests, segments, non-media, POST, errors and non-tab requests are excluded', () => {
+  for (const [url, type] of [
+    ['https://c.example/x.mpd', 'application/dash+xml'],
+    ['https://c.example/x', 'video/vnd.mpeg.dash.mpd'],
+    ['https://c.example/seg1', 'video/MP2T'],
+    ['https://c.example/s.ts', 'video/mp4'],
+    ['https://c.example/s.ts?token=123', 'video/mp4'],
+    ['https://c.example/segment?file=part.ts', 'video/mp4'],
+    ['https://c.example/s.m4s', 'video/mp4'],
+    ['https://c.example/seg', 'video/iso.segment'],
+    ['https://c.example/p', 'text/html'],
+    ['https://c.example/p', 'application/octet-stream'],
+  ])
     assert.equal(S.classify(response(url, type, 9 * MB)), null, url + ' ' + type);
   assert.equal(S.classify(response('https://c.example/a.mp4', 'video/mp4', 9 * MB, { method: 'POST' })), null);
   assert.equal(S.classify(response('https://c.example/a.mp4', 'video/mp4', 9 * MB, { statusCode: 404 })), null);
@@ -52,7 +78,7 @@ test('sniff googlevideo: audio-only and video-only streams are labelled and neve
   const cr = gv({ itag: '22', mime: 'video/mp4' }, { statusCode: 206 }); cr.responseHeaders.push({ name: 'Content-Range', value: 'bytes 0-1999/6000000' }); assert.equal(S.classify(cr).size, 6000000, 'falls back to Content-Range');
 });
 test('sniff: DOM items, merge precedence, newest first, cap', () => {
-  assert.equal(S.fromDom('blob:https://x/1', 'video'), null); assert.equal(S.fromDom('https://x/a.m3u8', 'video'), null); assert.equal(S.fromDom('https://x/a.mpd?x=1'.replace('?x=1', ''), 'video'), null);
+  assert.equal(S.fromDom('blob:https://x/1', 'video'), null); assert.ok(S.fromDom('https://x/a.m3u8', 'video')?.isHls); assert.equal(S.fromDom('https://x/a.mpd?x=1'.replace('?x=1', ''), 'video'), null);
   assert.equal(S.fromDom('https://r1.googlevideo.com/videoplayback?itag=18', 'video'), null);
   const dom = S.fromDom('https://x/a.mp4', 'video'), net = S.classify(response('https://x/a.mp4', 'video/mp4', 4 * MB));
   let list = S.merge([], dom); list = S.merge(list, net); assert.equal(list.length, 1); assert.equal(list[0].size, 4 * MB); assert.equal(list[0].source, 'net'); assert.equal(list[0].mime, 'video/mp4');
@@ -109,10 +135,10 @@ test('worker: ribbon download sends chosen URL, tab referer and title-based file
   const before = b.nativeRequests.length; const miss = await b.message({ action: 'media-download', id: 'https://evil.example/x.mp4' }, b.pageSender());
   assert.equal(miss.ok, false); assert.equal(b.nativeRequests.length, before, 'the page cannot make the worker download an URL it did not sniff');
 });
-test('worker: content script DOM sources are validated and merged; blob/HLS/credential URLs dropped', async () => {
+test('worker: content script DOM sources are validated and merged; blob/credential URLs dropped, HLS captured', async () => {
   const b = makeBackground();
   await b.message({ action: 'media-dom', sources: [{ url: 'https://x.example/a.mp4', tag: 'video' }, { url: 'blob:https://x.example/1', tag: 'video' }, { url: 'https://x.example/l.m3u8', tag: 'video' }, { url: 'https://u:p@x.example/b.mp4', tag: 'audio' }, { url: 'https://x.example/c.mp3', tag: 'audio' }] }, b.pageSender());
-  await tick(); const items = json(b.sessionData['neodm.media.7']).items; assert.deepEqual(items.map(i => [i.url, i.kind]).sort(), [['https://x.example/a.mp4', 'video'], ['https://x.example/c.mp3', 'audio']]);
+  await tick(); const items = json(b.sessionData['neodm.media.7']).items; assert.deepEqual(items.map(i => [i.url, i.kind]).sort(), [['https://x.example/a.mp4', 'video'], ['https://x.example/c.mp3', 'audio'], ['https://x.example/l.m3u8', 'video']]);
 });
 
 /* ---- ribbon DOM (content.js) ---- */
@@ -134,7 +160,7 @@ test('ribbon: closed shadow root, type/quality/size, button label; page cannot r
   const none = ribbon([]); await tick(); assert.equal(none.roots.length, 0); assert.equal(none.w.document.querySelector('[data-neodm-ribbon]'), null);
   const r = ribbon([item()]); await tick(); assert.equal(r.roots.length, 1); assert.equal(r.ui().mode, 'closed');
   const host = r.w.document.querySelector('[data-neodm-ribbon]'); assert.ok(host); assert.equal(host.shadowRoot, null, 'closed root is invisible to page scripts');
-  assert.match(r.text(), /Video · 720p · 12\.0 MB/); const btn = r.ui().root.querySelector('button.dl'); assert.equal(btn.textContent, 'Download with NeoDM');
+  assert.match(r.text(), /Video · 720p · 12\.0 MB/); const btn = r.ui().root.querySelector('button.dl'); assert.equal(btn.textContent, 'Download with N&T');
   assert.ok(r.ui().root.querySelector('button.x'));
 });
 test('ribbon: audio-only / video-only are labelled as partial and listed after complete videos', async () => {
@@ -146,11 +172,11 @@ test('ribbon: audio-only / video-only are labelled as partial and listed after c
 test('ribbon: download sends only the item id, shows waiting then accepted; failure shows the error and allows retry', async () => {
   const r = ribbon([item()]); await tick();
   const click = () => r.ui().root.querySelector('button.dl').click();
-  click(); assert.equal(r.ui().root.querySelector('button.dl').textContent, 'Waiting for NeoDM…'); assert.equal(r.ui().root.querySelector('button.dl').disabled, true); click();
+  click(); assert.equal(r.ui().root.querySelector('button.dl').textContent, 'Waiting for N&T…'); assert.equal(r.ui().root.querySelector('button.dl').disabled, true); click();
   await tick(); assert.deepEqual(json(r.sent.filter(m => m.action === 'media-download')), [{ action: 'media-download', id: 'https://v.example/a.mp4' }]);
-  assert.equal(r.ui().root.querySelector('button.dl').textContent, 'Sent'); assert.match(r.text(), /Accepted by NeoDM/);
+  assert.equal(r.ui().root.querySelector('button.dl').textContent, 'Sent'); assert.match(r.text(), /Accepted by N&T/);
   const f = ribbon([item()], { reply: { ok: false, error: 'Download cancelled by user' } }); await tick(); f.ui().root.querySelector('button.dl').click(); await tick();
-  assert.match(f.text(), /Download cancelled by user/); assert.equal(f.ui().root.querySelector('button.dl').disabled, false); assert.equal(f.ui().root.querySelector('button.dl').textContent, 'Download with NeoDM');
+  assert.match(f.text(), /Download cancelled by user/); assert.equal(f.ui().root.querySelector('button.dl').disabled, false); assert.equal(f.ui().root.querySelector('button.dl').textContent, 'Download with N&T');
   const e = ribbon([item()], { reply: new Error('worker gone') }); await tick(); e.ui().root.querySelector('button.dl').click(); await tick(); assert.match(e.text(), /unavailable/);
 });
 test('ribbon: updates from the worker, dismiss until something new appears, navigation clear removes it, setting toggles it', async () => {
@@ -171,4 +197,33 @@ test('ribbon: untrusted text (titles/URLs/errors) is rendered as text, never HTM
 });
 test('ribbon: content script injected twice does not duplicate', async () => {
   const r = ribbon([item()]); await tick(); r.w.eval(source('content.js')); await tick(); assert.equal(r.w.document.querySelectorAll('[data-neodm-ribbon]').length, 1);
+});
+test('sniff: quality extraction from URL patterns and parameters', () => {
+  assert.equal(S.extractQuality('https://cdn.example/8228336-1080p-av1.mp4'), '1080p');
+  assert.equal(S.extractQuality('https://cdn.example/video_720p.m3u8'), '720p');
+  assert.equal(S.extractQuality('https://cdn.example/video_4k.mp4'), '2160p');
+  assert.equal(S.extractQuality('https://cdn.example/stream.mp4?res=1080'), '1080p');
+  assert.equal(S.extractQuality('https://cdn.example/stream.mp4?resolution=720p'), '720p');
+  assert.equal(S.extractQuality('https://cdn.example/hls/1080/index.m3u8'), '1080p');
+  assert.equal(S.extractQuality('https://cdn.example/movie_1920x1080.mp4'), '1080p');
+  assert.equal(S.extractQuality('https://cdn.example/plain-clip.mp4'), '');
+});
+test('ribbon: displays real video title and resolves quality from DOM video element', async () => {
+  const dom = new JSDOM('<!doctype html><html><head><meta property="og:title" content="Awesome Clip Title - EPORNER"></head><body><video src="https://v.example/clip.mp4" width="1920" height="1080"></video></body></html>', { url: 'https://page.example/video/1', runScripts: 'outside-only', pretendToBeVisual: true }), w = dom.window;
+  const v = w.document.querySelector('video');
+  Object.defineProperty(v, 'videoHeight', { value: 1080 });
+  Object.defineProperty(v, 'videoWidth', { value: 1920 });
+  const roots = [], origAttach = w.Element.prototype.attachShadow;
+  w.Element.prototype.attachShadow = function (init) { const r = origAttach.call(this, init); roots.push({ host: this, root: r, mode: init.mode }); return r; };
+  const listeners = [];
+  w.chrome = {
+    runtime: { sendMessage: async m => { if (m.action === 'media-list') return { items: [{ id: 'https://v.example/clip.mp4', url: 'https://v.example/clip.mp4', kind: 'video', track: 'file', complete: true, size: 20 * MB, quality: '', mime: 'video/mp4', source: 'net' }] }; return { ok: true }; }, onMessage: { addListener: f => listeners.push(f) } },
+    storage: { local: { get: async () => ({}) }, onChanged: { addListener: () => {} } },
+  };
+  w.eval(source('content.js'));
+  await tick();
+  const text = roots.at(-1).root.textContent;
+  assert.match(text, /Awesome Clip Title/);
+  assert.match(text, /1080p/);
+  assert.match(text, /20\.0 MB/);
 });

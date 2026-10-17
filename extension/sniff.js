@@ -86,7 +86,64 @@
     return { track, quality, mime: mime || (track === 'audio-only' ? 'audio/mp4' : 'video/mp4'), clen, itag };
   }
 
-  const FRAG_NAME = /(?:^|[^a-z])(?:seg(?:ment)?|frag(?:ment)?|chunk|part)[-_ ]?\d+\.[a-z0-9]{2,5}$|^\d{3,}\.(?:mp4|m4s|m4v|m4a|webm|aac)$|[-_.]\d{4,}\.(?:mp4|m4v|m4a|webm)$|^init(?:ialization)?[-_.\d]*\.(?:mp4|m4v|m4a|webm)$/i;
+  const QUALITY_REGEX = /(?:^|[_\-./?&=])(2160p|1440p|1080p|720p|480p|360p|240p|144p|4k|2k)(?:$|[_\-./?&=])/i;
+  const RES_REGEX = /(?:^|[_\-./?&=])(\d{3,4})x(\d{3,4})(?:$|[_\-./?&=])/i;
+  const QUERY_RES = /[?&](?:res|resolution|height|quality|q)=(\d{3,4}p?)(?:&|$)/i;
+  const PATH_HEIGHT_REGEX = /(?:^|[_\-./])(2160|1440|1080|720|480|360|240|144)(?:p|\.[a-z0-9]{2,5}|$|[_\-./?&=])/i;
+
+  function extractQuality(url) {
+    if (!url) return '';
+    let str = String(url);
+    try { str = decodeURIComponent(str); } catch {}
+    const m = QUALITY_REGEX.exec(str);
+    if (m) {
+      const q = m[1].toLowerCase();
+      return q === '4k' ? '2160p' : q === '2k' ? '1440p' : q;
+    }
+    const qm = QUERY_RES.exec(str);
+    if (qm) {
+      const v = qm[1].toLowerCase();
+      if (/^\d{3,4}p$/.test(v)) return v;
+      const num = Number(v);
+      if (num >= 2100) return '2160p';
+      if (num >= 1400) return '1440p';
+      if (num >= 1000) return '1080p';
+      if (num >= 700) return '720p';
+      if (num >= 460) return '480p';
+      if (num >= 340) return '360p';
+      if (num >= 220) return '240p';
+      if (num >= 140) return '144p';
+    }
+    const rm = RES_REGEX.exec(str);
+    if (rm) {
+      const h = Math.min(Number(rm[1]), Number(rm[2]));
+      if (h >= 2100) return '2160p';
+      if (h >= 1400) return '1440p';
+      if (h >= 1000) return '1080p';
+      if (h >= 700) return '720p';
+      if (h >= 460) return '480p';
+      if (h >= 340) return '360p';
+      if (h >= 220) return '240p';
+      if (h >= 140) return '144p';
+    }
+    const pm = PATH_HEIGHT_REGEX.exec(str);
+    if (pm) return pm[1] + 'p';
+    return '';
+  }
+
+  function qualityFromHeight(h) {
+    if (!h || h <= 0) return '';
+    if (h >= 2100) return '2160p';
+    if (h >= 1400) return '1440p';
+    if (h >= 1000) return '1080p';
+    if (h >= 700) return '720p';
+    if (h >= 460) return '480p';
+    if (h >= 340) return '360p';
+    if (h >= 220) return '240p';
+    return h + 'p';
+  }
+
+  const FRAG_NAME = /(?:^|[^a-z])(?:seg(?:ment)?|frag(?:ment)?|chunk|part)[-_ ]?\d+\.[a-z0-9]{2,5}$|^0\d{2,}\.(?:mp4|m4s|m4v|m4a|webm|aac|ts)$|[-_.]0\d{3,}\.(?:mp4|m4v|m4a|webm|ts)$|^init(?:ialization)?[-_.\d]*\.(?:mp4|m4v|m4a|webm|ts)$/i;
   const parseRange = text => { const m = /bytes\s+(\d+)-(\d+)\/(\d+|\*)/i.exec(text); return m ? { start: Number(m[1]), end: Number(m[2]), total: m[3] === '*' ? 0 : Number(m[3]) } : null; };
   /** Fragment candidate: origin + path with digit runs replaced by '#' + mime. */
   function segmentCandidate(u, type, total) {
@@ -94,7 +151,34 @@
     let name = u.pathname.split('/').pop(); try { name = decodeURIComponent(name); } catch {}
     return { key: u.origin + u.pathname.replace(/\d+/g, '#') + '|' + type, path: u.pathname, nameHit: FRAG_NAME.test(name) };
   }
-  const isMediaResponse = details => !!details && /^(video|audio|image)\//i.test(header(details.responseHeaders, 'content-type').trim());
+  const isHlsUrl = url => {
+    try {
+      const u = new URL(url);
+      return /\.m3u8($|[?#&])/i.test(u.pathname) || /[?&][^=]*=[^&]*\.m3u8($|[?#&])/i.test(u.search) || /\.m3u8/i.test(u.pathname + u.search);
+    } catch { return false; }
+  };
+  const isHlsMime = type => /mpegurl/i.test(type);
+  const isSegmentUrl = u => {
+    try {
+      const p = u.pathname.toLowerCase();
+      if (/\.(ts|m4s|mpd)($|[?#&])/i.test(p) || p.endsWith('.ts') || p.endsWith('.m4s') || p.endsWith('.mpd')) return true;
+      if (/[?&][^=]*=[^&]*\.(ts|m4s)($|[?#&])/i.test(u.search) || /\.(ts|m4s)($|[?#&])/i.test(u.search)) return true;
+      let name = p.split('/').pop() || '';
+      try { name = decodeURIComponent(name); } catch {}
+      return FRAG_NAME.test(name);
+    } catch { return false; }
+  };
+  const isGoogleVideoUrl = url => {
+    try {
+      const u = new URL(url);
+      return /(^|\.)googlevideo\.com$/i.test(u.hostname) && /^\/videoplayback\/?$/i.test(u.pathname);
+    } catch { return false; }
+  };
+  const isMediaResponse = details => {
+    if (!details) return false;
+    const type = header(details.responseHeaders, 'content-type').trim().toLowerCase();
+    return /^(video|audio|image)\//i.test(type) || isHlsMime(type) || isHlsUrl(details.url) || isGoogleVideoUrl(details.url);
+  };
 
   /**
    * Examine one onHeadersReceived details object. Returns { item?, piece?, seg? }:
@@ -107,18 +191,36 @@
     if (details.method && details.method !== 'GET') return out;
     if (details.statusCode !== 200 && details.statusCode !== 206) return out;
     let u; try { u = new URL(details.url); } catch { return out; }
-    if (/\.(m3u8|mpd|ts|m4s)$/i.test(u.pathname)) return out;
     const type = header(details.responseHeaders, 'content-type').split(';')[0].trim().toLowerCase();
+
+    // HLS stream manifest (.m3u8): offered as a complete MP4 video download via FFmpeg
+    if (isHlsUrl(details.url) || isHlsMime(type)) {
+      const url = canonicalUrl(u.href);
+      out.item = { id: url, url, rawUrl: u.href, groupKey: url, kind: 'video', track: 'stream', isHls: true, complete: true, size: 0, quality: extractQuality(u.href), mime: 'application/vnd.apple.mpegurl', source: 'net' };
+      return out;
+    }
+
+    if (isSegmentUrl(u) || SEGMENT_TYPES.test(type)) {
+      out.seg = segmentCandidate(u, type, totalSize(details.statusCode, details.responseHeaders));
+      return out;
+    }
     if (/^image\//.test(type) && !MANIFEST_TYPES.test(type)) {
       const size = totalSize(details.statusCode, details.responseHeaders);
       if (size < IMAGE_MIN_SIZE) return out;
       out.item = { id: u.href, url: u.href, kind: type === 'image/gif' ? 'gif' : 'image', track: 'file', complete: true, size, quality: '', mime: type, source: 'net' };
       return out;
     }
-    if (!/^(video|audio)\//.test(type) || MANIFEST_TYPES.test(type) || SEGMENT_TYPES.test(type)) return out;
+    if (!isGoogleVideo(u) && (!/^(video|audio)\//.test(type) || MANIFEST_TYPES.test(type))) return out;
     if (isGoogleVideo(u)) {
       const g = describeGoogle(u); if (!g) return out;
-      const size = g.clen || totalSize(details.statusCode, details.responseHeaders);
+      let size = g.clen || totalSize(details.statusCode, details.responseHeaders);
+      if (!g.clen) {
+        const dur = Number(u.searchParams.get('dur')) || 0;
+        if (dur > 0) {
+          const bps = g.track === 'audio-only' ? 128000 : 2500000;
+          size = Math.max(size, Math.round((dur * bps) / 8));
+        }
+      }
       if (size < MIN_SIZE) return out;
       const url = canonicalGoogleUrl(u);
       out.item = { id: url, url, rawUrl: u.href, groupKey: url, kind: g.track === 'audio-only' ? 'audio' : 'video', track: g.track, complete: g.track === 'muxed', size, quality: g.quality, mime: g.mime, source: 'net' };
@@ -135,28 +237,46 @@
       return out;
     }
     if (total < MIN_SIZE) return out;
-    out.item = { id: url, url, rawUrl: u.href, groupKey: url, kind: type.startsWith('audio/') ? 'audio' : 'video', track: 'file', complete: true, size: total, quality: '', mime: type, source: 'net' };
-    if (!partial && ranged) out.item.ambiguous = true; // a 200 on a range-style URL: probably a piece, hidden when the page streams through MSE
+    out.item = { id: url, url, rawUrl: u.href, groupKey: url, kind: type.startsWith('audio/') ? 'audio' : 'video', track: 'file', complete: true, size: total, quality: type.startsWith('audio/') ? '' : extractQuality(u.href), mime: type, source: 'net' };
+    if (!partial && ranged) out.item.ambiguous = true; // a range URL piece, hidden when page streams through MSE
     return out;
   }
   /** Decide whether a webRequest.onHeadersReceived details object is a downloadable media file. Item or null. */
   const classify = details => inspect(details).item || null;
 
   /** Item for a direct <video>/<audio> source reported by the page (size unknown). */
-  function fromDom(url, tag) {
-    if (!isHttp(url)) return null;
-    let u; try { u = new URL(url); } catch { return null; }
-    if (/\.(m3u8|mpd)$/i.test(decodeURIComponent(u.pathname))) return null;
+  function fromDom(url, tag, duration = 0, height = 0, width = 0, pageUrl = '', title = '') {
+    const isBlob = /^blob:/i.test(url);
+    const effectiveUrl = (isBlob && pageUrl && isHttp(pageUrl)) ? pageUrl : url;
+    if (!isHttp(effectiveUrl)) return null;
+    let u; try { u = new URL(effectiveUrl); } catch { return null; }
+    if (/\.mpd$/i.test(decodeURIComponent(u.pathname))) return null;
     if (isGoogleVideo(u)) return null; // handled with proper itag knowledge by the network sniffer
-    const key = canonicalUrl(u.href);
-    return { id: key, url: key, rawUrl: u.href, groupKey: key, kind: tag === 'audio' ? 'audio' : 'video', track: 'file', complete: true, size: 0, quality: '', mime: '', source: 'dom', primary: true };
+    const isYt = /(^|\.)youtube\.com$/i.test(u.hostname) || /(^|\.)youtu\.be$/i.test(u.hostname);
+    const key = isYt ? (canonicalUrl(u.origin + u.pathname + (u.searchParams.get('v') ? '?v=' + u.searchParams.get('v') : ''))) : canonicalUrl(u.href);
+    const isHls = isHlsUrl(u.href);
+    let quality = tag === 'audio' ? '' : extractQuality(u.href);
+    if (!quality && height > 0) quality = qualityFromHeight(height);
+    if (!quality && isYt) quality = '1080p';
+    let estimatedSize = 0;
+    if (duration > 0) {
+      const h = height || (quality ? parseInt(quality, 10) : 0) || 720;
+      const bps = h >= 2100 ? 12000000 : h >= 1400 ? 6000000 : h >= 1000 ? 2800000 : h >= 700 ? 1500000 : h >= 460 ? 800000 : h >= 340 ? 450000 : tag === 'audio' ? 128000 : 1500000;
+      estimatedSize = Math.round((duration * bps) / 8);
+    }
+    const item = { id: key, url: key, rawUrl: u.href, groupKey: key, kind: tag === 'audio' ? 'audio' : 'video', track: isHls ? 'stream' : 'file', isHls, complete: true, size: 0, quality, mime: isHls ? 'application/vnd.apple.mpegurl' : (isYt ? 'video/mp4' : ''), source: 'dom', primary: true };
+    if (title) item.title = title;
+    if (estimatedSize > 0) item.estimatedSize = estimatedSize;
+    if (duration > 0) item.duration = duration;
+    return item;
   }
 
   /** Insert/merge into a per-tab list. The first URL stays; network info (size, mime) wins over DOM info; the largest size is kept. Newest first, capped. */
   function merge(list, item, max = 30) {
     const out = list.filter(x => x.id !== item.id), old = list.find(x => x.id === item.id);
     if (!old) { out.unshift(item); return out.slice(0, max); }
-    const m = { ...old, ...item, url: old.url, rawUrl: old.rawUrl || item.rawUrl, size: Math.max(item.size || 0, old.size || 0), mime: item.mime || old.mime, source: old.source === 'net' ? 'net' : item.source };
+    const m = { ...old, ...item, url: old.url, rawUrl: old.rawUrl || item.rawUrl, size: Math.max(item.size || 0, old.size || 0), mime: item.mime || old.mime, quality: item.quality || old.quality || '', source: old.source === 'net' ? 'net' : item.source };
+    if (item.estimatedSize || old.estimatedSize) m.estimatedSize = Math.max(item.estimatedSize || 0, old.estimatedSize || 0);
     if (old.primary || item.primary) m.primary = true; else delete m.primary;
     if (old.ambiguous && item.ambiguous) m.ambiguous = true; else delete m.ambiguous;
     out.unshift(m); return out.slice(0, max);
@@ -201,27 +321,42 @@
   const isFile = i => i.track === 'file' && i.kind !== 'image' && i.kind !== 'gif';
   /** Items to show: primary first, then complete files by size, leftovers dropped, capped. `info` adds the segmented-stream row. */
   function listItems(state, { max = 30, info = false } = {}) {
-    let list = (state.items || []).filter(i => !(state.mse && i.ambiguous && !i.primary));
+    const hasHls = (state.items || []).some(i => i.isHls);
+    const hasPrimary = (state.items || []).some(i => i.primary);
+    let list = (state.items || []).filter(i => {
+      if (i.primary || i.isHls) return true;
+      if (hasPrimary && (i.track === 'video-only' || i.track === 'audio-only')) return false;
+      // If we captured an HLS stream on this tab, hide raw segment chunks
+      if (hasHls && !i.isHls && !i.primary && (i.size || 0) < 16 * 1024 * 1024) return false;
+      if (state.mse && i.ambiguous && !i.primary) return false;
+      return true;
+    });
     const biggest = {};
     for (const i of list) if (isFile(i)) biggest[familyOf(i)] = Math.max(biggest[familyOf(i)] || 0, i.size || 0);
-    list = list.filter(i => i.primary || !isFile(i) || !(biggest[familyOf(i)] >= MIN_SIZE && (i.size || 0) < biggest[familyOf(i)] * 0.1));
-    list = list.map((i, n) => [i, n]).sort(([a, x], [b, y]) => (!!b.primary - !!a.primary) || (!!b.complete - !!a.complete) || ((b.size || 0) - (a.size || 0)) || (x - y)).map(([i]) => i).slice(0, max);
+    list = list.filter(i => i.primary || i.isHls || !isFile(i) || !(biggest[familyOf(i)] >= MIN_SIZE && (i.size || 0) < biggest[familyOf(i)] * 0.1));
+    list = list.map((i, n) => [i, n]).sort(([a, x], [b, y]) => (!!b.primary - !!a.primary) || (!!b.isHls - !!a.isHls) || (!!b.complete - !!a.complete) || ((b.size || 0) - (a.size || 0)) || (x - y)).map(([i]) => i).slice(0, max);
     return list;
   }
   /** The tab's list without the typed filter applied; used by tests and by the popup after filtering. */
-  const withInfo = (state, list) => (state.segmented && Object.keys(state.segmented).length ? [...list, { ...SEGMENTED_ROW }] : list);
+  const withInfo = (state, list) => (state.segmented && Object.keys(state.segmented).length && !list.some(i => i.isHls) ? [...list, { ...SEGMENTED_ROW }] : list);
 
+  const SITE_SUFFIX = /\s+[-–—|/•·]\s*(?:[A-Za-z0-9_-]+\.[a-z]{2,6}|YouTube|Facebook|Instagram|Twitter|X|Vimeo|Dailymotion|TikTok|Twitch|Reddit).*$/i;
+  const SOCIAL_PREFIX = /\s+on\s+[A-Za-z0-9_.-]+:.*$/i;
   const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
   /** Page title -> safe Windows file name stem (no path chars, <=120 chars). Empty string when nothing usable. */
   function safeName(title) {
-    let s = String(title || '').replace(/\s+-\s+YouTube$/i, '').normalize('NFC');
+    let s = String(title || '')
+      .replace(SITE_SUFFIX, '')
+      .replace(SOCIAL_PREFIX, '')
+      .normalize('NFC');
     s = s.replace(/[\u0000-\u001f\u007f\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[. ]+|[. ]+$/g, '');
     s = Array.from(s).slice(0, 120).join('').trim().replace(/[. ]+$/g, '');
     return RESERVED.test(s) ? s + '_' : s;
   }
   function extensionFor(item) {
+    if (item.isHls || item.track === 'stream' || /mpegurl/i.test(item.mime || '')) return '.mp4';
     if (EXT_BY_MIME[item.mime]) return EXT_BY_MIME[item.mime];
-    try { const m = /\.([a-z0-9]{2,5})$/i.exec(new URL(item.url).pathname); if (m) return '.' + m[1].toLowerCase(); } catch {}
+    try { const m = /\.([a-z0-9]{2,5})$/i.exec(new URL(item.url).pathname); if (m && m[1].toLowerCase() !== 'm3u8') return '.' + m[1].toLowerCase(); } catch {}
     return item.kind === 'audio' ? '.m4a' : item.kind === 'gif' ? '.gif' : item.kind === 'image' ? '.jpg' : '.mp4';
   }
   /**
@@ -231,14 +366,14 @@
   function suggestedName(item, title) {
     const stem = safeName(title); if (!stem) return '';
     let urlHasName = false;
-    try { const base = new URL(item.url).pathname.split('/').pop(); urlHasName = /\.[a-z0-9]{2,5}$/i.test(base) && !/^videoplayback/i.test(base); } catch {}
-    if (urlHasName && item.source === 'dom') return '';
+    try { const base = new URL(item.url).pathname.split('/').pop(); urlHasName = /\.[a-z0-9]{2,5}$/i.test(base) && !/^videoplayback/i.test(base) && !/\.m3u8$/i.test(base); } catch {}
+    if (urlHasName && item.source === 'dom' && !item.isHls) return '';
     const suffix = item.track === 'audio-only' ? ' (audio only)' : item.track === 'video-only' ? ' (video only)' : '';
-    const quality = item.quality && item.track !== 'audio-only' ? ' ' + item.quality : '';
+    const quality = item.quality && item.track !== 'audio-only' && item.quality !== 'HLS' ? ' ' + item.quality : '';
     const ext = extensionFor(item);
     return Array.from(stem).slice(0, 255 - ext.length - suffix.length - quality.length).join('') + quality + suffix + ext;
   }
 
-  scope.NeoSniff = { TYPE_IDS, DEFAULT_TYPES, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused, MIN_SIZE, IMAGE_MIN_SIZE, classify, inspect, ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, canonicalUrl, groupKey, SEGMENTED_ROW, MAX_KEYS, fromDom, merge, safeName, suggestedName, extensionFor, isHttp };
+  scope.NeoSniff = { TYPE_IDS, DEFAULT_TYPES, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused, MIN_SIZE, IMAGE_MIN_SIZE, classify, inspect, ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, canonicalUrl, groupKey, SEGMENTED_ROW, MAX_KEYS, fromDom, merge, safeName, suggestedName, extensionFor, isHttp, extractQuality, qualityFromHeight };
   if (typeof module !== 'undefined') module.exports = scope.NeoSniff;
 })(globalThis);

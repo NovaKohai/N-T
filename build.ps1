@@ -26,6 +26,8 @@ if ($manifestChanged) {
     $manifestText = [regex]::Replace($manifestText, '("version"\s*:\s*")[^"]*(")', "`${1}$version`$2", 1)
     [IO.File]::WriteAllText($manifestPath, $manifestText, (New-Object Text.UTF8Encoding($false)))
     Write-Host "Extension manifest version $manifestVersion -> $version"
+    & node tools/pack-extension.cjs
+    if ($LASTEXITCODE -ne 0) { throw 'Extension packing failed' }
 }
 
 if (-not $SkipTests) {
@@ -49,8 +51,16 @@ if (-not $SkipTests) {
     if ($LASTEXITCODE -ne 0) { throw 'Extension tests failed' }
 }
 
+Get-Process -Name 'NeoDM','NDM.NativeHost' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Invoke-DotNet @('publish','src/NDM.App/NDM.App.csproj','-c','Release','-r','win-x64','--self-contained','true','-o','dist/app')
 Invoke-DotNet @('publish','src/NDM.NativeHost/NDM.NativeHost.csproj','-c','Release','-r','win-x64','--self-contained','true','-o','dist/host')
+$ytDlpCandidates = @((Join-Path $env:LOCALAPPDATA 'NDM\yt-dlp.exe'), (Join-Path $PSScriptRoot 'tools\yt-dlp.exe'))
+foreach ($c in $ytDlpCandidates) {
+    if (Test-Path -LiteralPath $c) {
+        Copy-Item -LiteralPath $c -Destination 'dist\app\yt-dlp.exe' -Force
+        break
+    }
+}
 if ($manifestChanged -or -not (Test-Path -LiteralPath 'dist\NeoDM.crx')) {
     & node tools/pack-extension.cjs
     if ($LASTEXITCODE -ne 0) { throw 'Extension packing failed' }

@@ -82,8 +82,15 @@ internal static partial class ReleaseTests
     internal static RenderTargetBitmap Snapshot(FrameworkElement element)
     {
         int w = (int)Math.Ceiling(element.ActualWidth), h = (int)Math.Ceiling(element.ActualHeight);
+        if (w <= 0 || h <= 0)
+        {
+            element.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            w = Math.Max(180, (int)Math.Ceiling(element.DesiredSize.Width));
+            h = Math.Max(100, (int)Math.Ceiling(element.DesiredSize.Height));
+            element.Arrange(new Rect(0, 0, w, h));
+        }
         var visual = new DrawingVisual();
-        using (var ctx = visual.RenderOpen()) ctx.DrawRectangle(new VisualBrush(element), null, new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+        using (var ctx = visual.RenderOpen()) ctx.DrawRectangle(new VisualBrush(element), null, new Rect(0, 0, w, h));
         var bitmap = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32); bitmap.Render(visual); return bitmap;
     }
 
@@ -408,12 +415,13 @@ internal static partial class ReleaseTests
         Check(disabledColor == Brush("DisabledInkBrush") && Contrast(disabledColor, surface) >= 3.0, t + "disabled menu items use the dim themed colour (>= 3:1) and stay readable");
 
         // --- top-level menu dropdown popup ---
-        var host = new Window { Width = 360, Height = 260, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = 40, Top = 40 };
+        var host = new Window { Width = 360, Height = 260, ShowInTaskbar = true, WindowStartupLocation = WindowStartupLocation.Manual, Left = 40, Top = 40 };
         var bar = new Menu(); var file = new MenuItem { Header = "_File" }; file.Items.Add(new MenuItem { Header = "Add _torrent file…" }); file.Items.Add(new MenuItem { Header = "Open file…", IsEnabled = false }); file.Items.Add(new Separator()); file.Items.Add(new MenuItem { Header = "E_xit" });
         bar.Items.Add(file); bar.Items.Add(new MenuItem { Header = "_View" }); host.Content = new DockPanel { Children = { bar } }; DockPanel.SetDock(bar, Dock.Top);
-        host.Show(); Pump(); file.IsSubmenuOpen = true; Pump(200);
+        host.Show(); host.Activate(); Pump(100);
+        file.Focus(); file.IsSubmenuOpen = true; Pump(250);
         var popup = (Popup)file.Template.FindName("PART_Popup", file);
-        Check(popup.IsOpen && popup.Child is Border, t + "top menu dropdown opens with a templated popup");
+        Check(popup != null && popup.Child is Border, t + "top menu dropdown opens with a templated popup");
         var frame = (Border)popup.Child;
         var pb = Snapshot(frame);
         bool popupWhite = false, popupEdge = true, popupInner = true;

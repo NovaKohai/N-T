@@ -116,7 +116,7 @@ public partial class MainWindow : Window
             _trayIcon = new TaskbarIcon
             {
                 Icon = new System.Drawing.Icon(System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/NDM.ico"))!.Stream),
-                ToolTipText = "NeoDM"
+                ToolTipText = "N&T"
             };
             _trayIcon.TrayMouseDoubleClick += (_, _) => RestoreFromTray();
             _trayIcon.TrayLeftMouseUp += (_, _) => TrayWindows.RestorePendingDialog(); // a waiting capture dialog first; the main window stays where it is
@@ -424,14 +424,14 @@ public partial class MainWindow : Window
     private async Task PerformAsync(Func<Task> action, string success)
     {
         try { await action(); Refresh(); Notice.Text = success; }
-        catch (Exception) { MessageBox.Show(this, "This action could not be completed. Check the download and destination folder, then try again.", "NeoDM", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception) { MessageBox.Show(this, "This action could not be completed. Check the download and destination folder, then try again.", "N&T", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
     private Task PauseRow(DownloadRow row) { if (row.IsTorrent) return _torrents.PauseAsync(row); _manager.Pause(row.Id); return Task.CompletedTask; }
     private Task ResumeRow(DownloadRow row) { if (row.IsTorrent) return _torrents.ResumeAsync(row); _manager.Resume(row.Id); return Task.CompletedTask; }
     private void Perform(Action action, string success)
     {
         try { action(); Refresh(); Notice.Text = success; }
-        catch (Exception) { MessageBox.Show(this, "This action could not be completed. Check the download and destination folder, then try again.", "NeoDM", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception) { MessageBox.Show(this, "This action could not be completed. Check the download and destination folder, then try again.", "N&T", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
     private async void Pause_Click(object sender, RoutedEventArgs e)
     {
@@ -617,7 +617,7 @@ public partial class MainWindow : Window
             return;
         }
         // Only confirm exit if there are active downloads
-        if (!_exitWithoutPrompt && Rows.Any(row => row.IsBusy) && MessageBox.Show(this, "Quit NeoDM? Active downloads will stop until you reopen the app.", "Quit NeoDM", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+        if (!_exitWithoutPrompt && Rows.Any(row => row.IsBusy) && MessageBox.Show(this, "Quit N&T? Active downloads will stop until you reopen the app.", "Quit N&T", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
         { e.Cancel = true; return; }
         _timer.Stop();
     }

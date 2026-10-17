@@ -41,8 +41,8 @@ function New-InstallerBitmap([string]$Path, [int]$W, [int]$H, [bool]$Dialog) {
         $panel = New-Object System.Drawing.Drawing2D.LinearGradientBrush((New-Object System.Drawing.Rectangle(0, 0, 164, $H)), [System.Drawing.Color]::FromArgb(31, 41, 55), [System.Drawing.Color]::FromArgb(37, 99, 235), 90)
         $g.FillRectangle($panel, 0, 0, 164, $H)
         $g.DrawIcon($icon, (New-Object System.Drawing.Rectangle(58, 40, 48, 48)))
-        $f = New-Object System.Drawing.Font('Segoe UI', 16, [System.Drawing.FontStyle]::Bold)
-        $g.DrawString('NeoDM', $f, [System.Drawing.Brushes]::White, 38, 100)
+        $f = New-Object System.Drawing.Font('Segoe UI', 20, [System.Drawing.FontStyle]::Bold)
+        $g.DrawString('N&T', $f, [System.Drawing.Brushes]::White, 55, 96)
         $f.Dispose(); $panel.Dispose()
     } else {
         $g.DrawIcon($icon, (New-Object System.Drawing.Rectangle(($W - 56), 5, 48, 48)))
@@ -65,6 +65,8 @@ Write-Host "Built $msi (version $version)"
 Write-Host ("SHA256 " + (Get-FileHash -Algorithm SHA256 $msi).Hash)
 # Release assets for the self-updater (docs/UPDATES.md): versioned installer name + SHA256SUMS.txt in "hash *name" form.
 $versioned = Join-Path $out "NeoDM-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $versioned -Force
+$ntMsi = Join-Path $out 'N&T-Setup.msi'; Copy-Item -LiteralPath $msi -Destination $ntMsi -Force
+$ntVersioned = Join-Path $out "N&T-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $ntVersioned -Force
 $sumLines = @(((Get-FileHash -Algorithm SHA256 $versioned).Hash.ToLowerInvariant()) + ' *' + (Split-Path -Leaf $versioned))
 [IO.File]::WriteAllText((Join-Path $out 'SHA256SUMS.txt'), (($sumLines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false)))
-Write-Host "Release assets: $versioned and SHA256SUMS.txt"
+Write-Host "Release assets: $ntMsi, $versioned and SHA256SUMS.txt"

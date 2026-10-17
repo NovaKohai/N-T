@@ -158,7 +158,7 @@ public sealed class NativeBridge : IDisposable
         catch (Exception ex)
         {
             // Do not echo engine exceptions: they may include authenticated URLs or cookies.
-            var errorResponse = new { ok = false, error = ex is FormatException or JsonException ? "Invalid request. Send an HTTP(S) URL in a newline-terminated JSON object, at most 64 KiB." : "The download could not be saved. Check NeoDM and try again." };
+            var errorResponse = new { ok = false, error = ex is FormatException or JsonException ? "Invalid request. Send an HTTP(S) URL in a newline-terminated JSON object, at most 64 KiB." : "The download could not be saved. Check N&T and try again." };
             try
             {
                 var reply = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(errorResponse) + "\n");

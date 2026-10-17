@@ -97,6 +97,8 @@ internal static partial class ManageTests
             int before = mainActivated;
             var pw = main.OpenProgressWindow(job.Id, foreground: false)!; Pump(300);
             Check(pw.Owner is null && pw.ShowInTaskbar && pw.IsVisible && !main.IsVisible && mainActivated == before, "Progress window: Owner null, own taskbar button, main window not pulled forward");
+            // Percent shows "—" until the probe's size has landed in the row, so wait for the real percentage rather than trusting a fixed delay.
+            PumpUntil(() => list.Model().First(e => e.Kind == TrayWindowKind.Progress).Header!.EndsWith("%)"), "progress window listed with a percentage");
             var progressLine = list.Model().First(e => e.Kind == TrayWindowKind.Progress);
             Check(progressLine.Header!.StartsWith("\u2022 Downloading: " + pw.Row.FileName + " (") && progressLine.Header.EndsWith("%)") && list.Model().Count == 4, "Progress window listed as \u2022 Downloading: name (NN%) after the dialogs");
             pw.Close(); m.Remove(job.Id);

@@ -7,7 +7,7 @@
     <StackPanel Grid.Row="3" Margin="0,16,0,0">
       <CheckBox x:Name="ScheduleEnabled" Content="_Schedule for later" Foreground="{DynamicResource InkBrush}" Margin="0,0,0,6"/>
       <Label Content="Local date and _time (yyyy-MM-dd HH:mm)" Target="{Binding ElementName=ScheduleInput}" Foreground="{DynamicResource InkBrush}"/><TextBox x:Name="ScheduleInput" IsEnabled="{Binding IsChecked, ElementName=ScheduleEnabled}" AutomationProperties.Name="Scheduled local date and time"/>
-      <TextBlock Text="Uses this computer's time zone. NeoDM must be running at the due time." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+      <TextBlock Text="Uses this computer's time zone. N&amp;T must be running at the due time." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
       <Label Content="Speed _limit (KiB/s; blank = unlimited)" Target="{Binding ElementName=SpeedInput}" Foreground="{DynamicResource InkBrush}" Margin="0,12,0,0"/><TextBox x:Name="SpeedInput" AutomationProperties.Name="Speed limit in KiB per second"/>
       <TextBlock Text="Positive whole numbers; shared across this download's segments." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
       <TextBlock x:Name="ValidationError" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,12,0,8" AutomationProperties.LiveSetting="Assertive"/>

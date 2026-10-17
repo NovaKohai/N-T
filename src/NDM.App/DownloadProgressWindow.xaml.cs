@@ -1,7 +1,9 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using NDM.Core;
@@ -19,12 +21,21 @@ public partial class DownloadProgressWindow : Window
     private bool loading = true, removing;
     private bool? windowChosen; // null until the user touches 'Show this window...': until then this download follows the global setting
     private bool? soundChosen; // null until the user touches the checkbox: until then this download follows the global sound setting
+    private double _displayedDownloadedBytes;
+    private long _targetDownloadedBytes;
+    private double _displayedSpeed;
+    private double _targetSpeed;
+    private bool _renderingHooked;
     public DownloadRow Row { get; }
     public DownloadProgressWindow(DownloadManager manager, string id, JobCompletionStore? store = null, AppSettings? settings = null)
     {
         this.manager = manager; this.id = id; this.store = store; this.settings = settings;
         var job = manager.Jobs.FirstOrDefault(j => j.Id == id) ?? throw new ArgumentException("Download no longer exists.", nameof(id));
         Row = new DownloadRow(job);
+        _targetDownloadedBytes = Row.DownloadedBytes;
+        _displayedDownloadedBytes = Row.DownloadedBytes;
+        _targetSpeed = Row.Speed;
+        _displayedSpeed = Row.Speed;
         InitializeComponent(); DataContext = Row;
         foreach (var kind in JobCompletionOptions.PowerChoices) TurnOffKind.Items.Add(new ComboBoxItem { Content = JobCompletionOptions.PowerLabel(kind), Tag = kind });
         LimitCheck.IsChecked = job.SpeedLimitBytesPerSecond.HasValue;
@@ -33,9 +44,82 @@ public partial class DownloadProgressWindow : Window
         loading = false;
         Limit_Toggled(this, new RoutedEventArgs()); ApplyOptionRules();
         timer = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Background, (_, _) => Refresh(), Dispatcher);
-        Closed += (_, _) => timer.Stop();
+        Closed += (_, _) => { timer.Stop(); DetachRendering(); };
         PreviewKeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) { e.Handled = true; Close(); } };
         Refresh();
+    }
+    private void AttachRendering()
+    {
+        if (_renderingHooked) return;
+        CompositionTarget.Rendering += OnCompositionRendering;
+        _renderingHooked = true;
+    }
+    private void DetachRendering()
+    {
+        if (!_renderingHooked) return;
+        CompositionTarget.Rendering -= OnCompositionRendering;
+        _renderingHooked = false;
+    }
+    private void OnCompositionRendering(object? sender, EventArgs e)
+    {
+        if (Row.IsComplete || Row.Status != "Downloading")
+        {
+            DetachRendering();
+            return;
+        }
+
+        bool updated = false;
+        double deltaBytes = _targetDownloadedBytes - _displayedDownloadedBytes;
+        if (Math.Abs(deltaBytes) > 1.0)
+        {
+            double step = deltaBytes * 0.15;
+            if (Math.Abs(step) < 512.0)
+                _displayedDownloadedBytes = _targetDownloadedBytes;
+            else
+                _displayedDownloadedBytes += step;
+
+            updated = true;
+        }
+
+        double deltaSpeed = _targetSpeed - _displayedSpeed;
+        if (Math.Abs(deltaSpeed) > 10.0)
+        {
+            double speedStep = deltaSpeed * 0.12;
+            if (Math.Abs(speedStep) < 50.0)
+                _displayedSpeed = _targetSpeed;
+            else
+                _displayedSpeed += speedStep;
+
+            updated = true;
+        }
+
+        if (updated)
+        {
+            UpdateSmoothDisplays();
+        }
+        else if (Math.Abs(deltaBytes) <= 1.0 && Math.Abs(deltaSpeed) <= 10.0)
+        {
+            DetachRendering();
+        }
+    }
+    private void UpdateSmoothDisplays()
+    {
+        long cur = (long)Math.Round(_displayedDownloadedBytes);
+        if (Row.TotalBytes > 0)
+        {
+            long remainingBytes = Math.Max(0, Row.TotalBytes - cur);
+            double percent = Math.Clamp(cur * 100.0 / Row.TotalBytes, 0, 100);
+            DownloadedText.Text = $"{DownloadRow.FormatBytes(cur)} ({percent:0}%) · {DownloadRow.FormatBytes(remainingBytes)} left";
+        }
+        else
+        {
+            DownloadedText.Text = DownloadRow.FormatBytes(cur);
+        }
+
+        if (Row.Status == "Downloading")
+        {
+            RateText.Text = DownloadRow.FormatBytes(_displayedSpeed) + "/sec";
+        }
     }
     private void LoadOptions()
     {
@@ -142,11 +226,68 @@ public partial class DownloadProgressWindow : Window
             var s => s
         };
         SizeText.Text = Row.TotalBytes > 0 ? $"{DownloadRow.FormatBytes(Row.TotalBytes)} ({Row.TotalBytes:N0} bytes)" : Row.IsComplete ? DownloadRow.FormatBytes(Row.DownloadedBytes) : "(unknown)";
-        DownloadedText.Text = DownloadRow.FormatBytes(Row.DownloadedBytes) + (Row.TotalBytes > 0 ? $" ({Row.Percent})" : "");
-        RateText.Text = Row.Status == "Downloading" ? DownloadRow.FormatBytes(Row.Speed) + "/sec" : "0 Bytes/sec";
-        TimeLeftText.Text = Row.IsComplete ? "Done" : Row.RemainingTime is not null && Row.Status == "Downloading" ? DownloadRow.FormatTime(Row.RemainingTime.Value) : "(unknown)";
+        _targetDownloadedBytes = Row.DownloadedBytes;
+        _targetSpeed = Row.Speed;
+
+        if (Row.IsComplete)
+        {
+            DetachRendering();
+            _displayedDownloadedBytes = Row.TotalBytes > 0 ? Row.TotalBytes : Row.DownloadedBytes;
+            _displayedSpeed = 0;
+            long rem = Math.Max(0, Row.TotalBytes - (long)_displayedDownloadedBytes);
+            DownloadedText.Text = Row.TotalBytes > 0
+                ? $"{DownloadRow.FormatBytes(_displayedDownloadedBytes)} (100%) · {DownloadRow.FormatBytes(rem)} left"
+                : DownloadRow.FormatBytes(_displayedDownloadedBytes);
+            RateText.Text = "0 Bytes/sec";
+            TimeLeftText.Text = "Done";
+            OverallBar.BeginAnimation(RangeBase.ValueProperty, null);
+            OverallBar.IsIndeterminate = false;
+            OverallBar.Value = 100;
+        }
+        else if (Row.Status == "Downloading")
+        {
+            if (_displayedDownloadedBytes <= 0 && Row.DownloadedBytes > 0)
+                _displayedDownloadedBytes = Row.DownloadedBytes;
+            if (_displayedSpeed <= 0 && Row.Speed > 0)
+                _displayedSpeed = Row.Speed;
+
+            UpdateSmoothDisplays();
+            AttachRendering();
+
+            TimeLeftText.Text = Row.RemainingTime is not null ? DownloadRow.FormatTime(Row.RemainingTime.Value) : "(unknown)";
+            if (Row.TotalBytes <= 0)
+            {
+                OverallBar.BeginAnimation(RangeBase.ValueProperty, null);
+                OverallBar.IsIndeterminate = true;
+            }
+            else
+            {
+                OverallBar.IsIndeterminate = false;
+                double target = Row.Progress;
+                double current = OverallBar.Value;
+                if (Math.Abs(current - target) > 0.05)
+                {
+                    var anim = new DoubleAnimation(target, TimeSpan.FromMilliseconds(250))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+                    OverallBar.BeginAnimation(RangeBase.ValueProperty, anim);
+                }
+            }
+        }
+        else
+        {
+            DetachRendering();
+            _displayedDownloadedBytes = Row.DownloadedBytes;
+            _displayedSpeed = 0;
+            UpdateSmoothDisplays();
+            RateText.Text = "0 Bytes/sec";
+            TimeLeftText.Text = "(unknown)";
+            OverallBar.BeginAnimation(RangeBase.ValueProperty, null);
+            OverallBar.IsIndeterminate = false;
+            OverallBar.Value = Row.Progress;
+        }
         ResumeText.Text = Row.ResumeSupported switch { true => "Yes", false => "No", _ => "(unknown)" };
-        OverallBar.Value = Row.IsComplete ? 100 : Row.Progress;
         if (changed || ConnectionList.ItemsSource is null) { ConnectionList.ItemsSource = Row.ConnectionRows; DrawSegments(); }
         bool done = Row.IsComplete;
         PauseButton.Visibility = CancelButton.Visibility = done ? Visibility.Collapsed : Visibility.Visible;
@@ -155,7 +296,12 @@ public partial class DownloadProgressWindow : Window
         PauseButton.Content = Row.CanResume ? "Resume" : "Pause";
         PauseButton.IsEnabled = Row.CanPause || Row.CanResume;
         SpeedTab.IsEnabled = !done;
-        if (done) { ApplyOptionRules(); OptionsNote.Text = "This download is complete; completion options no longer apply."; }
+        if (done)
+        {
+            ApplyOptionRules();
+            OptionsNote.Text = "This download is complete; completion options no longer apply.";
+            if (string.IsNullOrEmpty(Notice.Text)) Notice.Text = "Download completed successfully. The file is saved and ready to open.";
+        }
     }
     private void DrawSegments()
     {
@@ -166,7 +312,8 @@ public partial class DownloadProgressWindow : Window
         var fill = (Brush?)TryFindResource("AccentBrush") ?? Brushes.SteelBlue; var edge = (Brush?)TryFindResource("BorderBrush") ?? Brushes.Gray;
         foreach (var s in Row.Segments)
         {
-            double x = width * s.Start / total, w = Math.Max(s.DownloadedBytes > 0 ? 1 : 0, width * Math.Min(s.DownloadedBytes, s.Length) / total);
+            if (s.Length <= 0 && s.DownloadedBytes <= 0) continue;
+            double x = width * s.Start / total, w = Math.Max(s.DownloadedBytes > 0 ? 1 : 0, width * Math.Min(s.DownloadedBytes, s.Length > 0 ? s.Length : total) / total);
             var bar = new Rectangle { Width = w, Height = height, Fill = fill }; Canvas.SetLeft(bar, x); SegmentBar.Children.Add(bar);
             var start = new Rectangle { Width = 1, Height = height, Fill = edge }; Canvas.SetLeft(start, x); SegmentBar.Children.Add(start);
         }

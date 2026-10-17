@@ -276,7 +276,7 @@ internal static partial class ReleaseTests
 
             var w = new UpdateWindow(release, controller); w.Show(); Pump(150);
             string Text(string name) => ((TextBlock)w.FindName(name)).Text;
-            Check(Text("HeadingText") == "NeoDM 1.3.1 is available (you have 1.3.0)", "Update window: 'NeoDM 1.3.1 is available (you have 1.3.0)'");
+            Check(Text("HeadingText") == "N&T 1.3.1 is available (you have 1.3.0)", "Update window: 'N&T 1.3.1 is available (you have 1.3.0)'");
             var notes = Visual<TextBlock>((DependencyObject)w.FindName("NotesPanel")).Select(t => t.Text).ToList();
             Check(notes.Any(t => t.StartsWith("•  Dark menus")) && notes.Contains("What's new") && !notes.Any(t => t.Contains("**")), "Update window: release notes are rendered from the release body");
             Check(w.FindName("UpdateButton") is Button { Content: "_Update now" } && w.FindName("LaterButton") is Button { Content: "Remind me _later" } && w.FindName("SkipButton") is Button { Content: "_Skip this version" }, "Update window: Update now / Remind me later / Skip this version buttons");

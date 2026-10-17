@@ -144,7 +144,7 @@ public sealed class TorrentFeature : ITorrentFeature
     public async Task ApplySettingsAsync(AppSettings settings)
     {
         try { await _controller.ApplySettingsAsync(settings); }
-        catch (Exception) { Window.SetNotice("Torrent network settings were saved but could not be applied now (is the port in use?). Restart NeoDM to retry."); }
+        catch (Exception) { Window.SetNotice("Torrent network settings were saved but could not be applied now (is the port in use?). Restart N&T to retry."); }
     }
 
     public string? ValidateMagnet(string magnet, out string id)

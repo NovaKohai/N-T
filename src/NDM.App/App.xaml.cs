@@ -74,7 +74,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            MessageBox.Show("NeoDM could not start. Check that your destination and state folders are writable.\n\n" + ex.Message, "NeoDM", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("N&T could not start. Check that your destination and state folders are writable.\n\n" + ex.Message, "N&T", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
     }
@@ -91,7 +91,7 @@ public partial class App : Application
             open = new UpdateWindow(release, Updates) { Owner = window is { IsVisible: true, WindowState: not WindowState.Minimized } ? window : null };
             open.Show();
         };
-        Updates.ShowMessage = text => MessageBox.Show(window is { IsVisible: true } ? window : null, text, "NeoDM updates", MessageBoxButton.OK, MessageBoxImage.Information);
+        Updates.ShowMessage = text => MessageBox.Show(window is { IsVisible: true } ? window : null, text, "N&T updates", MessageBoxButton.OK, MessageBoxImage.Information);
         window.Updates = Updates;
         Updates.Start();
     }
@@ -116,7 +116,7 @@ public partial class App : Application
             var result = Task.Run(() => NativeBridge.SendControlAsync(PipeName, action, value, TimeSpan.FromSeconds(8))).GetAwaiter().GetResult();
             if (!result.Ok)
             {
-                MessageBox.Show("NeoDM is already running but did not accept the request.\n\n" + (result.Error ?? ""), "NeoDM", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("N&T is already running but did not accept the request.\n\n" + (result.Error ?? ""), "N&T", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
         }
@@ -154,14 +154,14 @@ public partial class App : Application
                     fileName => CategoryHelper.GetDownloadPath(fileName, Settings));
                 // The wait for the user is unbounded; if the browser side goes away meanwhile the dialog says so and can no longer add a duplicate.
                 request.Gone.Register(() => Dispatcher.BeginInvoke(new Action(() => dialog.MarkExpired(
-                    "The browser stopped waiting for NeoDM (the browser or its connection was closed), so it has restarted this download itself. " +
+                    "The browser stopped waiting for N&T (the browser or its connection was closed), so it has restarted this download itself. " +
                     "Adding it here would download it twice. Close this window."))));
                 bool accepted = await CaptureFlow.ShowAsync(dialog, windows);
 
                 if (!accepted || dialog.Request is null)
                 {
                     // The user pressed Cancel: discard on purpose (the extension does not restart the browser download for this reply).
-                    request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in NeoDM.", Cancelled: true));
+                    request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in N&T.", Cancelled: true));
                     return;
                 }
 
@@ -174,7 +174,7 @@ public partial class App : Application
                 var job = await CaptureCommit.AddAsync(manager, dialog);
                 if (job is null)
                 {
-                    request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in NeoDM.", Cancelled: true));
+                    request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in N&T.", Cancelled: true));
                     return;
                 }
                 if (CaptureCommit.StartsNow(dialog) && MainWindow is MainWindow main) main.ShowCapturedProgress(job.Id);

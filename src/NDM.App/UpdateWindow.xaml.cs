@@ -48,7 +48,7 @@ public partial class UpdateWindow : Window
     {
         this.release = release; this.controller = controller;
         InitializeComponent();
-        HeadingText.Text = $"NeoDM {release.VersionText} is available (you have {controller.CurrentVersion})";
+        HeadingText.Text = $"N&T {release.VersionText} is available (you have {controller.CurrentVersion})";
         SubText.Text = release.Name == release.Tag || release.Name.Length == 0 ? "" : release.Name;
         SubText.Visibility = SubText.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         foreach (var block in ReleaseNotes.Render(release.Body))
@@ -93,7 +93,7 @@ public partial class UpdateWindow : Window
             switch (controller.Installer.Launcher.Launch(msi))
             {
                 case LaunchResult.Started:
-                    StatusText.Text = "The installer is running. NeoDM will close and start again when it finishes.";
+                    StatusText.Text = "The installer is running. N&T will close and start again when it finishes.";
                     Installing = false; Close(); return true;
                 case LaunchResult.UacDeclined:
                     StatusText.Text = "The update was not installed because Windows permission was declined. Press \"Update now\" to try again.";

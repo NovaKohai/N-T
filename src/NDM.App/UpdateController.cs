@@ -71,8 +71,8 @@ public sealed class UpdateController
         switch (result.Outcome)
         {
             case UpdateOutcome.Available when result.Release is { } release: ShowAvailable(release); break;
-            case UpdateOutcome.UpToDate: (report ?? ShowMessage)($"You are up to date. NeoDM {CurrentVersion} is the latest version."); break;
-            default: (report ?? ShowMessage)("NeoDM could not check for updates. " + (result.Reason ?? "Check your internet connection and try again.")); break;
+            case UpdateOutcome.UpToDate: (report ?? ShowMessage)($"You are up to date. N&T {CurrentVersion} is the latest version."); break;
+            default: (report ?? ShowMessage)("N&T could not check for updates. " + (result.Reason ?? "Check your internet connection and try again.")); break;
         }
         return result;
     }

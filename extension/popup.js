@@ -8,12 +8,18 @@ async function renderPause() {
   const hosts = Array.isArray(p.hosts) ? p.hosts : [];
   const siteOff = !!host && hosts.includes(host), allOff = p.all === true;
   $('pauseAll').checked = allOff; $('pauseSite').checked = siteOff || allOff; $('pauseSite').disabled = allOff || !host;
-  $('pauseSiteLabel').textContent = host ? `Pause NeoDM on ${host} for this session` : 'Pause NeoDM on this site for this session';
+  $('pauseSiteLabel').textContent = host ? `Pause N&T on ${host} for this session` : 'Pause N&T on this site for this session';
   $('resume').hidden = !(siteOff || allOff);
-  $('pauseState').textContent = allOff ? 'NeoDM is paused on all sites until the browser closes.' : siteOff ? `NeoDM is paused on ${host} until the browser closes.` : 'NeoDM is active.';
+  $('pauseState').textContent = allOff ? 'N&T is paused on all sites until the browser closes.' : siteOff ? `N&T is paused on ${host} until the browser closes.` : 'N&T is active.';
 }
 const fmtSize = n => !n ? '' : n >= 1073741824 ? (n / 1073741824).toFixed(2) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
-const describe = i => [i.kind === 'gif' ? 'GIF' : i.kind === 'image' ? 'Image' : i.track === 'audio-only' ? 'Audio only' : i.track === 'video-only' ? 'Video only (no sound)' : i.kind === 'audio' ? 'Audio' : 'Video', i.quality, fmtSize(i.size)].filter(Boolean).join(' · ');
+const describe = i => {
+  const kind = i.kind === 'gif' ? 'GIF' : i.kind === 'image' ? 'Image' : i.track === 'audio-only' ? 'Audio only' : i.track === 'video-only' ? 'Video only (no sound)' : i.kind === 'audio' ? 'Audio' : i.isHls ? 'Video (MP4)' : 'Video';
+  const q = i.quality && i.quality !== 'HLS' ? i.quality : '';
+  let sizeStr = fmtSize(i.size);
+  if (!sizeStr && i.estimatedSize > 0) sizeStr = '~' + fmtSize(i.estimatedSize);
+  return [kind, q, sizeStr].filter(Boolean).join(' · ');
+};
 async function renderMedia(tab) {
   const list = $('mediaList'); list.textContent = '';
   let items = [];
@@ -22,12 +28,21 @@ async function renderMedia(tab) {
   for (const i of items) {
     const li = document.createElement('li'), what = document.createElement('span'); what.className = 'what';
     if (i.info) { what.textContent = i.text; what.classList.add('note'); li.append(what); list.append(li); continue; }
-    what.textContent = describe(i); what.title = i.url;
+    const title = (i.title || tab?.title || '').replace(/\s+[-–—|/•·]\s*(?:[A-Za-z0-9_-]+\.[a-z]{2,6}|YouTube|Facebook|Instagram|Twitter|X|Vimeo|Dailymotion|TikTok|Twitch|Reddit).*$/i, '').trim();
+    const meta = describe(i);
+    if (title) {
+      const t = document.createElement('div'); t.style.cssText = 'font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);'; t.textContent = title;
+      const s = document.createElement('div'); s.style.cssText = 'font-size:11px;color:var(--muted);margin-top:1px;'; s.textContent = meta;
+      what.append(t, s);
+    } else {
+      what.textContent = meta;
+    }
+    what.title = (title ? title + '\n' : '') + i.url;
     const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Download';
     b.onclick = async () => {
       b.disabled = true;
       const r = await chrome.runtime.sendMessage({ action: 'popup-download', tab: { id: tab.id, url: tab.url, title: tab.title }, id: i.id }).catch(() => null);
-      show(r?.ok === true ? 'Accepted by NeoDM.' : r?.error || 'NeoDM did not accept this media.'); b.disabled = false;
+      show(r?.ok === true ? 'Accepted by N&T.' : r?.error || 'N&T did not accept this media.'); b.disabled = false;
     };
     li.append(what, b); list.append(li);
   }
@@ -71,7 +86,7 @@ for (const box of document.querySelectorAll('#types input[data-type]')) {
 
 $('pauseSite').onchange = () => setPause('site', $('pauseSite').checked);
 $('pauseAll').onchange = () => setPause('all', $('pauseAll').checked);
-$('resume').onclick = async () => { await setPause('all', false); await setPause('site', false); show('NeoDM re-enabled.'); };
+$('resume').onclick = async () => { await setPause('all', false); await setPause('site', false); show('N&T re-enabled.'); };
 
 for (const [id, key] of [['capture', 'captureEnabled'], ['cookies', 'cookiesEnabled']]) {
   $(id).onchange = async () => {

@@ -169,7 +169,7 @@ internal static class CompletionActionTests
     static void Countdown()
     {
         var w = new CountdownWindow(CompletionActionKind.Shutdown, 30);
-        Check(w.MessageText == "NeoDM will turn off the computer in 30 seconds", "Countdown message wording");
+        Check(w.MessageText == "N&T will turn off the computer in 30 seconds", "Countdown message wording");
         Check(w.Topmost, "Countdown is always on top");
         Check((string)w.CancelButton.Content == "_Cancel" && (string)w.NowButton.Content == "_Do it now", "Countdown has Cancel and Do it now");
         w.Show(); Click(w.CancelButton); Pump(50);
@@ -179,7 +179,7 @@ internal static class CompletionActionTests
         Check(w.Outcome == CountdownOutcome.DoItNow && !w.IsVisible, "Do it now proceeds immediately");
 
         w = new CountdownWindow(CompletionActionKind.Sleep, 3); w.Show();
-        w.Tick(); Check(w.Remaining == 2 && w.MessageText == "NeoDM will put the computer to sleep in 2 seconds", "Tick decrements the displayed countdown");
+        w.Tick(); Check(w.Remaining == 2 && w.MessageText == "N&T will put the computer to sleep in 2 seconds", "Tick decrements the displayed countdown");
         w.Tick(); Check(w.MessageText.EndsWith("in 1 second"), "Singular second");
         w.Tick(); Pump(50);
         Check(w.Outcome == CountdownOutcome.Elapsed && !w.IsVisible, "Elapsed countdown proceeds");

@@ -38,7 +38,7 @@ public partial class JobOptionsWindow : Window
         InitializeComponent();
         Title = Heading.Text = schedule ? "Schedule download" : "Set speed limit";
         InputLabel.Content = schedule ? "Local date and _time (yyyy-MM-dd HH:mm)" : "New _limit (KiB/s; blank = unlimited)";
-        Help.Text = schedule ? "Scheduling stops any active attempt. NeoDM must be running at the due time. Start now resumes immediately." : "Replaces this download's limit across all segments. The engine does not expose the current limit; blank removes it.";
+        Help.Text = schedule ? "Scheduling stops any active attempt. N&T must be running at the due time. Start now resumes immediately." : "Replaces this download's limit across all segments. The engine does not expose the current limit; blank removes it.";
         AutomationProperties.SetName(ValueInput, schedule ? "Scheduled local date and time" : "New speed limit in KiB per second");
         StartNowButton.Visibility = schedule ? Visibility.Visible : Visibility.Collapsed;
         var job = manager.Jobs.FirstOrDefault(j => j.Id == id);
