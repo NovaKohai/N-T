@@ -1,0 +1,231 @@
+using System.IO;
+using System.IO.Pipes;
+using System.Text;
+using System.Text.Json;
+using System.Collections.Concurrent;
+using NT.Core;
+
+namespace NT.App;
+
+/// <summary>One newline-delimited request per connection; local same-user clients only.</summary>
+public sealed class NativeBridge : IDisposable
+{
+    public const string PipeName = "NT.Downloads";
+    public const int MaximumRequestBytes = 64 * 1024;
+    
+    public record BrowserDownloadRequest(string Url, string? FileName, string? Referer, string? Cookie, Action<BrowserDownloadResponse> Respond, string? Mime = null, CancellationToken Gone = default);
+    // Gone: cancelled when the client (native host / extension) closed its end of the pipe while the user was still deciding.
+    public record BrowserDownloadResponse(bool Ok, string? Id = null, string? Error = null, bool Cancelled = false);
+    
+    /// <summary>Instance-control message from a second launch (show window, hand over a magnet link or .torrent path).</summary>
+    public record ControlRequest(string Action, string? Value);
+    public const string ActionShow = "show", ActionAddMagnet = "add-magnet", ActionAddTorrent = "add-torrent";
+    private readonly Func<ControlRequest, string?>? _onControl;
+    private readonly CancellationTokenSource _stop = new();
+    private Task? _loop;
+    private readonly string _pipeName;
+    private readonly Action<BrowserDownloadRequest> _onRequestReceived;
+    
+    public NativeBridge(Action<BrowserDownloadRequest> onRequestReceived, string pipeName = PipeName, Func<ControlRequest, string?>? onControl = null)
+    { 
+        _onRequestReceived = onRequestReceived;
+        _pipeName = pipeName;
+        _onControl = onControl;
+    }
+
+    /// <summary>Second-launch client: sends one control message to the running instance. Retries while the pipe is still starting.</summary>
+    public static async Task<(bool Ok, string? Error)> SendControlAsync(string pipeName, string action, string? value, TimeSpan timeout)
+    {
+        using var cts = new CancellationTokenSource(timeout);
+        Exception? last = null;
+        while (!cts.IsCancellationRequested)
+        {
+            try
+            {
+                using var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+                await client.ConnectAsync(2000, cts.Token);
+                var message = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { action, value }) + "\n");
+                await client.WriteAsync(message, cts.Token); await client.FlushAsync(cts.Token);
+                var reply = await ReadRequestAsync(client, cts.Token);
+                using var json = JsonDocument.Parse(reply);
+                bool ok = json.RootElement.TryGetProperty("ok", out var o) && o.ValueKind == JsonValueKind.True;
+                string? error = json.RootElement.TryGetProperty("error", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
+                return (ok, error);
+            }
+            catch (Exception ex) when (ex is IOException or TimeoutException or OperationCanceledException or UnauthorizedAccessException or FormatException)
+            {
+                last = ex;
+                try { await Task.Delay(150, cts.Token); } catch (OperationCanceledException) { break; }
+            }
+        }
+        return (false, "Could not reach the running instance" + (last is null ? "." : ": " + last.Message));
+    }
+    
+    public void Start() => _loop ??= Task.Run(RunAsync);
+
+    private async Task RunAsync()
+    {
+        while (!_stop.IsCancellationRequested)
+        {
+            try
+            {
+                // Several captures can wait for their dialogs at once, so every connection is served on its own and the next one is accepted right away.
+                var pipe = new NamedPipeServerStream(_pipeName, PipeDirection.InOut, NamedPipeServerStream.MaxAllowedServerInstances,
+                    PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                try { await pipe.WaitForConnectionAsync(_stop.Token); }
+                catch { pipe.Dispose(); throw; }
+                _ = Task.Run(async () =>
+                {
+                    try { await HandleAsync(pipe, _stop.Token); }
+                    catch (Exception) { }
+                    finally { pipe.Dispose(); }
+                });
+            }
+            catch (OperationCanceledException) when (_stop.IsCancellationRequested) { break; }
+            catch (Exception ex) when (ex is IOException or OperationCanceledException or UnauthorizedAccessException)
+            {
+                try { await Task.Delay(100, _stop.Token); } catch (OperationCanceledException) { break; }
+            }
+        }
+    }
+
+    private async Task HandleAsync(Stream pipe, CancellationToken stopToken)
+    {
+        // Reading the request is bounded (a silent client must not hold the pipe); waiting for the user's decision is not.
+        using var readLimit = CancellationTokenSource.CreateLinkedTokenSource(stopToken);
+        readLimit.CancelAfter(TimeSpan.FromSeconds(30));
+        var cancellationToken = readLimit.Token;
+        TaskCompletionSource<BrowserDownloadResponse> responseSource = new();
+        
+        try
+        {
+            var payload = await ReadRequestAsync(pipe, cancellationToken);
+            cancellationToken = stopToken; // from here on only app shutdown ends the wait
+            using var json = JsonDocument.Parse(payload);
+            if (json.RootElement.ValueKind != JsonValueKind.Object) throw new FormatException("Request must be a JSON object.");
+            var root = json.RootElement;
+            if (root.TryGetProperty("action", out var actionElement))
+            {
+                string? problem = actionElement.ValueKind == JsonValueKind.String && _onControl is not null
+                    ? HandleControl(actionElement.GetString()!, ReadString(root, "value")) : "Unsupported request.";
+                var controlReply = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(problem is null ? (object)new { ok = true } : new { ok = false, error = problem }) + "\n");
+                await pipe.WriteAsync(controlReply, cancellationToken); await pipe.FlushAsync(cancellationToken);
+                return;
+            }
+            var url = ReadString(root, "url", required: true)!;
+            ValidateUrl(url);
+            
+            var fileName = ReadString(root, "fileName");
+            var referer = ReadString(root, "referer");
+            var cookie = ReadString(root, "cookie");
+            var mime = ReadString(root, "mime");
+            if (fileName is { Length: > 512 }) throw new FormatException("File name too long.");
+            if (mime is not null && !ValidMime(mime)) throw new FormatException("Invalid content type.");
+            
+            // The client sends nothing after its request, so a read that completes means it hung up (browser restarted the download or the host died).
+            using var gone = CancellationTokenSource.CreateLinkedTokenSource(stopToken);
+            _ = WatchForHangUpAsync(pipe, gone, stopToken);
+            // Queue the request and notify the UI thread
+            var browserRequest = new BrowserDownloadRequest(url, fileName, referer, cookie, response => responseSource.TrySetResult(response), mime, gone.Token);
+            _onRequestReceived(browserRequest);
+            
+            // Wait for the UI thread to respond. No time limit: the user decides when to; the wait ends early only if the client hangs up.
+            BrowserDownloadResponse response;
+            try { response = await responseSource.Task.WaitAsync(gone.Token); }
+            catch (OperationCanceledException) when (!stopToken.IsCancellationRequested) { return; } // nobody is listening any more; the dialog was told
+            
+            var replyObject = response.Ok 
+                ? (object)new { ok = true, id = response.Id }
+                : (object)new { ok = false, error = response.Error ?? "The download could not be saved.", cancelled = response.Cancelled };
+            
+            var reply = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(replyObject) + "\n");
+            await pipe.WriteAsync(reply, cancellationToken);
+            await pipe.FlushAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) 
+        { 
+            try
+            {
+                // Send error response if dialog was cancelled/timed out
+                var errorResponse = new { ok = false, error = "The download dialog was cancelled or timed out." };
+                var reply = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(errorResponse) + "\n");
+                await pipe.WriteAsync(reply, cancellationToken);
+                await pipe.FlushAsync(cancellationToken);
+            }
+            catch { }
+            return; 
+        }
+        catch (Exception ex)
+        {
+            // Do not echo engine exceptions: they may include authenticated URLs or cookies.
+            var errorResponse = new { ok = false, error = ex is FormatException or JsonException ? "Invalid request. Send an HTTP(S) URL in a newline-terminated JSON object, at most 64 KiB." : "The download could not be saved. Check N&T and try again." };
+            try
+            {
+                var reply = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(errorResponse) + "\n");
+                await pipe.WriteAsync(reply, cancellationToken);
+                await pipe.FlushAsync(cancellationToken);
+            }
+            catch (Exception pipeEx) when (pipeEx is IOException or OperationCanceledException) { }
+        }
+    }
+
+    private static async Task WatchForHangUpAsync(Stream pipe, CancellationTokenSource gone, CancellationToken stop)
+    {
+        try { var one = new byte[1]; await pipe.ReadAsync(one, stop); }
+        catch (Exception) { }
+        if (!stop.IsCancellationRequested) { try { gone.Cancel(); } catch (ObjectDisposedException) { } }
+    }
+
+    private string? HandleControl(string action, string? value)
+    {
+        switch (action)
+        {
+            case ActionShow: break;
+            case ActionAddMagnet:
+                if (value is null || value.Length > 8192 || !value.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) || value.Any(char.IsControl)) return "Not a valid magnet link.";
+                break;
+            case ActionAddTorrent:
+                if (value is null || value.Length > 32767 || !value.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase) || !Path.IsPathFullyQualified(value) || value.Any(char.IsControl)) return "Not a valid .torrent path.";
+                break;
+            default: return "Unknown action.";
+        }
+        try { return _onControl!(new ControlRequest(action, value)); }
+        catch (Exception) { return "The running instance could not handle the request."; }
+    }
+
+    /// <summary>type/subtype only: the browser's content type for the download, at most 100 characters of token characters.</summary>
+    public static bool ValidMime(string value) => value.Length is > 2 and <= 100 && System.Text.RegularExpressions.Regex.IsMatch(value, @"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*$");
+
+    public static void ValidateUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed) || (parsed.Scheme != "http" && parsed.Scheme != "https") || string.IsNullOrEmpty(parsed.Host))
+            throw new FormatException("Enter a complete http:// or https:// download URL.");
+    }
+    private static string? ReadString(JsonElement root, string key, bool required = false)
+    {
+        if (!root.TryGetProperty(key, out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            if (required) throw new FormatException("Missing URL.");
+            return null;
+        }
+        if (value.ValueKind != JsonValueKind.String) throw new FormatException("Expected a string.");
+        var text = value.GetString();
+        return !required && string.IsNullOrEmpty(text) ? null : text;
+    }
+    public static async Task<byte[]> ReadRequestAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[4096];
+        while (true)
+        {
+            int read = await stream.ReadAsync(chunk, cancellationToken);
+            if (read == 0) throw new FormatException("Missing newline.");
+            int newline = Array.IndexOf(chunk, (byte)'\n', 0, read);
+            int count = newline >= 0 ? newline : read;
+            if (buffer.Length + count > MaximumRequestBytes) throw new FormatException("Request exceeds 64 KiB.");
+            buffer.Write(chunk, 0, count);
+            if (newline >= 0) return buffer.ToArray();
+        }
+    }
+    public void Dispose() { _stop.Cancel(); /* Never block the UI while a dispatched acceptance finishes. */ }
+}

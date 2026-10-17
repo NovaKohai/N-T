@@ -1,6 +1,6 @@
 /* NeoDM media ribbon. Renders the tab's media list (kept by the service worker) in a closed shadow root. */
 (() => {
-  if (globalThis.__neodmRibbon) return;
+  if (globalThis.__ntRibbon || globalThis.__neodmRibbon) return;
   const MAX_DOM = 50, SCAN_MS = 400;
   let items = [], dismissedFor = '', enabled = true, host = null, root = null, timer = null, lastDom = '';
   let currentVideos = [], resizeObs = null;
@@ -258,6 +258,7 @@
   function build() {
     host = document.createElement('div');
     host.setAttribute('data-neodm-ribbon', '');
+    host.setAttribute('data-nt-ribbon', '');
     host.style.cssText = 'all:initial!important;position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;pointer-events:none!important;z-index:2147483647!important;overflow:visible!important;';
     root = host.attachShadow({ mode: 'closed' });
 
@@ -589,7 +590,7 @@
 
       chrome.runtime.onMessage.addListener(m => {
         if (!isAlive()) { dispose(); return; }
-        if (m && m.type === 'neodm-media') setItems(m.items);
+        if (m && (m.type === 'nt-media' || m.type === 'neodm-media')) setItems(m.items);
       });
       chrome.storage.onChanged.addListener((c, area) => {
         if (!isAlive()) { dispose(); return; }
@@ -607,5 +608,5 @@
     dispose();
   }
   if (isAlive()) scanDom();
-  globalThis.__neodmRibbon = { refresh: scanDom, items: () => items.slice(), dispose };
+  globalThis.__ntRibbon = globalThis.__neodmRibbon = { refresh: scanDom, items: () => items.slice(), dispose };
 })();

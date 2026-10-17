@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>NT</AssemblyName><RootNamespace>NT.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest><ApplicationIcon>Assets/NT.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../NT.Core/NT.Core.csproj" /><Compile Remove="Tests/**/*.cs" /><Resource Include="Assets/NT.ico" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NT.Torrent/NT.Torrent.csproj" />
+    <EmbeddedResource Include="../../CHANGELOG.md" LogicalName="CHANGELOG.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+</Project>

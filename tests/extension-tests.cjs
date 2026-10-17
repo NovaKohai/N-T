@@ -175,8 +175,8 @@ test('service worker: menus installed; non-HTTP context fails without native cal
 });
 
 /* ---- real host binary framing (skipped when not built) ---- */
-const publishedHost = path.join(root, 'dist/host/NDM.NativeHost.exe');
-const hostSource = process.env.NDM_HOST_EXE || (fs.existsSync(publishedHost) ? publishedHost : path.join(root, 'src/NDM.NativeHost/bin/Debug/net8.0/NDM.NativeHost.exe'));
+const publishedHost = path.join(root, 'dist/host/NT.NativeHost.exe');
+const hostSource = process.env.NT_HOST_EXE || process.env.NDM_HOST_EXE || (fs.existsSync(publishedHost) ? publishedHost : path.join(root, 'src/NT.NativeHost/bin/Debug/net8.0/NT.NativeHost.exe'));
 test('real host stdin/stdout framing: ping, multiple messages, wrong origin, 64KiB cap, invalid URL', { skip: !fs.existsSync(hostSource) }, () => {
   const scratch = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), 'neodm-host-test-'));
   try {

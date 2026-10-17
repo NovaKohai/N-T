@@ -15,7 +15,7 @@ function Invoke-DotNet([string[]]$Arguments) {
 $versionMatch = [regex]::Match((Get-Content -LiteralPath 'Directory.Build.props' -Raw), '<Version>\s*(\d+\.\d+\.\d+)\s*</Version>')
 if (-not $versionMatch.Success) { throw 'Directory.Build.props has no <Version>x.y.z</Version>' }
 $version = $versionMatch.Groups[1].Value
-Write-Host "== NeoDM $version =="
+Write-Host "== N&T $version =="
 
 # Sync the extension manifest version; the signed CRX is repacked below when it changes.
 $manifestPath = Join-Path $PSScriptRoot 'extension\manifest.json'
@@ -31,30 +31,30 @@ if ($manifestChanged) {
 }
 
 if (-not $SkipTests) {
-    Invoke-DotNet @('run','--project','tests/NDM.Tests/NDM.Tests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/NDM.App.ProtocolTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/Ui/NDM.App.UiTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/Advanced/NDM.App.AdvancedTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/Options/NDM.App.OptionsTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/OptionsDialog/NDM.App.Tests.OptionsDialog.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/CompletionActions/NDM.App.CompletionActionTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/Fidelity/NDM.App.FidelityTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/Manage/NDM.App.ManageTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/About/NDM.App.AboutTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/Themes/NDM.App.ThemeTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.App/Tests/Release/NDM.App.ReleaseTests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','tests/NDM.Torrent.Tests/NDM.Torrent.Tests.csproj','-c','Release')
-    Invoke-DotNet @('run','--project','src/NDM.NativeHost/NDM.NativeHost.csproj','--','--self-test')
+    Invoke-DotNet @('run','--project','tests/NT.Tests/NT.Tests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/NT.App.ProtocolTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/Ui/NT.App.UiTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/Advanced/NT.App.AdvancedTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/Options/NT.App.OptionsTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/OptionsDialog/NT.App.Tests.OptionsDialog.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/CompletionActions/NT.App.CompletionActionTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/Fidelity/NT.App.FidelityTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/Manage/NT.App.ManageTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/About/NT.App.AboutTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/Themes/NT.App.ThemeTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.App/Tests/Release/NT.App.ReleaseTests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','tests/NT.Torrent.Tests/NT.Torrent.Tests.csproj','-c','Release')
+    Invoke-DotNet @('run','--project','src/NT.NativeHost/NT.NativeHost.csproj','--','--self-test')
     & npm ci --prefix tests --ignore-scripts --no-fund --no-audit
     if ($LASTEXITCODE -ne 0) { throw 'Extension test dependencies failed' }
     & node --test tests/extension-tests.cjs tests/extension-advanced-tests.cjs tests/extension-v130-tests.cjs tests/extension-v132-tests.cjs tests/extension-v133-tests.cjs tests/extension-v142-tests.cjs
     if ($LASTEXITCODE -ne 0) { throw 'Extension tests failed' }
 }
 
-Get-Process -Name 'NeoDM','NDM.NativeHost' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Invoke-DotNet @('publish','src/NDM.App/NDM.App.csproj','-c','Release','-r','win-x64','--self-contained','true','-o','dist/app')
-Invoke-DotNet @('publish','src/NDM.NativeHost/NDM.NativeHost.csproj','-c','Release','-r','win-x64','--self-contained','true','-o','dist/host')
-$ytDlpCandidates = @((Join-Path $env:LOCALAPPDATA 'NDM\yt-dlp.exe'), (Join-Path $PSScriptRoot 'tools\yt-dlp.exe'))
+Get-Process -Name 'NT','NeoDM','NT.NativeHost','NDM.NativeHost' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Invoke-DotNet @('publish','src/NT.App/NT.App.csproj','-c','Release','-r','win-x64','--self-contained','true','-o','dist/app')
+Invoke-DotNet @('publish','src/NT.NativeHost/NT.NativeHost.csproj','-c','Release','-r','win-x64','--self-contained','true','-o','dist/host')
+$ytDlpCandidates = @((Join-Path $env:LOCALAPPDATA 'N&T\yt-dlp.exe'), (Join-Path $env:LOCALAPPDATA 'NDM\yt-dlp.exe'), (Join-Path $PSScriptRoot 'tools\yt-dlp.exe'))
 foreach ($c in $ytDlpCandidates) {
     if (Test-Path -LiteralPath $c) {
         Copy-Item -LiteralPath $c -Destination 'dist\app\yt-dlp.exe' -Force
@@ -65,7 +65,7 @@ if ($manifestChanged -or -not (Test-Path -LiteralPath 'dist\NeoDM.crx')) {
     & node tools/pack-extension.cjs
     if ($LASTEXITCODE -ne 0) { throw 'Extension packing failed' }
 }
-foreach ($dll in 'NDM.Torrent.dll','MonoTorrent.Client.dll') {
+foreach ($dll in 'NT.Torrent.dll','MonoTorrent.Client.dll') {
     if (-not (Test-Path -LiteralPath "dist\app\$dll")) { throw "dist\app is missing $dll (torrent support must ship in the normal build)" }
 }
 
@@ -75,7 +75,7 @@ $bannedA = 'I' + 'DM'; $bannedB = 'Internet Download ' + 'Manager'; $bannedC = '
 $banned = [regex]::new("\b$bannedA\b|$bannedB|$bannedC", 'IgnoreCase')
 $skipDirs = @('node_modules','bin','obj','artifacts','keys','.git','payload')
 $binaryExt = @('.png','.ico','.crx','.pdb','.zip','.msi','.pem','.exe','.dll','.pri','.nupkg')
-$firstParty = '^(NeoDM|NDM\.[A-Za-z.]*)\.(exe|dll)$'
+$firstParty = '^(NT|NeoDM|NDM\.[A-Za-z.]*|NT\.[A-Za-z.]*)\.(exe|dll)$'
 $hits = New-Object System.Collections.Generic.List[string]
 function Test-Bytes([string]$path) {
     $bytes = [IO.File]::ReadAllBytes($path)
@@ -105,4 +105,4 @@ while ($stack.Count -gt 0) {
 Write-Host "Forbidden-name scan: $scanned files, $($hits.Count) hit(s)"
 if ($hits.Count -gt 0) { $hits | ForEach-Object { Write-Host "  $_" }; throw 'Forbidden product names found (see list above)' }
 
-Write-Host "Built NeoDM $version : dist/app/NeoDM.exe"
+Write-Host "Built N&T $version : dist/app/NT.exe"

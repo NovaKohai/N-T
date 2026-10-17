@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>NT.Torrent.Tests</RootNamespace>
+    <AssemblyName>NT.Torrent.Tests</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/NT.Torrent/NT.Torrent.csproj" />
+    <ProjectReference Include="../../src/NT.Core/NT.Core.csproj" />
+    <Compile Include="../NT.Tests/FixtureProxy.cs" Link="FixtureProxy.cs" />
+  </ItemGroup>
+</Project>

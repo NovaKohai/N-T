@@ -40,5 +40,6 @@ const missing = referenced.filter(n => !names.includes(n));
 if (missing.length) throw new Error('Manifest references missing files: ' + missing.join(', '));
 const crx = buildCrx(buildZip(names.map(name => ({ name, data: fs.readFileSync(path.join(extDir, name)) }))), pem);
 fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, crx);
+try { fs.writeFileSync(path.join(root, 'dist', 'N&T.crx'), crx); } catch {}
 console.log(`wrote ${out} (${crx.length} bytes), id ${id}, sha256 ${crypto.createHash('sha256').update(crx).digest('hex')}`);
 console.log('files:', names.join(', '));

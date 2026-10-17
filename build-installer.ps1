@@ -1,13 +1,13 @@
 [CmdletBinding()]
-param([string]$AppExe = 'NeoDM.exe', [string]$PolicyDefault = "0")
-# Builds artifacts\NeoDM-Setup.msi from dist\ (run build.ps1 first). Requires: dotnet tool install --global wix --version 5.0.2
+param([string]$AppExe = 'NT.exe', [string]$PolicyDefault = "0")
+# Builds artifacts\N&T-Setup.msi from dist\ (run build.ps1 first). Requires: dotnet tool install --global wix --version 5.0.2
 # and: wix extension add -g WixToolset.UI.wixext/5.0.2 ; wix extension add -g WixToolset.Util.wixext/5.0.2
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $inst = Join-Path $root 'installer'
 $AppDir = Join-Path $root 'dist\app'; $HostDir = Join-Path $root 'dist\host'; $ExtDir = Join-Path $root 'extension'
 $Crx = Join-Path $root 'dist\NeoDM.crx'
-foreach ($p in @("$AppDir\$AppExe", "$HostDir\NDM.NativeHost.exe", $Crx, "$ExtDir\manifest.json")) { if (-not (Test-Path -LiteralPath $p)) { throw "Missing input: $p" } }
+foreach ($p in @("$AppDir\$AppExe", "$HostDir\NT.NativeHost.exe", $Crx, "$ExtDir\manifest.json")) { if (-not (Test-Path -LiteralPath $p)) { throw "Missing input: $p" } }
 $extId = (Get-Content -LiteralPath (Join-Path $root 'tools\extension-id.txt') -Raw).Trim()
 # Single source of truth: Directory.Build.props (docs/VERSIONING.md). The extension manifest and the built app must agree (build.ps1 syncs them).
 $version = [regex]::Match((Get-Content -LiteralPath (Join-Path $root 'Directory.Build.props') -Raw), '<Version>\s*(\d+\.\d+\.\d+)\s*</Version>').Groups[1].Value
@@ -29,7 +29,7 @@ $rtfPath = Join-Path $payload 'license.rtf'; [IO.File]::WriteAllText($rtfPath, $
 $licTxt = Join-Path $root 'LICENSE'
 # Installer artwork generated from the NeoDM icon (original artwork, no third-party images): UI banner 493x58, welcome/exit dialog 493x312.
 Add-Type -AssemblyName System.Drawing
-$IconFile = Join-Path $root 'src\NDM.App\Assets\NDM.ico'
+$IconFile = Join-Path $root 'src\NT.App\Assets\NT.ico'
 if (-not (Test-Path -LiteralPath $IconFile)) { throw "Missing installer icon: $IconFile" }
 function New-InstallerBitmap([string]$Path, [int]$W, [int]$H, [bool]$Dialog) {
     $icon = New-Object System.Drawing.Icon($IconFile, 48, 48)
@@ -55,8 +55,8 @@ $BannerBmp = Join-Path $payload 'banner.bmp'; $DialogBmp = Join-Path $payload 'd
 New-InstallerBitmap $BannerBmp 493 58 $false
 New-InstallerBitmap $DialogBmp 493 312 $true
 $out = Join-Path $root 'artifacts'; New-Item -ItemType Directory -Force $out | Out-Null
-$msi = Join-Path $out 'NeoDM-Setup.msi'
-& wix build (Join-Path $inst 'NeoDM.wxs') -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -o $msi `
+$msi = Join-Path $out 'N&T-Setup.msi'
+& wix build (Join-Path $inst 'NT.wxs') -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -o $msi `
   -d AppDir=$AppDir -d HostDir=$HostDir -d ExtDir=$ExtDir -d CrxFile=$Crx -d AppExe=$AppExe -d ExtId=$extId -d Version=$version `
   -d LicenseRtf=$rtfPath -d LicenseTxt=$licTxt -d IconFile=$IconFile -d BannerBmp=$BannerBmp -d DialogBmp=$DialogBmp -d PolicyDefault=$PolicyDefault -bindpath $inst
 if ($LASTEXITCODE -ne 0) { throw 'wix build failed' }
@@ -64,9 +64,9 @@ Remove-Item -Recurse -Force $payload
 Write-Host "Built $msi (version $version)"
 Write-Host ("SHA256 " + (Get-FileHash -Algorithm SHA256 $msi).Hash)
 # Release assets for the self-updater (docs/UPDATES.md): versioned installer name + SHA256SUMS.txt in "hash *name" form.
-$versioned = Join-Path $out "NeoDM-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $versioned -Force
-$ntMsi = Join-Path $out 'N&T-Setup.msi'; Copy-Item -LiteralPath $msi -Destination $ntMsi -Force
-$ntVersioned = Join-Path $out "N&T-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $ntVersioned -Force
+$versioned = Join-Path $out "N&T-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $versioned -Force
+$legacyMsi = Join-Path $out 'NeoDM-Setup.msi'; Copy-Item -LiteralPath $msi -Destination $legacyMsi -Force
+$legacyVersioned = Join-Path $out "NeoDM-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $legacyVersioned -Force
 $sumLines = @(((Get-FileHash -Algorithm SHA256 $versioned).Hash.ToLowerInvariant()) + ' *' + (Split-Path -Leaf $versioned))
 [IO.File]::WriteAllText((Join-Path $out 'SHA256SUMS.txt'), (($sumLines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false)))
-Write-Host "Release assets: $ntMsi, $versioned and SHA256SUMS.txt"
+Write-Host "Release assets: $msi, $versioned and SHA256SUMS.txt"

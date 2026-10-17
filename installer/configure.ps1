@@ -34,7 +34,8 @@ if ($legacyDir -ne $Dir -and (Test-Path -LiteralPath $legacyDir)) {
   try { Remove-Item -LiteralPath $legacyDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 }
 [IO.File]::WriteAllText("$Dir\host\bridge-config.json", (@{ extensionId = $ExtId; appPath = "$Dir\$AppExe" } | ConvertTo-Json), $utf8)
-[IO.File]::WriteAllText("$Dir\host\com.ndm.bridge.json", (@{ name = 'com.ndm.bridge'; description = 'NeoDM native download bridge'; path = "$Dir\host\NDM.NativeHost.exe"; type = 'stdio'; allowed_origins = @("chrome-extension://$ExtId/") } | ConvertTo-Json), $utf8)
+[IO.File]::WriteAllText("$Dir\host\com.nt.bridge.json", (@{ name = 'com.nt.bridge'; description = 'N&T native download bridge'; path = "$Dir\host\NT.NativeHost.exe"; type = 'stdio'; allowed_origins = @("chrome-extension://$ExtId/") } | ConvertTo-Json), $utf8)
+[IO.File]::WriteAllText("$Dir\host\com.ndm.bridge.json", (@{ name = 'com.ndm.bridge'; description = 'N&T native download bridge'; path = "$Dir\host\NT.NativeHost.exe"; type = 'stdio'; allowed_origins = @("chrome-extension://$ExtId/") } | ConvertTo-Json), $utf8)
 $base = 'file:///' + (($Dir -replace '\\', '/') -replace ' ', '%20') + '/extension'
 $xml = "<?xml version='1.0' encoding='UTF-8'?>`r`n<gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'><app appid='$ExtId'><updatecheck codebase='$base/NeoDM.crx' version='$Version'/></app></gupdate>`r`n"
 [IO.File]::WriteAllText("$Dir\extension\update.xml", $xml, $utf8)

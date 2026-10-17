@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>NT.Torrent</RootNamespace>
+    <AssemblyName>NT.Torrent</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NT.Core/NT.Core.csproj" />
+    <PackageReference Include="MonoTorrent" Version="3.0.2" />
+  </ItemGroup>
+</Project>
