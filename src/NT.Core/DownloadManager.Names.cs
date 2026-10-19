@@ -35,6 +35,10 @@ public sealed partial class DownloadManager
     public async Task<NameProbeResult?> ProbeNameAsync(DownloadRequest request, CancellationToken cancellation = default)
     {
         ValidateRequest(request);
+        if (IsYoutubeUrl(request.Url) || (!string.IsNullOrWhiteSpace(request.Referer) && IsYoutubeUrl(request.Referer)))
+        {
+            return new NameProbeResult(request.Url, null, "video/mp4", null, Array.Empty<byte>(), 200);
+        }
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         limit.CancelAfter(NameProbeTimeout);
         var uri = new Uri(request.Url);

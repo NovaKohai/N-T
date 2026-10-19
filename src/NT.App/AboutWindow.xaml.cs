@@ -37,14 +37,18 @@ public static class AboutInfo
     /// <summary>Releases, latest version first. Unparseable headings are ignored.</summary>
     public static IReadOnlyList<ChangelogRelease> ParseChangelog(string text)
     {
-        var releases = new List<(Version Key, ChangelogRelease Release)>();
+        var releases = new List<(DateTime Date, Version Key, ChangelogRelease Release)>();
         string? version = null, date = null, section = "";
         var sections = new List<(string, IReadOnlyList<string>)>(); var items = new List<string>();
         void FlushSection() { if (version is not null && items.Count > 0) sections.Add((section ?? "", items.ToArray())); items = new List<string>(); }
         void FlushRelease()
         {
             FlushSection();
-            if (version is not null && System.Version.TryParse(version, out var key)) releases.Add((key, new ChangelogRelease(version, date ?? "", sections.ToArray())));
+            if (version is not null && System.Version.TryParse(version, out var key))
+            {
+                var dt = DateTime.TryParse(date, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d) ? d : DateTime.MinValue;
+                releases.Add((dt, key, new ChangelogRelease(version, date ?? "", sections.ToArray())));
+            }
             sections = new List<(string, IReadOnlyList<string>)>(); version = null; date = null; section = "";
         }
         foreach (var raw in text.Split('\n'))
@@ -58,7 +62,7 @@ public static class AboutInfo
             else if (line.StartsWith("  ", StringComparison.Ordinal) && items.Count > 0 && line.Trim().Length > 0) items[^1] += " " + line.Trim();
         }
         FlushRelease();
-        return releases.OrderByDescending(r => r.Key).Select(r => r.Release).ToArray();
+        return releases.OrderByDescending(r => r.Date).ThenByDescending(r => r.Key).Select(r => r.Release).ToArray();
     }
 }
 
@@ -84,21 +88,49 @@ public partial class AboutWindow : Window
         VersionText.Text = "Version " + AboutInfo.Version;
         var releases = AboutInfo.ParseChangelog(AboutInfo.ReadChangelogText());
         if (releases.Count == 0) ChangelogPanel.Children.Add(new TextBlock { Text = "No release notes are available.", Style = (Style)FindResource("Muted") });
+        bool isFirst = true;
         foreach (var release in releases)
         {
-            var title = new TextBlock { Text = release.Version + (release.Date.Length > 0 ? "  \u2022  " + release.Date : ""), FontWeight = FontWeights.SemiBold, FontSize = 14, Margin = new Thickness(0, 10, 0, 4) };
+            var title = new TextBlock
+            {
+                Text = release.Version + (release.Date.Length > 0 ? "  \u2022  " + release.Date : ""),
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 14,
+                Margin = new Thickness(0, isFirst ? 2 : 14, 0, 4)
+            };
             title.SetResourceReference(TextBlock.ForegroundProperty, "InkBrush");
             ChangelogPanel.Children.Add(title);
+            isFirst = false;
+
             foreach (var (name, entries) in release.Sections)
             {
-                if (name.Length > 0) ChangelogPanel.Children.Add(new TextBlock { Text = name, Style = (Style)FindResource("Muted"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 2) });
+                if (name.Length > 0)
+                {
+                    ChangelogPanel.Children.Add(new TextBlock
+                    {
+                        Text = name,
+                        Style = (Style)FindResource("Muted"),
+                        FontWeight = FontWeights.SemiBold,
+                        Margin = new Thickness(0, 5, 0, 2)
+                    });
+                }
                 foreach (var entry in entries)
                 {
-                    var row = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) }); row.ColumnDefinitions.Add(new ColumnDefinition());
-                    var bullet = new TextBlock { Text = "\u2022" }; bullet.SetResourceReference(TextBlock.ForegroundProperty, "InkBrush");
-                    var text = new TextBlock { Text = entry.Replace("`", ""), TextWrapping = TextWrapping.Wrap }; text.SetResourceReference(TextBlock.ForegroundProperty, "InkBrush");
-                    Grid.SetColumn(text, 1); row.Children.Add(bullet); row.Children.Add(text);
+                    var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition());
+                    var bullet = new TextBlock { Text = "\u2022", VerticalAlignment = VerticalAlignment.Top };
+                    bullet.SetResourceReference(TextBlock.ForegroundProperty, "InkBrush");
+                    var text = new TextBlock
+                    {
+                        Text = entry.Replace("`", ""),
+                        TextWrapping = TextWrapping.Wrap,
+                        LineHeight = 18
+                    };
+                    text.SetResourceReference(TextBlock.ForegroundProperty, "InkBrush");
+                    Grid.SetColumn(text, 1);
+                    row.Children.Add(bullet);
+                    row.Children.Add(text);
                     ChangelogPanel.Children.Add(row);
                 }
             }

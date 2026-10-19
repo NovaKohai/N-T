@@ -118,13 +118,13 @@ test('pause state lives in chrome.storage.session only, is popup-only and valida
 });
 
 /* ---- popup UI (real popup.html + popup.js in jsdom) ---- */
-async function popup({ local = {}, session = {}, tabUrl = 'https://site.example/page' } = {}) {
+async function popup({ local = {}, session = {}, tabUrl = 'https://site.example/page', items = [] } = {}) {
   const dom = new JSDOM(fs.readFileSync(path.join(__dirname, '../extension/popup.html'), 'utf8'), { runScripts: 'outside-only', url: 'chrome-extension://ext-id/popup.html' }), w = dom.window;
   const messages = [];
   w.chrome = {
     storage: { local: { get: async k => Object.fromEntries([].concat(k).filter(x => x in local).map(x => [x, local[x]])), set: async o => Object.assign(local, o) }, session: { get: async k => (k in session ? { [k]: session[k] } : {}) } },
     tabs: { query: async () => [{ id: 1, url: tabUrl }] },
-    runtime: { sendMessage: async m => { messages.push(m); if (m.action === 'pause-set') { const p = session['neodm.pause'] ||= { all: false, hosts: [] }; if (m.scope === 'all') p.all = m.on; else p.hosts = p.hosts.filter(h => h !== m.host).concat(m.on ? [m.host] : []); return { ok: true }; } return { ok: true }; } },
+    runtime: { sendMessage: async m => { messages.push(m); if (m.action === 'pause-set') { const p = session['neodm.pause'] ||= { all: false, hosts: [] }; if (m.scope === 'all') p.all = m.on; else p.hosts = p.hosts.filter(h => h !== m.host).concat(m.on ? [m.host] : []); return { ok: true }; } if (m.action === 'popup-media') return { items }; return { ok: true }; } },
     permissions: { request: async () => true, remove: async () => true },
   };
   w.eval(source('sniff.js')); w.eval(source('popup.js')); await tick(12);
@@ -153,6 +153,21 @@ test('popup: ticking a type stores it; pausing this site / all sites messages th
   doc.getElementById('resume').click(); await tick(12);
   assert.equal(doc.getElementById('pauseState').textContent, 'N&T is active.'); assert.equal(doc.getElementById('resume').hidden, true);
   assert.equal(doc.getElementById('pauseAll').checked, false); assert.equal(doc.getElementById('pauseSite').checked, false);
+});
+test('popup media list: standard resolutions (480p up to 8K) are offered, noise rows give way, site suffix is stripped', async () => {
+  const items = [
+    { id: 'u', url: 'https://v.example/u.mp4', kind: 'video', track: 'video-only', quality: '2160p', complete: false, size: 300 * MB },
+    { id: 'm', url: 'https://v.example/m.mp4', kind: 'video', track: 'muxed', quality: '1080p', complete: true, size: 50 * MB, title: 'My Clip - YouTube' },
+    { id: 'a', url: 'https://v.example/a.m4a', kind: 'audio', track: 'audio-only', quality: '', complete: false, size: 3 * MB },
+  ];
+  const { doc } = await popup({ items });
+  const list = doc.getElementById('mediaList');
+  assert.equal(doc.getElementById('mediaNone').hidden, true);
+  assert.match(list.textContent, /Video only \(no sound\) · 2160p · 300\.0 MB/, 'a 4K row is offered, like in the ribbon');
+  assert.match(list.textContent, /Video · 1080p · 50\.0 MB/);
+  assert.doesNotMatch(list.textContent, /Audio only/, 'audio-only rows give way while standard rows exist');
+  assert.match(list.textContent, /My Clip/); assert.doesNotMatch(list.textContent, /YouTube/, 'site suffix is stripped');
+  assert.equal(list.querySelectorAll('li button').length, 2);
 });
 test('popup shows the stored state: pause active on open, stored types, explicit capture off', async () => {
   const { doc } = await popup({ local: { captureEnabled: false, mediaTypes: { image: true, video: false } }, session: { 'neodm.pause': { all: false, hosts: ['site.example'] } } });

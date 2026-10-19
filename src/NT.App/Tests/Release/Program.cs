@@ -350,7 +350,7 @@ internal static partial class ReleaseTests
         var host = new Window { Width = 460, Height = 220, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual, Left = 40, Top = 40 };
         var plain = new TabControl { Margin = new Thickness(16), VerticalAlignment = VerticalAlignment.Top };
         plain.Items.Add(new TabItem { Header = "Download status", Content = new TextBlock { Text = "a" } });
-        plain.Items.Add(new TabItem { Header = "Speed Limiter", Content = new TextBlock { Text = "b" } });
+        plain.Items.Add(new TabItem { Header = "Speed limiter", Content = new TextBlock { Text = "b" } });
         plain.Items.Add(new TabItem { Header = "Options on completion", Content = new TextBlock { Text = "c" } });
         plain.Items.Add(new TabItem { Header = "Unavailable", IsEnabled = false, Content = new TextBlock { Text = "d" } });
         host.Content = plain; host.Show(); Pump(150);
@@ -359,7 +359,7 @@ internal static partial class ReleaseTests
         var disabled = plain.Items.OfType<TabItem>().Last(); Check(((SolidColorBrush)disabled.Foreground).Color == Brush("DisabledInkBrush"), t + "disabled tab header shows the dim themed text colour");
         host.Close();
 
-        // the real progress window (Download status / Speed Limiter / Options on completion)
+        // the real progress window (Download status / Speed limiter / Options on completion)
         var m = NewManager(root, "tabs-" + theme);
         try
         {

@@ -113,7 +113,6 @@ public partial class SettingsWindow : Window
     {
         AccentPreview.Background = _accent is null ? (Brush)FindResource("AccentFillBrush") : new SolidColorBrush((Color)ColorConverter.ConvertFromString(_accent));
     }
-    private void OpenAppearance_Click(object sender, RoutedEventArgs e) => OptionsTabs.SelectedItem = AppearanceTab;
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);

@@ -35,12 +35,12 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
             var limit = Math.Max(1, ConnectionLimit);
             if (Segments.Count == 0)
             {
-                return Enumerable.Range(1, limit)
+                return Enumerable.Range(1, ResumeSupported == false ? 1 : limit)
                     .Select(i => new DownloadSegmentRow(i, new DownloadSegmentSnapshot(0, 0, 0, false), running, Status))
                     .ToArray();
             }
             var list = Segments.Select((s, i) => new DownloadSegmentRow(i + 1, s, running, Status)).ToList();
-            if (running && limit > list.Count)
+            if (running && ResumeSupported != false && limit > list.Count)
             {
                 for (int i = list.Count + 1; i <= limit; i++)
                     list.Add(new DownloadSegmentRow(i, new DownloadSegmentSnapshot(0, 0, 0, false), false, Status));
@@ -97,13 +97,19 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
         if (time.TotalHours >= 1) return $"{(long)time.TotalHours}h {time.Minutes}m";
         return time.TotalMinutes >= 1 ? $"{(long)time.TotalMinutes}m {time.Seconds}s" : $"{Math.Ceiling(time.TotalSeconds):0}s";
     }
-    public static string FormatBytes(double bytes)
+    public static string FormatBytes(double bytes, int decimals = 1)
     {
         if (!double.IsFinite(bytes) || bytes < 0) bytes = 0;
         string[] units = ["B", "KB", "MB", "GB", "TB"];
         int index = 0;
         while (bytes >= 1024 && index < units.Length - 1) { bytes /= 1024; index++; }
-        return $"{bytes:0.#} {units[index]}";
+        if (index == 0) return $"{(long)bytes} B";
+        return decimals switch
+        {
+            2 => $"{bytes:0.00} {units[index]}",
+            0 => $"{bytes:0} {units[index]}",
+            _ => $"{bytes:0.#} {units[index]}"
+        };
     }
     public event PropertyChangedEventHandler? PropertyChanged;
 }
@@ -115,7 +121,7 @@ public sealed record DownloadSegmentRow(int Number, DownloadSegmentSnapshot Snap
                           Snapshot.IsActive ? "Receiving data..." :
                           Snapshot.Length > 0 && Snapshot.DownloadedBytes >= Snapshot.Length ? "Complete." :
                           JobStatus == "Connecting" ? "Connecting..." :
-                          "Disconnect.";
+                          "Idle";
     public string Range => Snapshot.Length > 0 ? $"{Snapshot.Start:N0} to {Snapshot.Start + Snapshot.Length - 1:N0}" : "Unknown";
     public string Bytes => $"{DownloadRow.FormatBytes(Snapshot.DownloadedBytes)} / {DownloadRow.FormatBytes(Snapshot.Length)}";
     public double Progress => Snapshot.Length > 0 ? Math.Clamp(100d * Snapshot.DownloadedBytes / Snapshot.Length, 0, 100) : 0;

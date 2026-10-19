@@ -320,7 +320,7 @@ public partial class MainWindow : Window
             CountLabel.Text = $"{visible} {(visible == 1 ? "download" : "downloads")}";
             EmptyState.Visibility = visible == 0 ? Visibility.Visible : Visibility.Collapsed;
             EmptyHeading.Text = Rows.Count == 0 ? "No downloads" : "No matching downloads";
-            EmptyBody.Text = Rows.Count == 0 ? "Add a URL, import a list, or send a download from Chrome." : "Try a different filter or search term.";
+            EmptyBody.Text = Rows.Count == 0 ? "Add a URL, import a list, or send a download from your browser." : "Try a different filter or search term.";
             int active = Rows.Count(r => r.Status is "Downloading" or "Connecting" or "Checking");
             int seeding = Rows.Count(r => r.Status == "Seeding");
             Summary.Text = Rows.Count == 0 ? "Ready for your first download" : $"{active} active" + (seeding > 0 ? $"  ·  {seeding} seeding" : "") + $"  ·  {Rows.Count(r => r.IsComplete)} completed  ·  {Rows.Count} total";
@@ -500,7 +500,7 @@ public partial class MainWindow : Window
     {
         if (Selected is not { IsComplete: true } row) return;
         if (!File.Exists(row.FilePath)) { Notice.Text = "The file is no longer in its saved location."; return; }
-        if (DownloadFileActions.ConfirmOpen(this, row.FileName)) Perform(() => DownloadFileActions.Open(row.FilePath), "File opened.");
+        Perform(() => DownloadFileActions.Open(row.FilePath), "File opened.");
     }
     private void Folder_Click(object sender, RoutedEventArgs e)
     {

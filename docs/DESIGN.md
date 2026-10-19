@@ -10,10 +10,10 @@ The layout is a menu, a command toolbar, a status navigation rail and a sortable
 | --- | --- | --- |
 | Native window frame | Standard minimize, maximize, close, resize and Windows snap | Existing OS chrome, native DPI manifest; no custom titlebar |
 | Menu | Tasks / File / Downloads / View / Help | Access keys; real add/import, scheduler, resume/stop, options, filters and help handlers |
-| Command toolbar | Add URL, Resume, Stop, Stop all, Remove, Remove completed, Options, Scheduler | Compact 30 DIP buttons, wraps if needed; destructive actions confirm and keep saved files |
+| Command toolbar | Add URL (primary), Add torrent, Resume, Stop, Stop all, Remove, Remove completed, Options, Scheduler | Compact 30 DIP buttons, grouped and wrapping if needed; destructive actions confirm and keep saved files |
 | Status navigation | DOWNLOADS: All, Downloading, Paused, Completed, Failed, Queued, Scheduled (non-torrent items only). TORRENTS: All torrents, Downloading, Seeding, Completed | 166 DIP rail; filters match actual engine status, not guessed extension categories |
 | Queue table | Filename, Size, Status, Progress, Remaining, Speed | Virtualized ListView/GridView; 30 DIP rows, sortable typed values, reorderable/resizable columns, horizontal and vertical scroll |
-| Search | Match filename or original URL within current filter | Accessible name; Ctrl+F; no synthetic matches |
+| Search | Match filename or original URL within current filter | Visible placeholder, accessible name, Ctrl+F; no synthetic matches |
 | Selection strip | Filename/path/error; compatible Pause/Resume, Speed, Open file, Open folder | Small inline strip; legacy named controls retained |
 | Progress window | Per-download live inspection without blocking the queue | Modeless, one view per job; total/downloaded, core speed/ETA, resume support and connection/segment snapshots |
 | Completion window | Actual disk size/path, trusted open, chooser, folder, copy path, close | Modeless serialized notifications; missing/removed-job guards; preference checkbox |
@@ -87,7 +87,7 @@ No running user application was killed or closed, no production queue/settings w
 
 ## Tray, captured downloads, categories and context menu
 - Tray: `MainWindow(manager, settings, save, enableTray)` owns a `Hardcodet.NotifyIcon.Wpf` icon. Closing or minimizing hides the window and keeps the process (and transfers) running; tray double-click/Show restores; tray Exit (or File > Exit) sets an exit request and really closes. Tests pass `enableTray: false`.
-- Browser capture: `NativeBridge(Action<BrowserDownloadRequest>, pipeName)` hands each validated request to the app, which shows `DownloadOptionsDialog` (file name, save-to, category, speed limit, Start / Add to Queue / Schedule / Cancel). The pipe client receives exactly one ack: `{ok:true,id}` after the job is persisted, or `{ok:false,error}` on Cancel, timeout (5 min) or failure.
+- Browser capture: `NativeBridge(Action<BrowserDownloadRequest>, pipeName)` hands each validated request to the app, which shows `DownloadOptionsDialog` (file name, save-to, category, speed limit, Start / Add to queue / Schedule / Cancel). The pipe client receives exactly one ack: `{ok:true,id}` after the job is persisted, or `{ok:false,error}` on Cancel, timeout (5 min) or failure.
 - Categories: `EnableCategoryFolders` is on by default (settings schema 2 migrates an old persisted `false` once; later choices are kept). With it, `CategoryHelper` maps extensions to Programs, Compressed, Music, Video and Documents subfolders of the download directory (relative names, or absolute paths, configurable in Options > Downloads); everything else stays in the base folder.
 - Queue context menu: Open file, Open folder, Copy path, Delete file, Remove from list. Right-click selects the row under the pointer first. Items enable only when valid (Open/Delete need an existing completed file). Delete file confirms, deletes from disk, then removes the queue entry; a failed delete leaves the entry.
 - Isolated runs: `NDM_STATE_DIR` relocates settings/queue and gives that instance its own singleton mutex and pipe name (`NDM.Downloads.<hash>`), so an isolated app can run beside a live one without touching its queue.

@@ -22,8 +22,9 @@ public sealed class AppSettings
     /// <summary>Re-open (or restore) a download's own window when it finishes, in the Complete state. A download can override this in its 'Options on completion' tab.</summary>
     public bool ShowProgressOnCompletion { get; set; } = true;
     public bool PlayCompletionSound { get; set; } = true;
-    // Updates: the only network traffic NeoDM starts by itself is the release check (api.github.com) and the download of the update the user accepts.
+    // Updates: checked periodically via Cloudflare Worker CDN or GitHub release fallback.
     public bool CheckForUpdates { get; set; } = true;
+    public string UpdateEndpoint { get; set; } = "";
     public DateTimeOffset? LastUpdateCheckUtc { get; set; }
     public string SkippedUpdateVersion { get; set; } = "";
     /// <summary>Settings schema marker. 2 = category folders default to on; 3 = completion sound defaults to on (a persisted false from the old default is switched once on load); 4 = 'open the download window when a download finishes' defaults to on. The migrations run once; later explicit choices carry the new marker.</summary>
@@ -142,7 +143,7 @@ public sealed class AppSettings
         ProxyType = source.ProxyType; ProxyHost = source.ProxyHost; ProxyPort = source.ProxyPort; ProxyUsername = source.ProxyUsername;
         ProxyPasswordProtected = source.ProxyPasswordProtected; ProxyResolveHostsThroughProxy = source.ProxyResolveHostsThroughProxy;
         ProxyForDownloads = source.ProxyForDownloads; ProxyForPeers = source.ProxyForPeers; ProxyForTrackers = source.ProxyForTrackers;
-        CheckForUpdates = source.CheckForUpdates; LastUpdateCheckUtc = source.LastUpdateCheckUtc; SkippedUpdateVersion = source.SkippedUpdateVersion;
+        CheckForUpdates = source.CheckForUpdates; UpdateEndpoint = source.UpdateEndpoint; LastUpdateCheckUtc = source.LastUpdateCheckUtc; SkippedUpdateVersion = source.SkippedUpdateVersion;
         SessionCompletionAction = source.SessionCompletionAction;
         AdditionalSettings = source.AdditionalSettings;
     }

@@ -12,27 +12,22 @@ async function renderPause() {
   $('resume').hidden = !(siteOff || allOff);
   $('pauseState').textContent = allOff ? 'N&T is paused on all sites until the browser closes.' : siteOff ? `N&T is paused on ${host} until the browser closes.` : 'N&T is active.';
 }
-const fmtSize = n => !n ? '' : n >= 1073741824 ? (n / 1073741824).toFixed(2) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
-const describe = i => {
-  const kind = i.kind === 'gif' ? 'GIF' : i.kind === 'image' ? 'Image' : i.track === 'audio-only' ? 'Audio only' : i.track === 'video-only' ? 'Video only (no sound)' : i.kind === 'audio' ? 'Audio' : i.isHls ? 'Video (MP4)' : 'Video';
-  const q = i.quality && i.quality !== 'HLS' ? i.quality : '';
-  let sizeStr = fmtSize(i.size);
-  if (!sizeStr && i.estimatedSize > 0) sizeStr = '~' + fmtSize(i.estimatedSize);
-  return [kind, q, sizeStr].filter(Boolean).join(' · ');
-};
+const describe = NeoSniff.describeItem;
 async function renderMedia(tab) {
   const list = $('mediaList'); list.textContent = '';
   let items = [];
   try { items = (await chrome.runtime.sendMessage({ action: 'popup-media', tabId: tab.id }))?.items || []; } catch {}
-  $('mediaNone').hidden = items.length > 0;
-  for (const i of items) {
+  const tracks = items.filter(i => !i.info && NeoSniff.offeredQuality(i.quality));
+  const shown = tracks.length > 0 ? [...tracks, ...items.filter(i => i.info)] : items;
+  $('mediaNone').hidden = shown.length > 0;
+  for (const i of shown) {
     const li = document.createElement('li'), what = document.createElement('span'); what.className = 'what';
     if (i.info) { what.textContent = i.text; what.classList.add('note'); li.append(what); list.append(li); continue; }
-    const title = (i.title || tab?.title || '').replace(/\s+[-–—|/•·]\s*(?:[A-Za-z0-9_-]+\.[a-z]{2,6}|YouTube|Facebook|Instagram|Twitter|X|Vimeo|Dailymotion|TikTok|Twitch|Reddit).*$/i, '').trim();
+    const title = NeoSniff.cleanTitle(i.title || tab?.title || '');
     const meta = describe(i);
     if (title) {
-      const t = document.createElement('div'); t.style.cssText = 'font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);'; t.textContent = title;
-      const s = document.createElement('div'); s.style.cssText = 'font-size:11px;color:var(--muted);margin-top:1px;'; s.textContent = meta;
+      const t = document.createElement('div'); t.className = 'item-title'; t.textContent = title;
+      const s = document.createElement('div'); s.className = 'item-meta'; s.textContent = meta;
       what.append(t, s);
     } else {
       what.textContent = meta;

@@ -83,8 +83,8 @@ Pick a theme in Options, Appearance: Light, Dark, System (follows Windows), Midn
 - Nine themes in Options > Appearance, shown as a gallery with live swatches and an instant preview: Light, Dark, System (follows Windows), Midnight, Graphite, Ocean, Forest, Rose and Paper. You can also set a custom accent colour. Screenshots are in `docs/images/themes`.
 - Compact menus and toolbar, sortable download list, and a sidebar with filters (All, Downloading, Paused, Completed, Failed, Queued, Scheduled).
 - A separate Torrents section (All torrents, Downloading, Seeding, Completed).
-- Search, bulk URL import, Pause all / Resume all, Remove completed.
-- Per-download progress window with three tabs: Download status, Speed Limiter and Options on completion. It shows the URL, status, size, downloaded, transfer rate, time left, resume capability and a per-connection table.
+- Search, bulk URL import, Stop all / Resume all paused, Remove completed.
+- Per-download progress window with three tabs: Download status, Speed limiter and Options on completion. It shows the URL, status, size, downloaded, transfer rate, time left, resume capability and a per-connection table.
 - Download complete dialog with Open, Open folder and Close.
 - System tray icon. Closing the window keeps NeoDM running in the background. NeoDM starts with Windows, and you can exit it from the tray menu.
 

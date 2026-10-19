@@ -17,7 +17,7 @@
   <SolidColorBrush x:Key="ThumbBrush" Color="#3A3E45"/>
   <SolidColorBrush x:Key="ThumbHoverBrush" Color="#50555E"/>
   <SolidColorBrush x:Key="ThumbPressedBrush" Color="#6B717B"/>
-  <LinearGradientBrush x:Key="AccentFillBrush" StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#7C6CF2" Offset="0"/><GradientStop Color="#8B7CFF" Offset="1"/></LinearGradientBrush>
+  <SolidColorBrush x:Key="AccentFillBrush" Color="#8B7CFF"/>
   <CornerRadius x:Key="ControlRadius">8</CornerRadius>
   <CornerRadius x:Key="CardRadius">8</CornerRadius>
   <Thickness x:Key="ControlPadding">16,10</Thickness>

@@ -83,7 +83,14 @@ public partial class App : Application
     {
         string version = AboutInfo.Version;
         var installer = new UpdateInstaller(UpdateInstaller.DefaultDirectory, version, () => Settings.BuildProxy());
-        Updates = new UpdateController(Settings, () => Settings.Save(StateDirectory), version, () => new UpdateChecker(version, () => Settings.BuildProxy()), installer);
+        Updates = new UpdateController(Settings, () => Settings.Save(StateDirectory), version, () =>
+        {
+            string endpoint = !string.IsNullOrWhiteSpace(Settings.UpdateEndpoint)
+                ? Settings.UpdateEndpoint
+                : UpdateChecker.DefaultCloudflareApiBase;
+            string? customHost = Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : null;
+            return new UpdateChecker(version, () => Settings.BuildProxy(), apiBase: endpoint, trustedUrl: u => UpdateChecker.IsTrustedUrl(u, customHost));
+        }, installer);
         UpdateWindow? open = null;
         Updates.ShowAvailable = release =>
         {

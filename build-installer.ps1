@@ -67,6 +67,47 @@ Write-Host ("SHA256 " + (Get-FileHash -Algorithm SHA256 $msi).Hash)
 $versioned = Join-Path $out "N&T-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $versioned -Force
 $legacyMsi = Join-Path $out 'NeoDM-Setup.msi'; Copy-Item -LiteralPath $msi -Destination $legacyMsi -Force
 $legacyVersioned = Join-Path $out "NeoDM-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $legacyVersioned -Force
-$sumLines = @(((Get-FileHash -Algorithm SHA256 $versioned).Hash.ToLowerInvariant()) + ' *' + (Split-Path -Leaf $versioned))
-[IO.File]::WriteAllText((Join-Path $out 'SHA256SUMS.txt'), (($sumLines -join "`n") + "`n"), (New-Object Text.UTF8Encoding($false)))
+$hash = (Get-FileHash -Algorithm SHA256 $versioned).Hash.ToLowerInvariant()
+$sumLines = @(
+    "$hash *N&T-Setup-$version.msi",
+    "$hash *N&T-Setup.msi",
+    "$hash *NeoDM-Setup-$version.msi",
+    "$hash *NeoDM-Setup.msi"
+)
+$sumsFile = Join-Path $out 'SHA256SUMS.txt'
+[IO.File]::WriteAllText($sumsFile, (($sumLines -join "`r`n") + "`r`n"), (New-Object Text.UTF8Encoding($false)))
+
+# Sync to Cloudflare public updates directory if present
+$publicUpdates = Join-Path $root 'public\updates'
+if (Test-Path -LiteralPath $publicUpdates) {
+    Copy-Item -LiteralPath $sumsFile -Destination (Join-Path $publicUpdates 'SHA256SUMS.txt') -Force
+    $versionJsonPath = Join-Path $publicUpdates 'version.json'
+    # Release notes: the top CHANGELOG.md section for this version (docs/VERSIONING.md requires one).
+    $bodyText = "### What's new in N&T $version"
+    $changelogPath = Join-Path $root 'CHANGELOG.md'
+    if (Test-Path -LiteralPath $changelogPath) {
+        $cl = Get-Content -LiteralPath $changelogPath -Raw
+        $clMatch = [regex]::Match($cl, "(?ms)## \[$([regex]::Escape($version))\].*?(?=(?:`r?`n## \[|\Z))")
+        if ($clMatch.Success -and $clMatch.Value.Trim().Length -gt 0) {
+            $bodyText = $clMatch.Value.Trim()
+        }
+    }
+    # Asset URLs stay relative: the Worker resolves them against the request host, so the
+    # same file works on workers.dev, a custom domain and local `wrangler dev`.
+    $versionObj = @{
+        tag_name = "v$version"
+        name = "N&T $version"
+        body = $bodyText
+        html_url = "https://github.com/NovaKohai/N-T/releases/tag/v$version"
+        published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        assets = @(
+            @{ name = "N&T-Setup-$version.msi"; browser_download_url = "/updates/N&T-Setup-$version.msi"; size = (Get-Item -LiteralPath $versioned).Length },
+            @{ name = "SHA256SUMS.txt"; browser_download_url = "/updates/SHA256SUMS.txt"; size = (Get-Item -LiteralPath $sumsFile).Length }
+        )
+    }
+    $json = ($versionObj | ConvertTo-Json -Depth 5).Replace("\u0026", "&").Replace("\u0027", "'")
+    [IO.File]::WriteAllText($versionJsonPath, $json, (New-Object Text.UTF8Encoding($false)))
+    Write-Host "Synced release assets to public/updates (version $version)"
+}
 Write-Host "Release assets: $msi, $versioned and SHA256SUMS.txt"
+

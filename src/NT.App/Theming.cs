@@ -77,22 +77,10 @@ public static class ThemeManager
             return candidates.FirstOrDefault(c => stops.Min(s => Contrast(c, s)) >= 4.5, candidates.OrderByDescending(c => stops.Min(s => Contrast(c, s))).First());
         }
         var onAccent = Best(accent);
-        Brush fill = Frozen(accent);
-        if (theme["AccentFillBrush"] is LinearGradientBrush)
-        {
-            var start = Mix(accent, dark ? Colors.Black : Colors.White, 0.06); var end = accent;
-            var on = Best(start, end);
-            if (Contrast(on, start) >= 4.5 && Contrast(on, end) >= 4.5)
-            {
-                onAccent = on;
-                var gradient = new LinearGradientBrush(start, end, new Point(0, 0), new Point(1, 1));
-                gradient.Freeze(); fill = gradient;
-            }
-        }
         return new (string, Brush)[]
         {
             ("AccentBrush", Frozen(accent)), ("AccentHoverBrush", Frozen(hover)), ("AccentSoftBrush", Frozen(soft)),
-            ("OnAccentBrush", Frozen(onAccent)), ("AccentFillBrush", fill),
+            ("OnAccentBrush", Frozen(onAccent)), ("AccentFillBrush", Frozen(accent)),
         };
     }
 }

@@ -62,7 +62,7 @@ test('manifest: key derives the recorded ID, icons/permissions as designed', () 
   assert.ok(manifest.optional_permissions.includes('cookies')); assert.ok(!manifest.permissions.includes('cookies'));
   for (const p of ['webRequest', 'nativeMessaging', 'downloads', 'storage']) assert.ok(manifest.permissions.includes(p), p);
   assert.deepEqual(manifest.host_permissions, ['http://*/*', 'https://*/*']);
-  assert.deepEqual(manifest.content_scripts[0].js, ['content.js']); assert.notEqual(manifest.content_scripts[0].all_frames, true);
+  assert.deepEqual(manifest.content_scripts[0].js, ['sniff.js', 'content.js']); assert.notEqual(manifest.content_scripts[0].all_frames, true);
 });
 test('extension folder holds only runtime files (no backup, README, pem)', () => {
   const walk = (d, b = '') => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name), b + e.name + '/') : [b + e.name]);

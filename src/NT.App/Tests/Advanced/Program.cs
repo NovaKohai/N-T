@@ -198,7 +198,7 @@ internal static class AdvancedTests
             Until(() => manager.Jobs.Single(j => j.Id == capped.Id).Status == "Completed", "Removing cap on active download completes actual transfer");
             Check(File.ReadAllBytes(capped.FilePath).SequenceEqual(fixture.Payload), "Capped then uncapped output remains byte-exact");
             app.ApplyTheme("Light"); window.Width = 900; window.Height = 560; Pump();
-            Check(Control<Button>(window, "BulkButton").ActualWidth > 0 && Control<Button>(window, "ResumeAllButton").ActualHeight >= 36, "Wrapped action toolbar remains usable at minimum window size");
+            Check(Control<Button>(window, "BulkButton").ActualWidth > 0 && Control<Button>(window, "ResumeAllButton").ActualHeight == Control<Button>(window, "BulkButton").ActualHeight && Control<Button>(window, "ResumeAllButton").ActualHeight >= 30, "Wrapped action toolbar remains usable at minimum window size");
             Capture(window, Path.Combine(root, "main-minimum.png"));
             add = new AddDownloadWindow("") { Owner = window }; add.Show(); Pump(50);
             Capture(add, Path.Combine(root, "add-options.png")); add.Close();

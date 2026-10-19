@@ -430,14 +430,24 @@ public sealed partial class DownloadManager : IDisposable
         }
     }
 
+    private const string DefaultBrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
     private static bool IsRetryable(Exception ex) => ex is IOException or HttpRequestException or OperationCanceledException;
 
-    private HttpRequestMessage Request(Work w)
+    private HttpRequestMessage Request(Work w) => Request(w, w.Request.Url);
+
+    private HttpRequestMessage Request(Work w, string url)
     {
-        var message = new HttpRequestMessage(HttpMethod.Get, w.Request.Url);
+        var message = new HttpRequestMessage(HttpMethod.Get, url);
         message.Headers.AcceptEncoding.ParseAdd("identity");
-        message.Headers.UserAgent.ParseAdd("N&T/1.0");
-        if (w.Request.Referer != null) message.Headers.Referrer = new Uri(w.Request.Referer);
+        message.Headers.TryAddWithoutValidation("User-Agent", DefaultBrowserUserAgent);
+        if (w.Request.Referer != null)
+        {
+            if (Uri.TryCreate(w.Request.Referer, UriKind.Absolute, out var refUri))
+            {
+                message.Headers.Referrer = refUri;
+                message.Headers.TryAddWithoutValidation("Origin", refUri.GetLeftPart(UriPartial.Authority));
+            }
+        }
         if (w.Request.Cookie != null) message.Headers.Add("Cookie", w.Request.Cookie);
         return message;
     }
@@ -589,6 +599,10 @@ public sealed partial class DownloadManager : IDisposable
         using var request = Request(w);
         using var response = await SendAsync(request, token).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
+        var ct = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant();
+        var ext = Path.GetExtension(w.Job.FileName).ToLowerInvariant();
+        if (ct == "text/html" && ext is ".mp4" or ".mkv" or ".avi" or ".mov" or ".webm" or ".ts" or ".zip" or ".rar" or ".7z" or ".iso" or ".exe" or ".msi")
+            throw new HttpRequestException("The server returned an HTML webpage instead of the requested media file. The download link may have expired or requires browser session cookies.");
         if (response.StatusCode == HttpStatusCode.PartialContent) throw new IOException("Unsolicited partial response to full download.");
         if (response.Content.Headers.ContentEncoding.Any(e => !e.Equals("identity", StringComparison.OrdinalIgnoreCase))) throw new IOException("Server ignored identity content encoding.");
         Directory.CreateDirectory(PartDirectory(w));
@@ -618,11 +632,18 @@ public sealed partial class DownloadManager : IDisposable
 
     private static bool IsHls(Work w, Probe probe)
     {
+        if (Uri.TryCreate(w.Request.Url, UriKind.Absolute, out var reqUri))
+        {
+            if (reqUri.AbsolutePath.Contains(".m3u8", StringComparison.OrdinalIgnoreCase) ||
+                reqUri.Query.Contains(".m3u8", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
         if (probe.Description?.ContentType is { } ct && ct.Contains("mpegurl", StringComparison.OrdinalIgnoreCase))
             return true;
 
-        var url = probe.ResolvedUrl ?? w.ResolvedUrl ?? w.Request.Url;
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        var url = probe.ResolvedUrl ?? w.ResolvedUrl;
+        if (url != null && Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             return uri.AbsolutePath.Contains(".m3u8", StringComparison.OrdinalIgnoreCase) ||
                    uri.Query.Contains(".m3u8", StringComparison.OrdinalIgnoreCase);
@@ -633,6 +654,13 @@ public sealed partial class DownloadManager : IDisposable
     private static bool IsYoutube(Work w)
     {
         var url = w.ResolvedUrl ?? w.Request.Url;
+        if (IsYoutubeUrl(url)) return true;
+        if (!string.IsNullOrWhiteSpace(w.Request.Referer) && IsYoutubeUrl(w.Request.Referer)) return true;
+        return false;
+    }
+
+    private static bool IsYoutubeUrl(string? url)
+    {
         if (string.IsNullOrWhiteSpace(url)) return false;
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
         var host = uri.Host.ToLowerInvariant();
@@ -657,6 +685,7 @@ public sealed partial class DownloadManager : IDisposable
             var common = new List<string>
             {
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, exeName),
+                Path.Combine(localAppData, "N&T", exeName),
                 Path.Combine(localAppData, "NDM", exeName),
                 Path.Combine(progFiles, "N&T", exeName),
                 Path.Combine(localAppData, "Programs", "yt-dlp", exeName),
@@ -732,6 +761,7 @@ public sealed partial class DownloadManager : IDisposable
             RedirectStandardError = true,
             RedirectStandardOutput = true
         };
+        startInfo.Environment["PYTHONUNBUFFERED"] = "1";
         startInfo.ArgumentList.Add("--no-playlist");
         startInfo.ArgumentList.Add("--newline");
         if (!string.IsNullOrEmpty(ffmpeg))
@@ -749,7 +779,12 @@ public sealed partial class DownloadManager : IDisposable
         startInfo.ArgumentList.Add("mp4");
         startInfo.ArgumentList.Add("-o");
         startInfo.ArgumentList.Add(outputFile);
-        startInfo.ArgumentList.Add(w.ResolvedUrl ?? w.Request.Url);
+        var targetUrl = w.ResolvedUrl ?? w.Request.Url;
+        if (!IsYoutubeUrl(targetUrl) && IsYoutubeUrl(w.Request.Referer))
+        {
+            targetUrl = w.Request.Referer!;
+        }
+        startInfo.ArgumentList.Add(targetUrl);
 
         using var process = new Process { StartInfo = startInfo };
         var stderrLines = new Queue<string>();
@@ -818,8 +853,8 @@ public sealed partial class DownloadManager : IDisposable
             if (process.ExitCode != 0)
             {
                 string err;
-                lock (stderrLines) { err = string.Join(" ", stderrLines); }
-                throw new IOException($"yt-dlp failed with exit code {process.ExitCode}: {(string.IsNullOrWhiteSpace(err) ? "Unknown error" : err)}");
+                lock (stderrLines) { err = CleanProcessError(stderrLines, process.ExitCode, "yt-dlp"); }
+                throw new IOException(err);
             }
 
             if (!File.Exists(outputFile) && File.Exists(outputFile + ".mp4"))
@@ -921,15 +956,6 @@ public sealed partial class DownloadManager : IDisposable
         }
     }
 
-    private HttpRequestMessage Request(Work w, string overrideUrl)
-    {
-        var message = new HttpRequestMessage(HttpMethod.Get, overrideUrl);
-        message.Headers.AcceptEncoding.ParseAdd("identity");
-        message.Headers.UserAgent.ParseAdd("N&T/1.0");
-        if (w.Request.Referer != null) message.Headers.Referrer = new Uri(w.Request.Referer);
-        if (w.Request.Cookie != null) message.Headers.Add("Cookie", w.Request.Cookie);
-        return message;
-    }
 
     private async Task DownloadHlsAsync(Work w, CancellationToken token)
     {
@@ -963,20 +989,7 @@ public sealed partial class DownloadManager : IDisposable
 
         try
         {
-            bool parallelSucceeded = false;
-            try
-            {
-                parallelSucceeded = await DownloadHlsParallelAsync(w, outputFile, ffmpeg, token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (token.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception)
-            {
-                parallelSucceeded = false;
-            }
-
+            bool parallelSucceeded = await DownloadHlsParallelAsync(w, outputFile, ffmpeg, token).ConfigureAwait(false);
             if (!parallelSucceeded)
             {
                 await DownloadHlsFfmpegDirectAsync(w, outputFile, ffmpeg, token).ConfigureAwait(false);
@@ -1001,7 +1014,11 @@ public sealed partial class DownloadManager : IDisposable
         using var m3u8Resp = await SendAsync(m3u8Req, token).ConfigureAwait(false);
         if (!m3u8Resp.IsSuccessStatusCode) return false;
         var m3u8Content = await m3u8Resp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
+        if (!m3u8Content.TrimStart().StartsWith("#EXTM3U", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The stream playlist could not be loaded (the server returned an HTML webpage instead of an HLS playlist). The download link may have expired or requires browser session cookies.");
         var playlistUri = m3u8Resp.RequestMessage?.RequestUri ?? new Uri(url);
+        if (string.IsNullOrEmpty(playlistUri.Query) && Uri.TryCreate(url, UriKind.Absolute, out var origUri) && !string.IsNullOrEmpty(origUri.Query))
+            playlistUri = new UriBuilder(playlistUri) { Query = origUri.Query.TrimStart('?') }.Uri;
         long bestBandwidth = -1;
 
         // 2. Check for Master Playlist
@@ -1034,11 +1051,16 @@ public sealed partial class DownloadManager : IDisposable
             if (bestVariantUri != null)
             {
                 var variantFullUri = new Uri(playlistUri, bestVariantUri);
+                if (string.IsNullOrEmpty(variantFullUri.Query) && !string.IsNullOrEmpty(playlistUri.Query))
+                    variantFullUri = new UriBuilder(variantFullUri) { Query = playlistUri.Query.TrimStart('?') }.Uri;
                 using var variantReq = Request(w, variantFullUri.AbsoluteUri);
                 using var variantResp = await SendAsync(variantReq, token).ConfigureAwait(false);
                 if (!variantResp.IsSuccessStatusCode) return false;
                 m3u8Content = await variantResp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-                playlistUri = variantResp.RequestMessage?.RequestUri ?? variantFullUri;
+                var resolvedUri = variantResp.RequestMessage?.RequestUri ?? variantFullUri;
+                if (string.IsNullOrEmpty(resolvedUri.Query) && !string.IsNullOrEmpty(playlistUri.Query))
+                    resolvedUri = new UriBuilder(resolvedUri) { Query = playlistUri.Query.TrimStart('?') }.Uri;
+                playlistUri = resolvedUri;
             }
         }
 
@@ -1093,10 +1115,13 @@ public sealed partial class DownloadManager : IDisposable
         var partDir = PartDirectory(w);
         Directory.CreateDirectory(partDir);
 
+        bool isFmp4 = !string.IsNullOrEmpty(currentMapUri);
+        string chunkExt = isFmp4 ? ".m4s" : ".ts";
+
         double totalDuration = segmentList.Sum(s => s.duration);
         long initialEstTotal = bestBandwidth > 0
             ? (long)(totalDuration * (bestBandwidth / 8.0))
-            : (long)(totalDuration * 187_500); // 1.5 Mbps default
+            : (long)(totalDuration * 250_000); // 2.0 Mbps default
 
         var segments = new List<Segment>();
         var initialShare = initialEstTotal > 0 ? initialEstTotal / numWorkers : 0;
@@ -1135,6 +1160,8 @@ public sealed partial class DownloadManager : IDisposable
         long totalDownloaded = 0;
         int completedCount = 0;
         int totalSegments = segmentList.Count;
+        long completedBytes = 0;
+        long completedDurationMs = 0;
 
         var workers = Enumerable.Range(0, numWorkers).Select(workerId => Task.Run(async () =>
         {
@@ -1142,7 +1169,7 @@ public sealed partial class DownloadManager : IDisposable
             while (queue.TryDequeue(out var item))
             {
                 token.ThrowIfCancellationRequested();
-                var chunkFile = Path.Combine(partDir, $"chunk_{item.index:D6}.part");
+                var chunkFile = Path.Combine(partDir, $"chunk_{item.index:D6}{chunkExt}");
                 var tmpChunk = Path.Combine(partDir, $"chunk_{item.index:D6}.tmp");
 
                 if (File.Exists(chunkFile))
@@ -1151,6 +1178,8 @@ public sealed partial class DownloadManager : IDisposable
                     if (existingLen > 0)
                     {
                         Interlocked.Add(ref totalDownloaded, existingLen);
+                        Interlocked.Add(ref completedBytes, existingLen);
+                        Interlocked.Add(ref completedDurationMs, (long)(item.duration * 1000));
                         Interlocked.Increment(ref completedCount);
                         continue;
                     }
@@ -1180,15 +1209,15 @@ public sealed partial class DownloadManager : IDisposable
                                 lock (gate)
                                 {
                                     w.Segments[workerId].Done += read;
-                                    var curComp = Volatile.Read(ref completedCount);
-                                    var ratio = (double)Math.Max(1, curComp) / totalSegments;
-                                    var estTotal = (long)(Volatile.Read(ref totalDownloaded) / ratio);
-                                    w.Total = Math.Max(Volatile.Read(ref totalDownloaded) + 1, estTotal);
-                                    var share = w.Total / numWorkers;
-                                    for (int si = 0; si < numWorkers; si++)
+                                    if (w.Total < totalDownloaded)
                                     {
-                                        w.Segments[si].Start = si * share;
-                                        w.Segments[si].Length = (si == numWorkers - 1) ? w.Total - si * share : share;
+                                        w.Total = totalDownloaded + 1;
+                                        var share = w.Total / numWorkers;
+                                        for (int si = 0; si < numWorkers; si++)
+                                        {
+                                            w.Segments[si].Start = si * share;
+                                            w.Segments[si].Length = (si == numWorkers - 1) ? w.Total - si * share : share;
+                                        }
                                     }
                                     UpdateProgressLocked(w);
                                 }
@@ -1205,18 +1234,26 @@ public sealed partial class DownloadManager : IDisposable
                 if (!chunkOk) throw new IOException($"Failed to download stream fragment {item.index}.");
 
                 File.Move(tmpChunk, chunkFile, true);
+                var chunkLen = new FileInfo(chunkFile).Length;
+                Interlocked.Add(ref completedBytes, chunkLen);
+                Interlocked.Add(ref completedDurationMs, (long)(item.duration * 1000));
                 Interlocked.Increment(ref completedCount);
+
                 lock (gate)
                 {
-                    var curComp = Volatile.Read(ref completedCount);
-                    var ratio = (double)curComp / totalSegments;
-                    var estTotal = (long)(Volatile.Read(ref totalDownloaded) / ratio);
-                    w.Total = Math.Max(Volatile.Read(ref totalDownloaded) + 1, estTotal);
-                    var share = w.Total / numWorkers;
-                    for (int si = 0; si < numWorkers; si++)
+                    double doneSeconds = Volatile.Read(ref completedDurationMs) / 1000.0;
+                    if (doneSeconds >= 3.0 && totalDuration > 0)
                     {
-                        w.Segments[si].Start = si * share;
-                        w.Segments[si].Length = (si == numWorkers - 1) ? w.Total - si * share : share;
+                        double bitrate = Volatile.Read(ref completedBytes) / doneSeconds;
+                        long targetEstTotal = Math.Max(Volatile.Read(ref totalDownloaded) + 1, (long)(bitrate * totalDuration));
+                        w.Total = (long)(w.Total * 0.8 + targetEstTotal * 0.2);
+                        if (w.Total < totalDownloaded) w.Total = totalDownloaded + 1;
+                        var share = w.Total / numWorkers;
+                        for (int si = 0; si < numWorkers; si++)
+                        {
+                            w.Segments[si].Start = si * share;
+                            w.Segments[si].Length = (si == numWorkers - 1) ? w.Total - si * share : share;
+                        }
                     }
                     UpdateProgressLocked(w);
                 }
@@ -1234,14 +1271,14 @@ public sealed partial class DownloadManager : IDisposable
         var localPlaylist = Path.Combine(partDir, "local.m3u8");
         var sb = new StringBuilder();
         sb.AppendLine("#EXTM3U");
-        sb.AppendLine("#EXT-X-VERSION:3");
+        sb.AppendLine(isFmp4 ? "#EXT-X-VERSION:7" : "#EXT-X-VERSION:3");
         sb.AppendLine("#EXT-X-TARGETDURATION:15");
-        if (!string.IsNullOrEmpty(currentMapUri))
+        if (isFmp4)
             sb.AppendLine("#EXT-X-MAP:URI=\"init.mp4\"");
 
         for (int i = 0; i < segmentList.Count; i++)
         {
-            var chunkName = $"chunk_{i:D6}.part";
+            var chunkName = $"chunk_{i:D6}{chunkExt}";
             sb.AppendLine($"#EXTINF:{segmentList[i].duration.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)},");
             sb.AppendLine(chunkName);
         }
@@ -1249,6 +1286,7 @@ public sealed partial class DownloadManager : IDisposable
         await File.WriteAllTextAsync(localPlaylist, sb.ToString(), token).ConfigureAwait(false);
 
         // 8. Remux to MP4 using FFmpeg
+        bool remuxOk = false;
         var startInfo = new ProcessStartInfo
         {
             FileName = ffmpeg,
@@ -1264,36 +1302,101 @@ public sealed partial class DownloadManager : IDisposable
         startInfo.ArgumentList.Add(localPlaylist);
         startInfo.ArgumentList.Add("-c");
         startInfo.ArgumentList.Add("copy");
+        startInfo.ArgumentList.Add("-movflags");
+        startInfo.ArgumentList.Add("+faststart");
         startInfo.ArgumentList.Add("-f");
         startInfo.ArgumentList.Add("mp4");
         startInfo.ArgumentList.Add(outputFile);
 
-        using var process = new Process { StartInfo = startInfo };
-        var stderrLines = new Queue<string>();
-        process.ErrorDataReceived += (_, e) =>
+        using (var process = new Process { StartInfo = startInfo })
         {
-            if (!string.IsNullOrWhiteSpace(e.Data))
+            var stderrLines = new Queue<string>();
+            process.ErrorDataReceived += (_, e) =>
             {
-                lock (stderrLines)
+                if (!string.IsNullOrWhiteSpace(e.Data))
                 {
-                    if (stderrLines.Count >= 25) stderrLines.Dequeue();
-                    stderrLines.Enqueue(e.Data.Trim());
+                    lock (stderrLines)
+                    {
+                        if (stderrLines.Count >= 25) stderrLines.Dequeue();
+                        stderrLines.Enqueue(e.Data.Trim());
+                    }
+                }
+            };
+
+            if (process.Start())
+            {
+                process.BeginErrorReadLine();
+                using var reg = token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch { } });
+                await process.WaitForExitAsync(token).ConfigureAwait(false);
+                remuxOk = process.ExitCode == 0 && File.Exists(outputFile) && new FileInfo(outputFile).Length > 0;
+            }
+        }
+
+        // Fallback: If local.m3u8 demuxing failed, concatenate chunks directly and remux
+        if (!remuxOk)
+        {
+            var concatFile = Path.Combine(partDir, isFmp4 ? "concat_all.mp4" : "concat_all.ts");
+            try
+            {
+                await using (var concatOut = new FileStream(concatFile, FileMode.Create, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous))
+                {
+                    if (isFmp4)
+                    {
+                        var initFile = Path.Combine(partDir, "init.mp4");
+                        if (File.Exists(initFile))
+                        {
+                            await using var initIn = new FileStream(initFile, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                            await initIn.CopyToAsync(concatOut, 65536, token).ConfigureAwait(false);
+                        }
+                    }
+
+                    for (int i = 0; i < segmentList.Count; i++)
+                    {
+                        var chunkPath = Path.Combine(partDir, $"chunk_{i:D6}{chunkExt}");
+                        if (File.Exists(chunkPath))
+                        {
+                            await using var chunkIn = new FileStream(chunkPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                            await chunkIn.CopyToAsync(concatOut, 65536, token).ConfigureAwait(false);
+                        }
+                    }
+                    await concatOut.FlushAsync(token).ConfigureAwait(false);
+                }
+
+                var fallbackInfo = new ProcessStartInfo
+                {
+                    FileName = ffmpeg,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true
+                };
+                fallbackInfo.ArgumentList.Add("-y");
+                fallbackInfo.ArgumentList.Add("-i");
+                fallbackInfo.ArgumentList.Add(concatFile);
+                fallbackInfo.ArgumentList.Add("-c");
+                fallbackInfo.ArgumentList.Add("copy");
+                fallbackInfo.ArgumentList.Add("-movflags");
+                fallbackInfo.ArgumentList.Add("+faststart");
+                fallbackInfo.ArgumentList.Add("-f");
+                fallbackInfo.ArgumentList.Add("mp4");
+                fallbackInfo.ArgumentList.Add(outputFile);
+
+                using var fbProc = new Process { StartInfo = fallbackInfo };
+                if (fbProc.Start())
+                {
+                    fbProc.BeginErrorReadLine();
+                    using var reg = token.Register(() => { try { if (!fbProc.HasExited) fbProc.Kill(true); } catch { } });
+                    await fbProc.WaitForExitAsync(token).ConfigureAwait(false);
+                    remuxOk = fbProc.ExitCode == 0 && File.Exists(outputFile) && new FileInfo(outputFile).Length > 0;
                 }
             }
-        };
-
-        if (!process.Start()) throw new IOException("Failed to start FFmpeg to remux downloaded segments.");
-        process.BeginErrorReadLine();
-
-        using var reg = token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch { } });
-        await process.WaitForExitAsync(token).ConfigureAwait(false);
-
-        if (process.ExitCode != 0)
-        {
-            string err;
-            lock (stderrLines) { err = string.Join(" ", stderrLines); }
-            throw new IOException($"FFmpeg remux failed: {err}");
+            finally
+            {
+                try { if (File.Exists(concatFile)) File.Delete(concatFile); } catch { }
+            }
         }
+
+        if (!remuxOk) throw new IOException("FFmpeg failed to assemble downloaded video chunks into MP4.");
 
         var finalLength = File.Exists(outputFile) ? new FileInfo(outputFile).Length : 0;
         if (finalLength == 0) throw new IOException("FFmpeg produced an empty output file.");
@@ -1301,10 +1404,15 @@ public sealed partial class DownloadManager : IDisposable
         lock (gate)
         {
             w.Total = finalLength;
-            for (int i = 0; i < numWorkers; i++)
+            if (w.Segments.Count > 0)
             {
-                w.Segments[i].Length = w.Segments[i].Done;
-                w.Segments[i].Active = false;
+                w.Segments[0].Done = w.Segments[0].Length = finalLength;
+                for (int i = 1; i < w.Segments.Count; i++)
+                {
+                    w.Segments[i].Active = false;
+                    w.Segments[i].Length = 0;
+                    w.Segments[i].Done = 0;
+                }
             }
             UpdateProgressLocked(w);
         }
@@ -1329,8 +1437,13 @@ public sealed partial class DownloadManager : IDisposable
         Notify();
 
         var headerBuilder = new StringBuilder();
-        headerBuilder.Append("User-Agent: N&T/1.0\r\n");
-        if (!string.IsNullOrEmpty(w.Request.Referer)) headerBuilder.Append($"Referer: {w.Request.Referer}\r\n");
+        headerBuilder.Append($"User-Agent: {DefaultBrowserUserAgent}\r\n");
+        if (!string.IsNullOrEmpty(w.Request.Referer))
+        {
+            headerBuilder.Append($"Referer: {w.Request.Referer}\r\n");
+            if (Uri.TryCreate(w.Request.Referer, UriKind.Absolute, out var refUri))
+                headerBuilder.Append($"Origin: {refUri.GetLeftPart(UriPartial.Authority)}\r\n");
+        }
         if (!string.IsNullOrEmpty(w.Request.Cookie)) headerBuilder.Append($"Cookie: {w.Request.Cookie}\r\n");
 
         var url = w.ResolvedUrl ?? w.Request.Url;
@@ -1344,11 +1457,15 @@ public sealed partial class DownloadManager : IDisposable
         };
 
         startInfo.ArgumentList.Add("-y");
+        startInfo.ArgumentList.Add("-user_agent");
+        startInfo.ArgumentList.Add(DefaultBrowserUserAgent);
         if (headerBuilder.Length > 0)
         {
             startInfo.ArgumentList.Add("-headers");
             startInfo.ArgumentList.Add(headerBuilder.ToString());
         }
+        startInfo.ArgumentList.Add("-protocol_whitelist");
+        startInfo.ArgumentList.Add("file,http,https,tcp,tls,crypto,hls");
         startInfo.ArgumentList.Add("-i");
         startInfo.ArgumentList.Add(url);
         startInfo.ArgumentList.Add("-c");
@@ -1451,8 +1568,13 @@ public sealed partial class DownloadManager : IDisposable
         {
             token.ThrowIfCancellationRequested();
             string err;
-            lock (stderrLines) { err = string.Join(" ", stderrLines); }
-            throw new IOException($"FFmpeg failed with exit code {process.ExitCode}: {(string.IsNullOrWhiteSpace(err) ? "Unknown error" : err)}");
+            lock (stderrLines) { err = CleanProcessError(stderrLines, process.ExitCode, "FFmpeg"); }
+            throw new IOException(err);
+        }
+
+        if (totalDurationSeconds > 10 && currentSeconds > 0 && currentSeconds < totalDurationSeconds * 0.85)
+        {
+            throw new IOException($"FFmpeg stream stopped prematurely at {currentSeconds:F1}s of {totalDurationSeconds:F1}s.");
         }
 
         var finalLength = File.Exists(outputFile) ? new FileInfo(outputFile).Length : 0;
@@ -1470,6 +1592,32 @@ public sealed partial class DownloadManager : IDisposable
             UpdateProgressLocked(w);
         }
         Notify();
+    }
+
+    private static string CleanProcessError(IEnumerable<string> lines, int exitCode, string toolName)
+    {
+        var cleanLines = lines
+            .Select(l => l.Trim())
+            .Where(l => !string.IsNullOrEmpty(l))
+            .Where(l => !l.StartsWith("ffmpeg version", StringComparison.OrdinalIgnoreCase))
+            .Where(l => !l.StartsWith("built with", StringComparison.OrdinalIgnoreCase))
+            .Where(l => !l.StartsWith("configuration:", StringComparison.OrdinalIgnoreCase))
+            .Where(l => !l.StartsWith("lib", StringComparison.OrdinalIgnoreCase))
+            .Where(l => !l.StartsWith("Press [q] to stop", StringComparison.OrdinalIgnoreCase))
+            .Where(l => !l.StartsWith("Input #", StringComparison.OrdinalIgnoreCase))
+            .Where(l => !l.StartsWith("Output #", StringComparison.OrdinalIgnoreCase))
+            .Where(l => !l.StartsWith("Stream mapping:", StringComparison.OrdinalIgnoreCase))
+            .TakeLast(3)
+            .ToList();
+
+        string details = cleanLines.Count > 0 ? string.Join(" | ", cleanLines) : "";
+
+        if (exitCode == -1094995529) // AVERROR_INVALIDDATA
+        {
+            return "The stream could not be loaded (the server returned invalid data or an HTML webpage instead of video). The download link may have expired or requires browser session cookies.";
+        }
+
+        return $"{toolName} failed (exit code {exitCode}){(string.IsNullOrEmpty(details) ? "" : ": " + details)}";
     }
 
 

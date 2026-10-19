@@ -26,6 +26,20 @@
   /** Type group of a sniffed media-list item. */
   const typeOfItem = item => item.kind === 'gif' ? 'gif' : item.kind === 'image' ? 'image' : item.kind === 'audio' ? 'audio' : 'video';
   const withDefaults = stored => { const out = { ...DEFAULT_TYPES }; for (const id of TYPE_IDS) if (stored && typeof stored[id] === 'boolean') out[id] = stored[id]; return out; };
+  /** Human size label; '' for unknown (0) sizes. */
+  const fmtSize = n => !n ? '' : n >= 1073741824 ? (n / 1073741824).toFixed(2) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  /** Standard resolutions offered as rows in the ribbon and the popup (480p up to 4K/8K). */
+  const OFFERED_QUALITIES = /^(?:480|720|1080|1440|2160|4320)p$/i;
+  const offeredQuality = q => OFFERED_QUALITIES.test(q && q !== 'HLS' ? String(q) : '');
+  /** Shared media description label for popup and ribbon (kind, quality, size). */
+  const describeItem = (i, qualityOverride, estimatedSizeOverride) => {
+    const kind = i.kind === 'gif' ? 'GIF' : i.kind === 'image' ? 'Image' : i.track === 'audio-only' ? 'Audio only' : i.track === 'video-only' ? 'Video only (no sound)' : i.kind === 'audio' ? 'Audio' : i.isHls ? 'Video (MP4)' : 'Video';
+    const q = qualityOverride !== undefined ? qualityOverride : (i.quality && i.quality !== 'HLS' ? i.quality : '');
+    const est = estimatedSizeOverride || i.estimatedSize || 0;
+    let sizeStr = fmtSize(i.size);
+    if (!sizeStr && est > 0) sizeStr = '~' + fmtSize(est);
+    return [kind, q && q !== 'HLS' ? q : '', sizeStr].filter(Boolean).join(' · ');
+  };
   /** Session pause state { all: bool, hosts: [hostname] } -> is NeoDM paused for this page/host? */
   const hostOf = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
   const isPaused = (state, ...urls) => !!state && (state.all === true || urls.some(u => { const h = hostOf(u); return h && Array.isArray(state.hosts) && state.hosts.includes(h); }));
@@ -91,6 +105,20 @@
   const QUERY_RES = /[?&](?:res|resolution|height|quality|q)=(\d{3,4}p?)(?:&|$)/i;
   const PATH_HEIGHT_REGEX = /(?:^|[_\-./])(2160|1440|1080|720|480|360|240|144)(?:p|\.[a-z0-9]{2,5}|$|[_\-./?&=])/i;
 
+  function qualityFromHeight(h) {
+    const num = Number(h);
+    if (!num || num <= 0) return '';
+    if (num >= 2100) return '2160p';
+    if (num >= 1400) return '1440p';
+    if (num >= 1000) return '1080p';
+    if (num >= 700) return '720p';
+    if (num >= 460) return '480p';
+    if (num >= 340) return '360p';
+    if (num >= 220) return '240p';
+    if (num >= 140) return '144p';
+    return num + 'p';
+  }
+
   function extractQuality(url) {
     if (!url) return '';
     let str = String(url);
@@ -104,43 +132,13 @@
     if (qm) {
       const v = qm[1].toLowerCase();
       if (/^\d{3,4}p$/.test(v)) return v;
-      const num = Number(v);
-      if (num >= 2100) return '2160p';
-      if (num >= 1400) return '1440p';
-      if (num >= 1000) return '1080p';
-      if (num >= 700) return '720p';
-      if (num >= 460) return '480p';
-      if (num >= 340) return '360p';
-      if (num >= 220) return '240p';
-      if (num >= 140) return '144p';
+      return qualityFromHeight(v);
     }
     const rm = RES_REGEX.exec(str);
-    if (rm) {
-      const h = Math.min(Number(rm[1]), Number(rm[2]));
-      if (h >= 2100) return '2160p';
-      if (h >= 1400) return '1440p';
-      if (h >= 1000) return '1080p';
-      if (h >= 700) return '720p';
-      if (h >= 460) return '480p';
-      if (h >= 340) return '360p';
-      if (h >= 220) return '240p';
-      if (h >= 140) return '144p';
-    }
+    if (rm) return qualityFromHeight(Math.min(Number(rm[1]), Number(rm[2])));
     const pm = PATH_HEIGHT_REGEX.exec(str);
     if (pm) return pm[1] + 'p';
     return '';
-  }
-
-  function qualityFromHeight(h) {
-    if (!h || h <= 0) return '';
-    if (h >= 2100) return '2160p';
-    if (h >= 1400) return '1440p';
-    if (h >= 1000) return '1080p';
-    if (h >= 700) return '720p';
-    if (h >= 460) return '480p';
-    if (h >= 340) return '360p';
-    if (h >= 220) return '240p';
-    return h + 'p';
   }
 
   const FRAG_NAME = /(?:^|[^a-z])(?:seg(?:ment)?|frag(?:ment)?|chunk|part)[-_ ]?\d+\.[a-z0-9]{2,5}$|^0\d{2,}\.(?:mp4|m4s|m4v|m4a|webm|aac|ts)$|[-_.]0\d{3,}\.(?:mp4|m4v|m4a|webm|ts)$|^init(?:ialization)?[-_.\d]*\.(?:mp4|m4v|m4a|webm|ts)$/i;
@@ -244,6 +242,19 @@
   /** Decide whether a webRequest.onHeadersReceived details object is a downloadable media file. Item or null. */
   const classify = details => inspect(details).item || null;
 
+  /** Rough bits per second for a video/audio stream at a known pixel height (audio-only flows get a small share). */
+  function estimateBitrate(height, isAudio) {
+    const h = Number(height) || 0;
+    if (h >= 2100) return 12000000;
+    if (h >= 1400) return 6000000;
+    if (h >= 1000) return 2800000;
+    if (h >= 700) return 1500000;
+    if (h >= 460) return 800000;
+    if (h >= 340) return 450000;
+    return isAudio ? 128000 : 1500000;
+  }
+  const estimateBytes = (seconds, height, isAudio) => Math.round((seconds * estimateBitrate(height, isAudio)) / 8);
+
   /** Item for a direct <video>/<audio> source reported by the page (size unknown). */
   function fromDom(url, tag, duration = 0, height = 0, width = 0, pageUrl = '', title = '') {
     const isBlob = /^blob:/i.test(url);
@@ -257,13 +268,7 @@
     const isHls = isHlsUrl(u.href);
     let quality = tag === 'audio' ? '' : extractQuality(u.href);
     if (!quality && height > 0) quality = qualityFromHeight(height);
-    if (!quality && isYt) quality = '1080p';
-    let estimatedSize = 0;
-    if (duration > 0) {
-      const h = height || (quality ? parseInt(quality, 10) : 0) || 720;
-      const bps = h >= 2100 ? 12000000 : h >= 1400 ? 6000000 : h >= 1000 ? 2800000 : h >= 700 ? 1500000 : h >= 460 ? 800000 : h >= 340 ? 450000 : tag === 'audio' ? 128000 : 1500000;
-      estimatedSize = Math.round((duration * bps) / 8);
-    }
+    const estimatedSize = duration > 0 ? estimateBytes(duration, height || (quality ? parseInt(quality, 10) : 0) || 720, tag === 'audio') : 0;
     const item = { id: key, url: key, rawUrl: u.href, groupKey: key, kind: tag === 'audio' ? 'audio' : 'video', track: isHls ? 'stream' : 'file', isHls, complete: true, size: 0, quality, mime: isHls ? 'application/vnd.apple.mpegurl' : (isYt ? 'video/mp4' : ''), source: 'dom', primary: true };
     if (title) item.title = title;
     if (estimatedSize > 0) item.estimatedSize = estimatedSize;
@@ -343,12 +348,11 @@
   const SITE_SUFFIX = /\s+[-–—|/•·]\s*(?:[A-Za-z0-9_-]+\.[a-z]{2,6}|YouTube|Facebook|Instagram|Twitter|X|Vimeo|Dailymotion|TikTok|Twitch|Reddit).*$/i;
   const SOCIAL_PREFIX = /\s+on\s+[A-Za-z0-9_.-]+:.*$/i;
   const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+  /** Display title: site noise (" - YouTube", "on X:") and surrounding whitespace removed. */
+  const cleanTitle = raw => String(raw || '').trim().replace(SITE_SUFFIX, '').replace(SOCIAL_PREFIX, '').trim();
   /** Page title -> safe Windows file name stem (no path chars, <=120 chars). Empty string when nothing usable. */
   function safeName(title) {
-    let s = String(title || '')
-      .replace(SITE_SUFFIX, '')
-      .replace(SOCIAL_PREFIX, '')
-      .normalize('NFC');
+    let s = cleanTitle(title).normalize('NFC');
     s = s.replace(/[\u0000-\u001f\u007f\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[. ]+|[. ]+$/g, '');
     s = Array.from(s).slice(0, 120).join('').trim().replace(/[. ]+$/g, '');
     return RESERVED.test(s) ? s + '_' : s;
@@ -374,6 +378,6 @@
     return Array.from(stem).slice(0, 255 - ext.length - suffix.length - quality.length).join('') + quality + suffix + ext;
   }
 
-  scope.NeoSniff = { TYPE_IDS, DEFAULT_TYPES, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused, MIN_SIZE, IMAGE_MIN_SIZE, classify, inspect, ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, canonicalUrl, groupKey, SEGMENTED_ROW, MAX_KEYS, fromDom, merge, safeName, suggestedName, extensionFor, isHttp, extractQuality, qualityFromHeight };
+  scope.NeoSniff = { TYPE_IDS, DEFAULT_TYPES, typeOfFile, typeOfItem, withDefaults, fmtSize, OFFERED_QUALITIES, offeredQuality, describeItem, cleanTitle, estimateBytes, hostOf, isPaused, MIN_SIZE, IMAGE_MIN_SIZE, classify, inspect, ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, canonicalUrl, groupKey, SEGMENTED_ROW, MAX_KEYS, fromDom, merge, safeName, suggestedName, extensionFor, isHttp, extractQuality, qualityFromHeight };
   if (typeof module !== 'undefined') module.exports = scope.NeoSniff;
 })(globalThis);

@@ -63,7 +63,7 @@ internal static partial class ManageTests
 
             // tabs
             var tabs = Field<TabControl>(pw, "Tabs");
-            Check(tabs.Items.Cast<TabItem>().Select(t => (string)t.Header).SequenceEqual(new[] { "Download status", "Speed Limiter", "Options on completion" }), "Three tabs: Download status / Speed Limiter / Options on completion");
+            Check(tabs.Items.Cast<TabItem>().Select(t => (string)t.Header).SequenceEqual(new[] { "Download status", "Speed limiter", "Options on completion" }), "Three tabs: Download status / Speed limiter / Options on completion");
             Check(pw.Title == Snap(m, a.Id).FileName, "Title is the file name");
 
             // live fields from a real transfer
@@ -82,13 +82,13 @@ internal static partial class ManageTests
             // hide / show details
             var pane = Field<StackPanel>(pw, "DetailsPane"); var detailsButton = Field<Button>(pw, "DetailsButton");
             Click(pw, "DetailsButton");
-            Check(pane.Visibility == Visibility.Collapsed && (string)detailsButton.Content == "Show details >>", "Hide details collapses the lower pane");
+            Check(pane.Visibility == Visibility.Collapsed && (string)detailsButton.Content == "Show details", "Hide details collapses the lower pane");
             Click(pw, "DetailsButton");
-            Check(pane.Visibility == Visibility.Visible && (string)detailsButton.Content == "<< Hide details", "Show details restores it");
+            Check(pane.Visibility == Visibility.Visible && (string)detailsButton.Content == "Hide details", "Show details restores it");
 
             // speed limiter
             var check = Field<CheckBox>(pw, "LimitCheck"); var input = Field<TextBox>(pw, "LimitInput");
-            Check(check.IsChecked == true && input.Text == "256" && Snap(m, a.Id).SpeedLimitBytesPerSecond == 256 * 1024, "Speed Limiter shows the job's real limit");
+            Check(check.IsChecked == true && input.Text == "256" && Snap(m, a.Id).SpeedLimitBytesPerSecond == 256 * 1024, "Speed limiter shows the job's real limit");
             input.Text = "abc"; Click(pw, "ApplyLimitButton");
             Check(Snap(m, a.Id).SpeedLimitBytesPerSecond == 256 * 1024 && Field<TextBlock>(pw, "LimitMessage").Text.Contains("KiB/s"), "Invalid limit is rejected, engine untouched");
             input.Text = "128"; Click(pw, "ApplyLimitButton");

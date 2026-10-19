@@ -61,10 +61,10 @@ internal static class AboutTests
 
             var all = Descendants<TextBlock>(window).Select(t => t.Text).ToList();
             Check(all.Contains("What's new"), "Has a What's new section");
-            int i110 = all.FindIndex(t => t.StartsWith("1.1.0")), i100 = all.FindIndex(t => t.StartsWith("1.0.0"));
-            Check(i110 >= 0 && i100 > i110, "Changelog lists 1.1.0 before 1.0.0 (latest first)");
-            Check(all[i110].Contains("2026-10-15"), "Release date is shown");
-            Check(all.Any(t => t.Contains("Torrents are part of the normal product")) && all.Any(t => t.Contains("Segmented download engine")), "Changelog entries of both releases are rendered");
+            int i101 = all.FindIndex(t => t.StartsWith("1.0.1")), i100 = all.FindIndex(t => t.StartsWith("1.0.0"));
+            Check(i101 >= 0 && i100 > i101, "Changelog lists 1.0.1 before 1.0.0 (latest first)");
+            Check(all[i101].Contains("2026-10-18"), "Release date is shown");
+            Check(all.Any(t => t.Contains("Automated update delivery")) && all.Any(t => t.Contains("Segmented download engine")), "Changelog entries of both releases are rendered");
             Check(!all.Any(t => t.Contains('`')), "Markdown code ticks are not shown");
 
             var parsed = AboutInfo.ParseChangelog("## [1.0.0] - 2026-01-01\n### Added\n- a\n## [1.2.0] - 2026-02-02\n### Fixed\n- b\n  continued\n");

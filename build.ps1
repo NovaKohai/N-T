@@ -54,6 +54,13 @@ if (-not $SkipTests) {
 Get-Process -Name 'NT','NeoDM','NT.NativeHost','NDM.NativeHost' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Invoke-DotNet @('publish','src/NT.App/NT.App.csproj','-c','Release','-r','win-x64','--self-contained','true','-o','dist/app')
 Invoke-DotNet @('publish','src/NT.NativeHost/NT.NativeHost.csproj','-c','Release','-r','win-x64','--self-contained','true','-o','dist/host')
+$extId = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'tools\extension-id.txt') -Raw).Trim()
+$hostUtf8 = New-Object Text.UTF8Encoding($false)
+$hostExePath = (Join-Path $PSScriptRoot 'dist\host\NT.NativeHost.exe')
+$appExePath = (Join-Path $PSScriptRoot 'dist\app\NT.exe')
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'dist\host\bridge-config.json'), (@{ extensionId = $extId; appPath = $appExePath } | ConvertTo-Json), $hostUtf8)
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'dist\host\com.ndm.bridge.json'), (@{ name = 'com.ndm.bridge'; description = 'N&T native download bridge'; path = $hostExePath; type = 'stdio'; allowed_origins = @("chrome-extension://$extId/") } | ConvertTo-Json), $hostUtf8)
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'dist\host\com.nt.bridge.json'), (@{ name = 'com.nt.bridge'; description = 'N&T native download bridge'; path = $hostExePath; type = 'stdio'; allowed_origins = @("chrome-extension://$extId/") } | ConvertTo-Json), $hostUtf8)
 $ytDlpCandidates = @((Join-Path $env:LOCALAPPDATA 'N&T\yt-dlp.exe'), (Join-Path $env:LOCALAPPDATA 'NDM\yt-dlp.exe'), (Join-Path $PSScriptRoot 'tools\yt-dlp.exe'))
 foreach ($c in $ytDlpCandidates) {
     if (Test-Path -LiteralPath $c) {

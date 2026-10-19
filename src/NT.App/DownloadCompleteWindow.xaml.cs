@@ -42,7 +42,7 @@ public partial class DownloadCompleteWindow : Window
     private bool GuardOpen()
     {
         RefreshAvailability();
-        return OpenButton.IsEnabled && DownloadFileActions.ConfirmOpen(this, job.FileName);
+        return OpenButton.IsEnabled;
     }
     private void Act(Action action)
     {
@@ -68,7 +68,6 @@ public partial class DownloadCompleteWindow : Window
 /// <summary>No command interpreter or shell concatenation; all launches are explicit user actions.</summary>
 internal static class DownloadFileActions
 {
-    public static bool ConfirmOpen(Window owner, string name) => MessageBox.Show(owner, $"Open \"{name}\"?\n\nOnly proceed if you trust the file and its source. Executables, scripts, shortcuts and documents can run code.", "Open downloaded file", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
     public static void Open(string path)
     {
         if (!File.Exists(path)) throw new FileNotFoundException();

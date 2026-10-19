@@ -5,6 +5,18 @@
       <Setter Property="MinHeight" Value="{DynamicResource CommandMinHeight}"/>
       <Setter Property="Margin" Value="0,0,4,0"/>
     </Style>
+    <Style x:Key="PrimaryCommand" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+      <Setter Property="Padding" Value="{DynamicResource CommandPadding}"/>
+      <Setter Property="MinHeight" Value="{DynamicResource CommandMinHeight}"/>
+      <Setter Property="Margin" Value="0,0,4,0"/>
+    </Style>
+    <Style x:Key="SidebarCommand" TargetType="Button" BasedOn="{StaticResource Command}">
+      <Setter Property="Margin" Value="0,0,0,4"/>
+    </Style>
+    <Style x:Key="CommandSeparator" TargetType="Border">
+      <Setter Property="Width" Value="1"/><Setter Property="Height" Value="18"/><Setter Property="Margin" Value="5,0,9,0"/>
+      <Setter Property="Background" Value="{DynamicResource BorderBrush}"/><Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
     <Style TargetType="ListViewItem">
       <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
       <Setter Property="MinHeight" Value="30"/>
@@ -98,18 +110,21 @@
       <MenuItem Header="_Help">
         <MenuItem Header="Keyboard _shortcuts" Click="Help_Click"/>
         <MenuItem Header="_Check for updates…" Click="CheckUpdates_Click"/>
-        <MenuItem Header="_About N&amp;&amp;T" Click="About_Click"/>
+        <MenuItem Header="_About N&amp;T" Click="About_Click"/>
       </MenuItem>
     </Menu>
     <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1" Padding="8,7" Background="{DynamicResource SidebarBrush}">
       <WrapPanel>
-        <Button Content="Add _URL…" Click="Add_Click" Style="{StaticResource Command}"/>
+        <Button Content="Add _URL…" Click="Add_Click" Style="{StaticResource PrimaryCommand}"/>
         <Button x:Name="AddTorrentButton" Content="Add _torrent…" Click="AddTorrentFile_Click" Style="{StaticResource Command}"/>
+        <Border Style="{StaticResource CommandSeparator}"/>
         <Button x:Name="ResumeButton" Content="Resume" Click="Resume_Click" Style="{StaticResource Command}"/>
         <Button x:Name="StopButton" Content="Stop" Click="Stop_Click" Style="{StaticResource Command}"/>
         <Button x:Name="PauseAllButton" Content="Stop all" Click="PauseAll_Click" Style="{StaticResource Command}"/>
+        <Border Style="{StaticResource CommandSeparator}"/>
         <Button x:Name="RemoveButton" Content="Remove" Click="Remove_Click" Style="{StaticResource Command}"/>
         <Button Content="Remove completed" Click="RemoveCompleted_Click" Style="{StaticResource Command}"/>
+        <Border Style="{StaticResource CommandSeparator}"/>
         <Button Content="Options…" Click="Settings_Click" Style="{StaticResource Command}"/>
         <Button x:Name="ScheduleButton" Content="Scheduler…" Click="Schedule_Click" Style="{StaticResource Command}"/>
       </WrapPanel>
@@ -129,15 +144,15 @@
     </Border>
     <Grid>
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="166"/>
+        <ColumnDefinition Width="166" MinWidth="130" MaxWidth="320"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
-      <Border Background="{DynamicResource SidebarBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+      <Border Grid.Column="0" Background="{DynamicResource SidebarBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
         <DockPanel Margin="8,12">
           <TextBlock DockPanel.Dock="Top" Text="DOWNLOADS" FontSize="11" FontWeight="SemiBold" Style="{StaticResource Muted}" Margin="8,0,0,10"/>
           <StackPanel DockPanel.Dock="Bottom">
-            <Button x:Name="BulkButton" Content="Import URLs…" Click="Bulk_Click" Style="{StaticResource Command}"/>
-            <Button x:Name="ResumeAllButton" MinHeight="36" Content="Resume all paused" Click="ResumeAll_Click" Style="{StaticResource Command}"/>
+            <Button x:Name="BulkButton" Content="Import URLs…" Click="Bulk_Click" Style="{StaticResource SidebarCommand}"/>
+            <Button x:Name="ResumeAllButton" Content="Resume all paused" Click="ResumeAll_Click" Style="{StaticResource SidebarCommand}"/>
           </StackPanel>
           <ListBox x:Name="Navigation" SelectionChanged="FilterChanged" ItemContainerStyle="{StaticResource NavItem}" AutomationProperties.Name="Download status filters">
             <ListBoxItem Tag="All" IsSelected="True">
@@ -179,6 +194,7 @@
           </ListBox>
         </DockPanel>
       </Border>
+      <GridSplitter Grid.Column="0" Width="6" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" ShowsPreview="False" Panel.ZIndex="10"/>
       <DockPanel Grid.Column="1" Margin="10,0,10,8">
         <Grid DockPanel.Dock="Top" Margin="0,9">
           <Grid.ColumnDefinitions>
@@ -188,7 +204,21 @@
           </Grid.ColumnDefinitions>
           <TextBlock x:Name="Heading" Text="All downloads" FontWeight="SemiBold" VerticalAlignment="Center"/>
           <TextBlock x:Name="CountLabel" Grid.Column="1" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0"/>
-          <TextBox x:Name="Search" Grid.Column="2" TextChanged="SearchChanged" MinHeight="30" Padding="8,4" ToolTip="Search file names or URLs (Ctrl+F)" AutomationProperties.Name="Search downloads"/>
+          <Grid Grid.Column="2">
+            <TextBox x:Name="Search" TextChanged="SearchChanged" MinHeight="30" Padding="8,4" ToolTip="Search file names or URLs (Ctrl+F)" AutomationProperties.Name="Search downloads"/>
+            <TextBlock Text="Search downloads" Margin="9,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+                  <Setter Property="Visibility" Value="Collapsed"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Text, ElementName=Search}" Value="">
+                      <Setter Property="Visibility" Value="Visible"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+          </Grid>
         </Grid>
         <Border DockPanel.Dock="Bottom" x:Name="DetailsPanel" Visibility="Collapsed" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
           <StackPanel>

@@ -1,12 +1,12 @@
 {
-    "body":  "## [1.0.2] - 2026-10-19\n\n### Changed\n- Desktop: one 20 DIP dialog heading scale and 13 DIP window text, flat accent fills (no gradient), and a primary button that uses the dedicated accent hover token.\n- Desktop: Add URL is the single primary toolbar action, toolbar groups are separated, the sidebar actions share one width and height, and search shows a visible placeholder.\n- Desktop: Options uses one 32 DIP control height and drops the redundant Appearance shortcut; progress details no longer use ASCII arrows, and action labels follow sentence case.\n- Extension: the media ribbon and the popup media list share the same rules and offer standard video resolutions from 480p up to 8K (the popup previously stopped at 1080p).\n- Extension: the media ribbon's minimize, close and download buttons meet the 24 px minimum target size for easier clicking and touch input.\n- Extension: popup, ribbon and background worker now use one shared media helper module (titles, sizes, qualities, estimates).",
-    "name":  "N&T 1.0.2",
-    "published_at":  "2026-10-19T20:47:28Z",
+    "body":  "## [1.0.3] - 2026-10-20\r\n\r\n### Changed\r\n- fixes\r\n\r\n# Changelog\r\n\r\nAll notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)\r\nand the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.",
+    "name":  "N&T 1.0.3",
+    "published_at":  "2026-10-19T23:17:34Z",
     "assets":  [
                    {
-                       "browser_download_url":  "/updates/N&T-Setup-1.0.2.msi",
-                       "name":  "N&T-Setup-1.0.2.msi",
-                       "size":  93333021
+                       "browser_download_url":  "/updates/N&T-Setup-1.0.3.msi",
+                       "name":  "N&T-Setup-1.0.3.msi",
+                       "size":  93337117
                    },
                    {
                        "browser_download_url":  "/updates/SHA256SUMS.txt",
@@ -14,6 +14,6 @@
                        "size":  340
                    }
                ],
-    "tag_name":  "v1.0.2",
-    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.0.2"
+    "tag_name":  "v1.0.3",
+    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.0.3"
 }

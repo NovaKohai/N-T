@@ -85,7 +85,7 @@ try
     Check(ThemeCatalog.Resolve("System", () => true) == "Dark" && ThemeCatalog.Resolve("System", () => false) == "Light", "System theme resolves from the injected OS setting");
     using var manager = new DownloadManager(Path.Combine(root, "files"), Path.Combine(root, "state"));
     
-    // Create a bridge that auto-accepts all requests (simulating user clicking "Start Download")
+    // Create a bridge that auto-accepts all requests (simulating user clicking "Start download")
     using var bridge = new NativeBridge(request =>
     {
         Task.Run(async () =>

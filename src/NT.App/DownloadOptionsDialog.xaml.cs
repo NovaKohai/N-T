@@ -25,7 +25,7 @@ public partial class DownloadOptionsDialog : Window
     private bool _programmatic, _nameEdited, _pathEdited, _categoryEdited;
     private NameProbeResult? _seen;
 
-    /// <summary>True once the user pressed Start / Add to Queue / Schedule (a closed window or Cancel is false).</summary>
+    /// <summary>True once the user pressed Start / Add to queue / Schedule (a closed window or Cancel is false).</summary>
     public bool Accepted { get; private set; }
     /// <summary>The file name as currently shown (used as the tray menu label).</summary>
     public string FileNameText => NameInput.Text;

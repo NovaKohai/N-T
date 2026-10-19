@@ -146,14 +146,14 @@ internal static class ThemeTests
     // ===== 3. contrast matrix over ALL themes =====
     private static void ContrastMatrix()
     {
-        var pairs = new (string Fg, string Bg)[] { ("InkBrush", "CanvasBrush"), ("InkBrush", "SidebarBrush"), ("InkBrush", "SurfaceBrush"), ("InkBrush", "SurfaceHoverBrush"), ("InkBrush", "AccentSoftBrush"), ("MutedBrush", "CanvasBrush"), ("MutedBrush", "SurfaceBrush"), ("MutedBrush", "SidebarBrush"), ("MutedBrush", "SurfaceHoverBrush"), ("OnAccentBrush", "AccentBrush"), ("AccentBrush", "CanvasBrush"), ("AccentBrush", "SurfaceBrush"), ("AccentBrush", "SidebarBrush"), ("ErrorBrush", "SurfaceBrush"), ("SuccessBrush", "SurfaceBrush"), ("WarningBrush", "SurfaceBrush") };
+        var pairs = new (string Fg, string Bg)[] { ("InkBrush", "CanvasBrush"), ("InkBrush", "SidebarBrush"), ("InkBrush", "SurfaceBrush"), ("InkBrush", "SurfaceHoverBrush"), ("InkBrush", "AccentSoftBrush"), ("MutedBrush", "CanvasBrush"), ("MutedBrush", "SurfaceBrush"), ("MutedBrush", "SidebarBrush"), ("MutedBrush", "SurfaceHoverBrush"), ("OnAccentBrush", "AccentBrush"), ("OnAccentBrush", "AccentHoverBrush"), ("AccentBrush", "CanvasBrush"), ("AccentBrush", "SurfaceBrush"), ("AccentBrush", "SidebarBrush"), ("ErrorBrush", "SurfaceBrush"), ("SuccessBrush", "SurfaceBrush"), ("WarningBrush", "SurfaceBrush") };
         foreach (var theme in ThemeCatalog.All)
         {
             Use(theme.Id); string t = theme.Id + ": ";
             var failing = pairs.Where(p => Contrast(Brush(p.Fg), Brush(p.Bg)) < 4.5).Select(p => $"{p.Fg} on {p.Bg}={Contrast(Brush(p.Fg), Brush(p.Bg)):0.0}").ToArray();
             Check(failing.Length == 0, t + $"text contrast >= 4.5:1 for all {pairs.Length} pairs (failing: {string.Join("; ", failing)})");
             Check(new[] { "SurfaceBrush", "SidebarBrush", "CanvasBrush" }.All(bg => Contrast(Brush("DisabledInkBrush"), Brush(bg)) >= 3.0), t + "disabled text >= 3:1 on surface, sidebar and canvas");
-            Check(FillStops().All(s => Contrast(Brush("OnAccentBrush"), s) >= 4.5), t + "text on the primary button fill (every gradient stop) >= 4.5:1");
+            Check(FillStops().All(s => Contrast(Brush("OnAccentBrush"), s) >= 4.5), t + "text on the primary button fill >= 4.5:1");
             Check(Contrast(Brush("BorderBrush"), Brush("SurfaceBrush")) >= 1.1 && Contrast(Brush("ThumbBrush"), Brush("SurfaceBrush")) >= 1.3, t + "borders and scroll thumbs are visible on the surface");
             Check(ThemeCatalog.IsDark(theme.Id, () => ThemeManager.Luminance(Brush("CanvasBrush")) < 0.2) == (ThemeManager.Luminance(Brush("CanvasBrush")) < 0.2), t + "dark flag matches canvas lightness");
         }
@@ -170,15 +170,15 @@ internal static class ThemeTests
             foreach (var accent in accents)
             {
                 Use(theme.Id, accent);
-                bool ok = Contrast(Brush("OnAccentBrush"), Brush("AccentBrush")) >= 4.5 && FillStops().All(s => Contrast(Brush("OnAccentBrush"), s) >= 4.5)
+                bool ok = Contrast(Brush("OnAccentBrush"), Brush("AccentBrush")) >= 4.5 && Contrast(Brush("OnAccentBrush"), Brush("AccentHoverBrush")) >= 4.5 && FillStops().All(s => Contrast(Brush("OnAccentBrush"), s) >= 4.5)
                     && Contrast(Brush("AccentBrush"), Brush("SurfaceBrush")) >= 4.5 && Contrast(Brush("AccentBrush"), Brush("CanvasBrush")) >= 4.5
                     && Contrast(Brush("InkBrush"), Brush("AccentSoftBrush")) >= 4.5 && Contrast(Brush("MutedBrush"), Brush("AccentSoftBrush")) >= 4.5;
-                if (!ok) { bad++; firstBad = $"{accent}: onAccent/accent {Contrast(Brush("OnAccentBrush"), Brush("AccentBrush")):0.0} stops {string.Join("/", FillStops().Select(x => Contrast(Brush("OnAccentBrush"), x).ToString("0.0")))} accent/surface {Contrast(Brush("AccentBrush"), Brush("SurfaceBrush")):0.0} accent/canvas {Contrast(Brush("AccentBrush"), Brush("CanvasBrush")):0.0} ink/soft {Contrast(Brush("InkBrush"), Brush("AccentSoftBrush")):0.0} muted/soft {Contrast(Brush("MutedBrush"), Brush("AccentSoftBrush")):0.0}"; }
+                if (!ok) { bad++; firstBad = $"{accent}: onAccent/accent {Contrast(Brush("OnAccentBrush"), Brush("AccentBrush")):0.0} onAccent/hover {Contrast(Brush("OnAccentBrush"), Brush("AccentHoverBrush")):0.0} fill {string.Join("/", FillStops().Select(x => Contrast(Brush("OnAccentBrush"), x).ToString("0.0")))} accent/surface {Contrast(Brush("AccentBrush"), Brush("SurfaceBrush")):0.0} accent/canvas {Contrast(Brush("AccentBrush"), Brush("CanvasBrush")):0.0} ink/soft {Contrast(Brush("InkBrush"), Brush("AccentSoftBrush")):0.0} muted/soft {Contrast(Brush("MutedBrush"), Brush("AccentSoftBrush")):0.0}"; }
             }
             Check(bad == 0, $"{theme.Id}: {accents.Length} custom accents (incl. pure red/green/blue/yellow/white/black) keep every text contrast >= 4.5:1 {firstBad}");
         }
         Use("Midnight", "#FF8800");
-        Check(Same(Brush("AccentBrush"), Hex("#FF8800")) && Application.Current.FindResource("AccentFillBrush") is LinearGradientBrush, "Midnight keeps its gradient primary fill with a custom accent");
+        Check(Same(Brush("AccentBrush"), Hex("#FF8800")) && Application.Current.FindResource("AccentFillBrush") is SolidColorBrush fill && Same(fill.Color, Hex("#FF8800")), "Midnight uses the same solid primary fill for a custom accent");
         Check(Same(Brush("AccentHoverBrush"), Hex("#FF8800")) == false && Same(Brush("AccentSoftBrush"), Hex("#FF8800")) == false, "Hover and soft accent are derived, not copied");
         Use("Light", "#FF8800");
         Check(Application.Current.FindResource("AccentFillBrush") is SolidColorBrush && Contrast(Brush("AccentBrush"), Brush("SurfaceBrush")) >= 4.5, "Light with a bright custom accent darkens it until it is readable as text");

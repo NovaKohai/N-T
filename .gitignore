@@ -8,3 +8,7 @@ artifacts/
 *.user
 .vs/
 tools/yt-dlp.exe
+cookies.txt
+*.log
+.wrangler/
+public/updates/*.msi

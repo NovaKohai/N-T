@@ -1,6 +1,8 @@
 /* NeoDM media ribbon. Renders the tab's media list (kept by the service worker) in a closed shadow root. */
 (() => {
   if (globalThis.__ntRibbon || globalThis.__neodmRibbon) return;
+  // Shared helpers; sniff.js is injected first (manifest content_scripts) and is also used by the popup and worker.
+  const { estimateBytes, fmtSize, offeredQuality, qualityFromHeight } = NeoSniff;
   const MAX_DOM = 50, SCAN_MS = 400;
   let items = [], dismissedFor = '', enabled = true, host = null, root = null, timer = null, lastDom = '';
   let currentVideos = [], resizeObs = null;
@@ -18,20 +20,6 @@
     }
   }
 
-  const fmtSize = n => !n ? '' : n >= 1073741824 ? (n / 1073741824).toFixed(2) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
-
-  function qualityFromHeight(h) {
-    if (!h || h <= 0) return '';
-    if (h >= 2100) return '2160p';
-    if (h >= 1400) return '1440p';
-    if (h >= 1000) return '1080p';
-    if (h >= 700) return '720p';
-    if (h >= 460) return '480p';
-    if (h >= 340) return '360p';
-    if (h >= 220) return '240p';
-    return h + 'p';
-  }
-
   function getAllVideos() {
     try {
       const main = document.querySelector('.html5-main-video') || document.querySelector('#movie_player video') || document.querySelector('video.video-stream');
@@ -40,28 +28,21 @@
         list.splice(list.indexOf(main), 1);
         list.unshift(main);
       }
-      if (list.length >= 10) return list;
-      for (const el of Array.from(document.querySelectorAll('*')).slice(0, 50)) {
-        if (el.shadowRoot) {
-          for (const v of el.shadowRoot.querySelectorAll('video')) {
-            if (!list.includes(v)) list.push(v);
-          }
-        }
-      }
       return list;
     } catch {
       return Array.from(document.querySelectorAll('video'));
     }
   }
 
-  function findVideoElement(item) {
+  function findVideoElement(item, videos = getAllVideos()) {
     try {
-      const videos = getAllVideos();
       if (!videos.length) return null;
       if (item?.url || item?.rawUrl) {
         for (const v of videos) {
           if (v.currentSrc === item.url || v.src === item.url || v.currentSrc === item.rawUrl || v.src === item.rawUrl) return v;
-          if (v.querySelector && v.querySelector(`source[src="${item.url}"], source[src="${item.rawUrl}"]`)) return v;
+          for (const s of v.querySelectorAll('source')) {
+            if (s.src === item.url || s.src === item.rawUrl) return v;
+          }
         }
       }
       if (videos.length === 1) return videos[0];
@@ -75,16 +56,11 @@
 
   function groupItemsByVideo(itemList) {
     const videos = getAllVideos();
-    if (!videos.length) {
-      return [{ video: null, items: [...itemList] }];
-    }
-    if (videos.length === 1) {
-      return [{ video: videos[0], items: [...itemList] }];
-    }
-    const map = new Map();
-    const unassigned = [];
+    if (!videos.length) return [{ video: null, items: [...itemList] }];
+    if (videos.length === 1) return [{ video: videos[0], items: [...itemList] }];
+    const map = new Map(), unassigned = [];
     for (const i of itemList) {
-      const v = findVideoElement(i);
+      const v = findVideoElement(i, videos);
       if (v) {
         if (!map.has(v)) map.set(v, []);
         map.get(v).push(i);
@@ -97,38 +73,32 @@
       groups.push({ video, items: vItems });
     }
     if (unassigned.length > 0) {
-      if (groups.length > 0) {
-        groups[0].items.push(...unassigned);
-      } else {
-        groups.push({ video: videos[0], items: unassigned });
-      }
+      if (groups.length > 0) groups[0].items.push(...unassigned);
+      else groups.push({ video: videos[0], items: unassigned });
     }
     return groups;
   }
 
-  function resolveQuality(i) {
+  function resolveQuality(i, video) {
     if (i?.quality && i.quality !== 'HLS') return i.quality;
-    const v = findVideoElement(i);
+    const v = video || findVideoElement(i);
     if (v && v.videoHeight > 0) return qualityFromHeight(v.videoHeight);
     return '';
   }
 
-  const SITE_SUFFIX = /\s+[-–—|/•·]\s*(?:[A-Za-z0-9_-]+\.[a-z]{2,6}|YouTube|Facebook|Instagram|Twitter|X|Vimeo|Dailymotion|TikTok|Twitch|Reddit).*$/i;
-  const SOCIAL_PREFIX = /\s+on\s+[A-Za-z0-9_.-]+:.*$/i;
-
-  function cleanTitle(raw) {
-    if (!raw) return '';
-    let s = String(raw).trim();
-    s = s.replace(SITE_SUFFIX, '');
-    s = s.replace(SOCIAL_PREFIX, '');
-    s = s.replace(/^["'«“\s]+|["'»”\s]+$/g, '').trim();
-    return s;
+  // Row policy: standard video resolutions (480p up to 4K/8K) are offered; groups without these keep their rows.
+  function offeredRows(items, video) {
+    const inRange = items.filter(i => offeredQuality(resolveQuality(i, video)));
+    return inRange.length > 0 ? inRange : items;
   }
 
-  function resolveTitle(i) {
+  /** Display title: shared site-suffix cleanup plus surrounding quotes. */
+  const cleanTitle = raw => NeoSniff.cleanTitle(raw).replace(/^["'«“\s]+|["'»”\s]+$/g, '').trim();
+
+  function resolveTitle(i, video) {
     if (i?.title && String(i.title).trim()) return cleanTitle(i.title);
 
-    const v = findVideoElement(i);
+    const v = video || (i ? findVideoElement(i) : null);
     if (v) {
       const vt = v.getAttribute('title') || v.getAttribute('aria-label');
       if (vt && vt.trim() && !/^(?:twitch\s+)?video\s+player$|^html5\s+(?:video\s+)?player$|^media\s+player$/i.test(vt.trim())) {
@@ -143,58 +113,39 @@
       if (tw && tw.trim()) return cleanTitle(tw);
     } catch {}
 
-    try {
-      const h1 = document.querySelector('h1');
-      if (h1 && h1.textContent.trim()) return cleanTitle(h1.textContent);
-    } catch {}
+    const h1 = document.querySelector('h1');
+    if (h1 && h1.textContent.trim()) return cleanTitle(h1.textContent);
 
-    try {
-      if (document.title && document.title.trim()) {
-        const cleaned = cleanTitle(document.title);
-        if (cleaned) return cleaned;
-      }
-    } catch {}
+    if (document.title && document.title.trim()) {
+      const cleaned = cleanTitle(document.title);
+      if (cleaned) return cleaned;
+    }
 
-    try {
-      let pathname = new URL(i.url).pathname;
-      let filename = decodeURIComponent(pathname.split('/').pop() || '');
-      filename = filename.replace(/\.[a-z0-9]{2,5}$/i, '');
-      if (filename && filename.length > 2 && !/^videoplayback|master|playlist|index|manifest|chunk|seg/i.test(filename)) {
-        return filename.replace(/[-_+]/g, ' ').trim();
-      }
-    } catch {}
+    if (i?.url) {
+      try {
+        let pathname = new URL(i.url).pathname;
+        let filename = decodeURIComponent(pathname.split('/').pop() || '');
+        filename = filename.replace(/\.[a-z0-9]{2,5}$/i, '');
+        if (filename && filename.length > 2 && !/^videoplayback|master|playlist|index|manifest|chunk|seg/i.test(filename)) {
+          return filename.replace(/[-_+]/g, ' ').trim();
+        }
+      } catch {}
+    }
 
     return '';
   }
 
-  function estimateSizeFromVideo(i) {
+  function estimateSizeFromVideo(i, video) {
     if (i?.size && i.size > 0) return i.size;
     if (i?.estimatedSize && i.estimatedSize > 0) return i.estimatedSize;
-    const v = findVideoElement(i);
+    const v = video || findVideoElement(i);
     const dur = (v && Number.isFinite(v.duration) && v.duration > 0) ? v.duration : (i?.duration || 0);
     if (dur <= 0) return 0;
     const h = (v && v.videoHeight) || (i?.height) || (i?.quality ? parseInt(i.quality, 10) : 0) || 720;
-    let bps = 1500000;
-    if (h >= 2100) bps = 12000000;
-    else if (h >= 1400) bps = 6000000;
-    else if (h >= 1000) bps = 2800000;
-    else if (h >= 700) bps = 1500000;
-    else if (h >= 460) bps = 800000;
-    else if (h >= 340) bps = 450000;
-    else if (i?.kind === 'audio' || i?.track === 'audio-only') bps = 128000;
-    return Math.round((dur * bps) / 8);
+    return estimateBytes(dur, h, i?.kind === 'audio' || i?.track === 'audio-only');
   }
 
-  function label(i) {
-    const q = resolveQuality(i);
-    const kind = i.kind === 'gif' ? 'GIF' : i.kind === 'image' ? 'Image' : i.track === 'audio-only' ? 'Audio only' : i.track === 'video-only' ? 'Video only (no sound)' : i.kind === 'audio' ? 'Audio' : i.isHls ? 'Video (MP4)' : 'Video';
-    let sizeStr = fmtSize(i.size);
-    if (!sizeStr) {
-      const est = estimateSizeFromVideo(i);
-      if (est > 0) sizeStr = '~' + fmtSize(est);
-    }
-    return [kind, q && q !== 'HLS' ? q : '', sizeStr].filter(Boolean).join(' · ');
-  }
+  const label = (i, video) => NeoSniff.describeItem(i, resolveQuality(i, video), estimateSizeFromVideo(i, video));
 
   function updatePositions() {
     if (!root || !host) return;
@@ -224,8 +175,8 @@
         continue;
       }
 
-      const winW = window.innerWidth || document.documentElement?.clientWidth || 1024;
-      const winH = window.innerHeight || document.documentElement?.clientHeight || 768;
+      const winW = window.innerWidth || document.documentElement?.clientWidth || 0;
+      const winH = window.innerHeight || document.documentElement?.clientHeight || 0;
 
       if (rect.bottom < 40 || rect.top > winH - 40 || rect.right < 40 || rect.left > winW - 40) {
         bar.style.display = 'none';
@@ -264,19 +215,20 @@
 
     const style = document.createElement('style');
     style.textContent = `*,*::before,*::after{box-sizing:border-box;}
-.bar{font:12px/1.3 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f4f7fa;background:rgba(15,23,42,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.12);border-radius:8px;box-shadow:0 8px 24px -4px rgba(0,0,0,0.5),0 2px 6px rgba(0,0,0,0.25);width:268px;max-width:calc(100vw - 16px);overflow:hidden;pointer-events:auto;animation:ndm-in .2s cubic-bezier(.16,1,.3,1);transition:opacity .25s ease,transform .2s ease,width .2s ease}
+.bar{font:12px/1.3 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f4f7fa;background:rgba(15,23,42,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.12);border-radius:8px;box-shadow:0 8px 24px -4px rgba(0,0,0,0.5),0 2px 6px rgba(0,0,0,0.25);width:268px;max-width:calc(100vw - 16px);overflow:hidden;pointer-events:auto;animation:ndm-in .2s cubic-bezier(.16,1,.3,1);transition:opacity .25s ease,transform .2s ease}
 @keyframes ndm-in{from{opacity:0;transform:translateY(-6px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media (prefers-reduced-motion:reduce){.bar{animation:none}.bar,.min,.x,.dl{transition:none}}
 .bar.docked{position:absolute;right:16px;bottom:16px;}
 .bar.on-video{position:absolute;}
-.bar.collapsed{width:auto;min-width:115px}
+.bar.collapsed{width:auto;min-width:120px}
 .bar.collapsed .rows{display:none}
 .head{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 8px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.08);font-weight:600;font-size:11px;letter-spacing:.5px;color:#39b995;user-select:none;cursor:default}
 .bar.collapsed .head{border-bottom:none}
 .brand{display:flex;align-items:center;gap:5px;flex:1;min-width:0}
 .brand span{color:#39b995;font-weight:700;letter-spacing:0.5px;font-size:11px}
 .ico{display:inline-block;vertical-align:middle;color:#39b995;flex-shrink:0}
-.actions{display:flex;align-items:center;gap:3px;flex-shrink:0}
-.min,.x{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;font-size:13px;line-height:1;color:#94a3b8;transition:background .15s,color .15s}
+.actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.min,.x{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:5px;font-size:14px;line-height:1;color:#94a3b8;transition:background .15s,color .15s}
 .min:hover,.min:focus-visible,.x:hover,.x:focus-visible{background:rgba(255,255,255,0.1);color:#ffffff}
 .rows{max-height:180px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
 .rows::-webkit-scrollbar{width:3px}
@@ -291,7 +243,7 @@
 .s{font-size:10px;line-height:1.2;opacity:.85;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#94a3b8}
 .s.err{color:#f87171;opacity:1}
 .s.ok{color:#34d399;opacity:1}
-.dl{all:unset;cursor:pointer;white-space:nowrap;background:#2da57d;color:#ffffff;font-weight:600;font-size:10.5px;padding:3px 8px;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.15);transition:background .15s,transform .1s,box-shadow .15s;flex-shrink:0}
+.dl{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;background:#2da57d;color:#ffffff;font-weight:600;font-size:10.5px;padding:3px 8px;min-height:24px;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.15);transition:background .15s,transform .1s,box-shadow .15s;flex-shrink:0}
 .dl:hover:not([disabled]),.dl:focus-visible:not([disabled]){background:#34bd90;box-shadow:0 2px 8px rgba(45,165,125,0.35);transform:translateY(-1px)}
 .dl:active:not([disabled]){transform:translateY(0)}
 .dl[disabled]{opacity:.55;cursor:default}
@@ -303,7 +255,14 @@
     container.append(host);
   }
 
+  let videoCleanups = [];
+  function cleanupVideoListeners() {
+    for (const fn of videoCleanups) { try { fn(); } catch {} }
+    videoCleanups = [];
+  }
+
   function disposeUi() {
+    cleanupVideoListeners();
     host?.remove();
     host = null;
     root = null;
@@ -320,6 +279,7 @@
       disposeUi();
       return;
     }
+    cleanupVideoListeners();
     if (!host) {
       build();
     } else if (!host.isConnected) {
@@ -417,7 +377,7 @@
       rows.className = 'rows';
       rows.setAttribute('aria-live', 'polite');
 
-      const ordered = [...group.items].sort((a, b) => (b.complete - a.complete));
+      const ordered = [...offeredRows(group.items, group.video)].sort((a, b) => (b.complete - a.complete));
       for (const i of ordered) {
         const row = document.createElement('div');
         row.className = 'row' + (i.complete ? '' : ' sub');
@@ -426,8 +386,8 @@
         const info = document.createElement('div');
         info.className = 'info';
 
-        const itemTitle = resolveTitle(i);
-        const meta = label(i);
+        const itemTitle = resolveTitle(i, group.video);
+        const meta = label(i, group.video);
         const st = states.get(i.id);
         const t = document.createElement('div');
         t.className = 't';
@@ -474,12 +434,18 @@
           }
         };
 
-        group.video.addEventListener('mouseenter', updateOpacity, { passive: true });
-        group.video.addEventListener('mouseleave', updateOpacity, { passive: true });
-        group.video.addEventListener('play', updateOpacity, { passive: true });
-        group.video.addEventListener('pause', updateOpacity, { passive: true });
+        const v = group.video;
+        const vEvents = ['mouseenter', 'mouseleave', 'play', 'pause'];
+        for (const ev of vEvents) v.addEventListener(ev, updateOpacity, { passive: true });
+        videoCleanups.push(() => {
+          for (const ev of vEvents) {
+            try { v.removeEventListener(ev, updateOpacity); } catch {}
+          }
+        });
         bar.addEventListener('mouseenter', updateOpacity, { passive: true });
         bar.addEventListener('mouseleave', updateOpacity, { passive: true });
+        bar.addEventListener('focusin', () => { bar.style.opacity = '1'; });
+        bar.addEventListener('focusout', updateOpacity);
         updateOpacity();
       }
     });
@@ -525,6 +491,7 @@
     try { document.removeEventListener('webkitfullscreenchange', onFullscreenChange); } catch {}
     disposeUi();
     delete globalThis.__neodmRibbon;
+    delete globalThis.__ntRibbon;
   }
 
   function safeSendMessage(message) {

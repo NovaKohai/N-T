@@ -2,6 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>N&amp;T Integration</title><link rel="stylesheet" href="popup.css"></head>
 <body>
 <header><h1>N&amp;T Integration</h1><button id="test" type="button">Test connection</button></header>
+<main>
 <section id="mediaPanel">
 <h2>Media on this page</h2>
 <ul id="mediaList"></ul>
@@ -9,9 +10,11 @@
 </section>
 <section id="pausePanel">
 <p id="pauseState" class="hint" role="status" aria-live="polite"></p>
+<fieldset><legend>Session pause</legend>
 <label><input type="checkbox" id="pauseSite"> <span id="pauseSiteLabel">Pause N&amp;T on this site for this session</span></label>
 <label><input type="checkbox" id="pauseAll"> Pause N&amp;T on all sites for this session</label>
 <button id="resume" type="button" hidden>Re-enable N&amp;T</button>
+</fieldset>
 <p class="hint">A session pause resets when the browser closes. While paused, downloads are not captured and the media ribbon is hidden.</p>
 </section>
 <section>
@@ -37,6 +40,7 @@
 <p class="hint">Applies to both the media ribbon and download capture. Unticked types are left to the browser.</p>
 </details>
 <p id="status" role="status" aria-live="polite"></p>
+</main>
 <script src="sniff.js"></script>
 <script src="popup.js"></script>
 </body></html>

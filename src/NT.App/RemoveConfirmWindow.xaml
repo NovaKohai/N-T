@@ -2,7 +2,7 @@
         Title="Remove downloads" Width="520" SizeToContent="Height" MinWidth="440" MaxHeight="640" ResizeMode="NoResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" FontSize="13">
   <Border Padding="24,22,24,20">
     <StackPanel>
-      <TextBlock x:Name="Heading" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" AutomationProperties.Name="Remove confirmation heading"/>
+      <TextBlock x:Name="Heading" Style="{StaticResource DialogHeading}" TextWrapping="Wrap" AutomationProperties.Name="Remove confirmation heading"/>
       <TextBlock x:Name="Explain" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,14"/>
       <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8">
         <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto">

@@ -151,7 +151,7 @@ function ribbon(items = [], { enabled = true, reply = { ok: true, id: 'job-1' } 
     runtime: { sendMessage: async m => { sent.push(m); if (m.action === 'media-list') return { items }; if (m.action === 'media-download') return reply instanceof Error ? Promise.reject(reply) : reply; return { ok: true }; }, onMessage: { addListener: f => listeners.push(f) } },
     storage: { local: { get: async () => (enabled ? {} : { ribbonEnabled: false }) }, onChanged: { addListener: f => { storageChange = f; } } },
   };
-  w.eval(source('content.js'));
+  w.eval(source('sniff.js')); w.eval(source('content.js'));
   const ui = () => roots.at(-1), text = () => ui().root.textContent;
   return { w, dom, sent, roots, ui, text, push: next => listeners.forEach(f => f({ type: 'neodm-media', items: next })), storageChange: v => storageChange({ ribbonEnabled: { newValue: v } }, 'local') };
 }
@@ -163,11 +163,18 @@ test('ribbon: closed shadow root, type/quality/size, button label; page cannot r
   assert.match(r.text(), /Video · 720p · 12\.0 MB/); const btn = r.ui().root.querySelector('button.dl'); assert.equal(btn.textContent, 'Download with N&T');
   assert.ok(r.ui().root.querySelector('button.x'));
 });
-test('ribbon: audio-only / video-only are labelled as partial and listed after complete videos', async () => {
-  const r = ribbon([item({ id: 'a', track: 'audio-only', kind: 'audio', complete: false, quality: '', size: 3 * MB }), item({ id: 'v', track: 'video-only', complete: false, quality: '1080p', size: 80 * MB }), item({ id: 'm' })]); await tick();
+test('ribbon: rows are limited to standard resolutions (480p up to 8K); other qualities and audio-only rows are hidden, complete first', async () => {
+  const r = ribbon([item({ id: 'a', track: 'audio-only', kind: 'audio', complete: false, quality: '', size: 3 * MB }), item({ id: 'v', track: 'video-only', complete: false, quality: '1080p', size: 80 * MB }), item({ id: 'l', track: 'video-only', complete: false, quality: '480p', size: 40 * MB }), item({ id: 'm' })]); await tick();
+  const rows = [...r.ui().root.querySelectorAll('.row')]; assert.deepEqual(rows.map(x => x.dataset.id), ['m', 'v', 'l']);
+  assert.match(rows[0].textContent, /Video · 720p · 12\.0 MB/); assert.doesNotMatch(rows[0].textContent, /not a complete|no sound|only/i);
+  assert.match(rows[1].textContent, /Video only \(no sound\) · 1080p · 80\.0 MB/); assert.match(rows[1].textContent, /not a complete video/);
+  assert.match(rows[2].textContent, /Video only \(no sound\) · 480p · 40\.0 MB/);
+  assert.ok(!r.text().includes('Audio only'), 'audio-only rows are hidden while target qualities exist');
+});
+test('ribbon: pages without standard resolutions keep the full list with the partial labelling and ordering', async () => {
+  const r = ribbon([item({ id: 'a', track: 'audio-only', kind: 'audio', complete: false, quality: '', size: 3 * MB }), item({ id: 'v', track: 'video-only', complete: false, quality: '360p', size: 80 * MB }), item({ id: 'm', quality: '' })]); await tick();
   const rows = [...r.ui().root.querySelectorAll('.row')]; assert.deepEqual(rows.map(x => x.dataset.id), ['m', 'a', 'v']);
-  assert.match(rows[1].textContent, /Audio only · 3\.0 MB/); assert.match(rows[1].textContent, /not a complete video/); assert.match(rows[2].textContent, /Video only \(no sound\) · 1080p · 80\.0 MB/);
-  assert.doesNotMatch(rows[0].textContent, /not a complete|no sound|only/i);
+  assert.match(rows[1].textContent, /Audio only · 3\.0 MB/); assert.match(rows[1].textContent, /not a complete video/); assert.match(rows[2].textContent, /Video only \(no sound\) · 360p · 80\.0 MB/);
 });
 test('ribbon: download sends only the item id, shows waiting then accepted; failure shows the error and allows retry', async () => {
   const r = ribbon([item()]); await tick();
@@ -220,7 +227,7 @@ test('ribbon: displays real video title and resolves quality from DOM video elem
     runtime: { sendMessage: async m => { if (m.action === 'media-list') return { items: [{ id: 'https://v.example/clip.mp4', url: 'https://v.example/clip.mp4', kind: 'video', track: 'file', complete: true, size: 20 * MB, quality: '', mime: 'video/mp4', source: 'net' }] }; return { ok: true }; }, onMessage: { addListener: f => listeners.push(f) } },
     storage: { local: { get: async () => ({}) }, onChanged: { addListener: () => {} } },
   };
-  w.eval(source('content.js'));
+  w.eval(source('sniff.js')); w.eval(source('content.js'));
   await tick();
   const text = roots.at(-1).root.textContent;
   assert.match(text, /Awesome Clip Title/);
