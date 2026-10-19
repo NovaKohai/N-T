@@ -49,7 +49,8 @@ public sealed class UpdateChecker
     public const string DefaultApiBase = "https://api.github.com";
     public const string RepositoryUrl = "https://github.com/" + Repository;
     public const string ChangelogUrl = RepositoryUrl + "/blob/main/CHANGELOG.md";
-    private static readonly Regex InstallerName = new(@"^NeoDM-Setup(-[0-9A-Za-z.\-_]+)?\.msi$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    public const string DefaultCloudflareApiBase = "https://n-t.amouhamed1998.workers.dev";
+    private static readonly Regex InstallerName = new(@"^(?:NeoDM|N&T)-Setup(-[0-9A-Za-z.\-_]+)?\.msi$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private readonly string apiBase, currentVersion;
     private readonly Func<ProxyOptions?> proxy;
     private readonly HttpMessageHandler? handler;
@@ -66,6 +67,21 @@ public sealed class UpdateChecker
     public static bool IsGitHubUrl(Uri uri) =>
         uri.Scheme == Uri.UriSchemeHttps && (uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith(".github.com", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase));
 
+    public static bool IsCloudflareUrl(Uri uri) =>
+        uri.Scheme == Uri.UriSchemeHttps && (
+            uri.Host.EndsWith(".workers.dev", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".pages.dev", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".r2.cloudflarestorage.com", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith(".cloudflare.com", StringComparison.OrdinalIgnoreCase));
+
+    public static bool IsTrustedUrl(Uri uri, string? configuredHost = null)
+    {
+        if (uri.Scheme != Uri.UriSchemeHttps) return false;
+        if (IsGitHubUrl(uri) || IsCloudflareUrl(uri)) return true;
+        if (!string.IsNullOrEmpty(configuredHost) && uri.Host.Equals(configuredHost, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
     public static string UserAgent(string version) => "NeoDM/" + version;
 
     internal static HttpClient CreateClient(HttpMessageHandler? handler, ProxyOptions? proxy, TimeSpan timeout, string version)
@@ -81,25 +97,49 @@ public sealed class UpdateChecker
         try
         {
             using var client = CreateClient(handler, proxy(), Timeout, currentVersion);
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"{apiBase}/repos/{Repository}/releases/latest");
+            string requestUri = apiBase.EndsWith("/releases/latest", StringComparison.OrdinalIgnoreCase) ||
+                                apiBase.EndsWith("/api/update", StringComparison.OrdinalIgnoreCase) ||
+                                apiBase.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                ? apiBase
+                : $"{apiBase}/repos/{Repository}/releases/latest";
+
+            var result = await QueryEndpointAsync(client, requestUri, cancellationToken).ConfigureAwait(false);
+            bool isCloudflare = Uri.TryCreate(apiBase, UriKind.Absolute, out var parsed) && IsCloudflareUrl(parsed);
+            if (isCloudflare && result.Outcome == UpdateOutcome.Unavailable)
+            {
+                result = await QueryEndpointAsync(client, $"{DefaultApiBase}/repos/{Repository}/releases/latest", cancellationToken).ConfigureAwait(false);
+            }
+            return result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException or InvalidOperationException or IOException or ArgumentException or NotSupportedException or ProxyException)
+        {
+            return new(UpdateOutcome.Unavailable, null, "Could not reach update server (" + ex.GetType().Name + ").");
+        }
+    }
+
+    private async Task<UpdateCheckResult> QueryEndpointAsync(HttpClient client, string requestUri, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
             using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.NotFound) return new(UpdateOutcome.Unavailable, null, "No release has been published yet.");
-            if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests) return new(UpdateOutcome.Unavailable, null, "GitHub is limiting requests right now; try again later.");
-            if (!response.IsSuccessStatusCode) return new(UpdateOutcome.Unavailable, null, $"GitHub answered with status {(int)response.StatusCode}.");
+            if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests) return new(UpdateOutcome.Unavailable, null, "Server is limiting requests right now; try again later.");
+            if (!response.IsSuccessStatusCode) return new(UpdateOutcome.Unavailable, null, $"Server answered with status {(int)response.StatusCode}.");
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             var release = Parse(json, trustedUrl);
             if (release is null) return new(UpdateOutcome.Unavailable, null, "The latest release has no usable version.");
             return SemVer.IsNewer(release.Version, SemVer.Running(currentVersion)) ? new(UpdateOutcome.Available, release) : new(UpdateOutcome.UpToDate, release);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException or InvalidOperationException or IOException or ArgumentException or NotSupportedException or ProxyException)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException or IOException or ArgumentException or NotSupportedException or ProxyException)
         {
-            return new(UpdateOutcome.Unavailable, null, "Could not reach GitHub (" + ex.GetType().Name + ").");
+            return new(UpdateOutcome.Unavailable, null, "Could not reach update server (" + ex.GetType().Name + ").");
         }
     }
 
-    /// <summary>Parses a GitHub "latest release" document. Null for drafts, pre-releases, unparsable tags and non-objects.</summary>
+    /// <summary>Parses a GitHub or Cloudflare "latest release" document. Null for drafts, pre-releases, unparsable tags and non-objects.</summary>
     public static ReleaseInfo? Parse(string json, Func<Uri, bool>? trustedUrl = null)
     {
         trustedUrl ??= IsGitHubUrl;
@@ -109,7 +149,7 @@ public sealed class UpdateChecker
         string? Str(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
         bool Flag(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
         if (Flag("draft") || Flag("prerelease")) return null;
-        var tag = Str(root, "tag_name");
+        var tag = Str(root, "tag_name") ?? Str(root, "version");
         if (!SemVer.TryParseTag(tag, out var version)) return null;
         string page = Str(root, "html_url") is { } h && Uri.TryCreate(h, UriKind.Absolute, out var hu) && trustedUrl(hu) ? h : UpdateChecker.RepositoryUrl + "/releases/tag/" + tag;
         ReleaseAsset? installer = null, sums = null;

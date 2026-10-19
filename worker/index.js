@@ -27,8 +27,15 @@ export default {
       return releaseDocument(url, env);
     }
 
-    if (env.MSI_URL && url.pathname.startsWith("/updates/") && url.pathname.toLowerCase().endsWith(".msi")) {
-      return Response.redirect(env.MSI_URL, 302);
+    if (url.pathname.startsWith("/updates/") && url.pathname.toLowerCase().endsWith(".msi")) {
+      if (env.MSI_URL) {
+        return Response.redirect(env.MSI_URL, 302);
+      }
+      const filename = url.pathname.split("/").pop();
+      const match = filename.match(/(?:Setup-)?(\d+\.\d+\.\d+)\.msi$/i);
+      if (match) {
+        return Response.redirect(`https://github.com/NovaKohai/N-T/releases/download/v${match[1]}/${filename}`, 302);
+      }
     }
 
     return env.ASSETS ? env.ASSETS.fetch(request) : new Response("Not found", { status: 404 });
