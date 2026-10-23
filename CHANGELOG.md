@@ -1,12 +1,16 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
 ## [1.2.3] - 2026-10-23
 
-### Changed
-- fixes
+### Fixed
+- Engine: Resolved IPv4/IPv6 socket address family mismatch (WSAEADDRNOTAVAIL 10049) on Windows loopback connections in proxy and HTTP handlers.
+- UI: Added accessible names and tooltips across the main toolbar, queue progress indicators, and status summary.
+- UI: Respected system-level reduced motion preferences (`ClientAreaAnimation`) in progress bar smoothing animations.
+- UI: Clarified update check frequency and server description in options.
+- Extension: Added light mode theme support (`prefers-color-scheme`) and improved contrast in popup controls.
 
 ## [1.2.2] - 2026-10-23
 

@@ -1,7 +1,7 @@
 {
-    "body":  "## [1.2.3] - 2026-10-23\r\n\r\n### Changed\r\n- fixes",
+    "body":  "## [1.2.3] - 2026-10-23\n\n### Fixed\n- Engine: Resolved IPv4/IPv6 socket address family mismatch (WSAEADDRNOTAVAIL 10049) on Windows loopback connections in proxy and HTTP handlers.\n- UI: Added accessible names and tooltips across the main toolbar, queue progress indicators, and status summary.\n- UI: Respected system-level reduced motion preferences (`ClientAreaAnimation`) in progress bar smoothing animations.\n- UI: Clarified update check frequency and server description in options.\n- Extension: Added light mode theme support (`prefers-color-scheme`) and improved contrast in popup controls.",
     "name":  "N&T 1.2.3",
-    "published_at":  "2026-10-23T18:41:42Z",
+    "published_at":  "2026-10-23T18:48:01Z",
     "assets":  [
                    {
                        "browser_download_url":  "/updates/N&T-Setup-1.2.3.msi",
