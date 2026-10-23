@@ -43,3 +43,25 @@ fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, crx)
 try { fs.writeFileSync(path.join(root, 'dist', 'N&T.crx'), crx); } catch {}
 console.log(`wrote ${out} (${crx.length} bytes), id ${id}, sha256 ${crypto.createHash('sha256').update(crx).digest('hex')}`);
 console.log('files:', names.join(', '));
+
+// Build Firefox extension directory in dist/firefox/
+const ffExtDir = path.join(root, 'extension-firefox');
+if (fs.existsSync(ffExtDir)) {
+  const ffManifestPath = path.join(ffExtDir, 'manifest.json');
+  const ffManifest = JSON.parse(fs.readFileSync(ffManifestPath, 'utf8'));
+  ffManifest.version = manifest.version;
+  fs.writeFileSync(ffManifestPath, JSON.stringify(ffManifest, null, 2) + '\n');
+  const distFf = path.join(root, 'dist', 'firefox');
+  fs.mkdirSync(distFf, { recursive: true });
+  fs.mkdirSync(path.join(distFf, 'icons'), { recursive: true });
+  fs.writeFileSync(path.join(distFf, 'manifest.json'), JSON.stringify(ffManifest, null, 2) + '\n');
+  for (const n of names.filter(n => n !== 'manifest.json')) {
+    const dest = path.join(distFf, n);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(path.join(extDir, n), dest);
+  }
+  const ffFiles = walk(distFf);
+  const ffZip = buildZip(ffFiles.map(name => ({ name, data: fs.readFileSync(path.join(distFf, name)) })));
+  fs.writeFileSync(path.join(root, 'dist', 'N&T-Firefox.zip'), ffZip);
+  console.log(`wrote dist/firefox and dist/N&T-Firefox.zip (${ffZip.length} bytes)`);
+}

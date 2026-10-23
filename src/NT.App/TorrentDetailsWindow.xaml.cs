@@ -59,6 +59,7 @@ public partial class TorrentDetailsWindow : Window
         SmoothProgressBar.SetSmoothValue(Bar, row.Progress); PercentText.Text = row.Percent; ErrorText.Text = job.Error ?? "";
         PauseButton.Content = row.CanResume ? (job.State == "Completed" ? "Start seeding" : "Resume") : "Pause";
         PauseButton.IsEnabled = row.CanPause || row.CanResume;
+        SequentialCheck.IsChecked = job.IsSequential;
         if (_files.Count != job.Files.Count) { _files.Clear(); foreach (var f in job.Files) _files.Add(new TorrentFileRow(f)); }
         else for (int i = 0; i < _files.Count; i++) _files[i].Update(job.Files[i]);
     }
@@ -73,6 +74,16 @@ public partial class TorrentDetailsWindow : Window
             Refresh();
         }
         catch (Exception) { Notice.Text = "Could not change the torrent. Check the queue and try again."; }
+    }
+    private async void Sequential_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            bool next = SequentialCheck.IsChecked == true;
+            await _torrents.SetSequentialAsync(_id, next);
+            Refresh();
+        }
+        catch (Exception ex) { ErrorText.Text = ex.Message; }
     }
     private void Hide_Click(object sender, RoutedEventArgs e) => Close();
 }

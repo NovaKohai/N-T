@@ -47,7 +47,7 @@ if (-not $SkipTests) {
     Invoke-DotNet @('run','--project','src/NT.NativeHost/NT.NativeHost.csproj','--','--self-test')
     & npm ci --prefix tests --ignore-scripts --no-fund --no-audit
     if ($LASTEXITCODE -ne 0) { throw 'Extension test dependencies failed' }
-    & node --test tests/extension-tests.cjs tests/extension-advanced-tests.cjs tests/extension-v130-tests.cjs tests/extension-v132-tests.cjs tests/extension-v133-tests.cjs tests/extension-v142-tests.cjs
+    & node --test tests/extension-tests.cjs tests/extension-advanced-tests.cjs tests/extension-v130-tests.cjs tests/extension-v132-tests.cjs tests/extension-v133-tests.cjs tests/extension-v142-tests.cjs tests/extension-firefox-tests.cjs
     if ($LASTEXITCODE -ne 0) { throw 'Extension tests failed' }
 }
 
@@ -58,9 +58,12 @@ $extId = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'tools\extension-id.
 $hostUtf8 = New-Object Text.UTF8Encoding($false)
 $hostExePath = (Join-Path $PSScriptRoot 'dist\host\NT.NativeHost.exe')
 $appExePath = (Join-Path $PSScriptRoot 'dist\app\NT.exe')
-[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'dist\host\bridge-config.json'), (@{ extensionId = $extId; appPath = $appExePath } | ConvertTo-Json), $hostUtf8)
+$firefoxExtId = 'neodm@unlimitedera.com'
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'dist\host\bridge-config.json'), (@{ extensionId = $extId; firefoxExtensionId = $firefoxExtId; appPath = $appExePath } | ConvertTo-Json), $hostUtf8)
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'dist\host\com.ndm.bridge.json'), (@{ name = 'com.ndm.bridge'; description = 'N&T native download bridge'; path = $hostExePath; type = 'stdio'; allowed_origins = @("chrome-extension://$extId/") } | ConvertTo-Json), $hostUtf8)
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'dist\host\com.nt.bridge.json'), (@{ name = 'com.nt.bridge'; description = 'N&T native download bridge'; path = $hostExePath; type = 'stdio'; allowed_origins = @("chrome-extension://$extId/") } | ConvertTo-Json), $hostUtf8)
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'dist\host\com.ndm.bridge.firefox.json'), (@{ name = 'com.ndm.bridge'; description = 'N&T native download bridge'; path = $hostExePath; type = 'stdio'; allowed_extensions = @($firefoxExtId) } | ConvertTo-Json), $hostUtf8)
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'dist\host\com.nt.bridge.firefox.json'), (@{ name = 'com.nt.bridge'; description = 'N&T native download bridge'; path = $hostExePath; type = 'stdio'; allowed_extensions = @($firefoxExtId) } | ConvertTo-Json), $hostUtf8)
 $ytDlpCandidates = @((Join-Path $env:LOCALAPPDATA 'N&T\yt-dlp.exe'), (Join-Path $env:LOCALAPPDATA 'NDM\yt-dlp.exe'), (Join-Path $PSScriptRoot 'tools\yt-dlp.exe'))
 foreach ($c in $ytDlpCandidates) {
     if (Test-Path -LiteralPath $c) {

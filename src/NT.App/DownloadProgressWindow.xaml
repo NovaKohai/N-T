@@ -49,6 +49,7 @@
   <Grid Grid.Row="3" Margin="0,0,0,10">
     <Button x:Name="DetailsButton" Content="Hide details" Click="Details_Click" HorizontalAlignment="Left" MinWidth="130"/>
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="BackgroundButton" Content="Download in _background" ToolTip="Hide this window to the system tray and continue downloading in the background" Click="Background_Click" MinWidth="170" Margin="0,0,10,0"/>
       <Button x:Name="PauseButton" Content="Pause" Click="Pause_Click" MinWidth="100" Margin="0,0,10,0"/>
       <Button x:Name="CancelButton" Content="Cancel" Click="Cancel_Click" MinWidth="100"/>
       <Button x:Name="OpenButton" Content="_Open" Click="Open_Click" MinWidth="90" Margin="0,0,10,0" Visibility="Collapsed"/>

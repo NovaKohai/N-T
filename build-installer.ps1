@@ -65,12 +65,16 @@ Write-Host "Built $msi (version $version)"
 Write-Host ("SHA256 " + (Get-FileHash -Algorithm SHA256 $msi).Hash)
 # Release assets for the self-updater (docs/UPDATES.md): versioned installer name + SHA256SUMS.txt in "hash *name" form.
 $versioned = Join-Path $out "N&T-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $versioned -Force
+$dotVersioned = Join-Path $out "N.T-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $dotVersioned -Force
+$dotMsi = Join-Path $out "N.T-Setup.msi"; Copy-Item -LiteralPath $msi -Destination $dotMsi -Force
 $legacyMsi = Join-Path $out 'NeoDM-Setup.msi'; Copy-Item -LiteralPath $msi -Destination $legacyMsi -Force
 $legacyVersioned = Join-Path $out "NeoDM-Setup-$version.msi"; Copy-Item -LiteralPath $msi -Destination $legacyVersioned -Force
 $hash = (Get-FileHash -Algorithm SHA256 $versioned).Hash.ToLowerInvariant()
 $sumLines = @(
     "$hash *N&T-Setup-$version.msi",
     "$hash *N&T-Setup.msi",
+    "$hash *N.T-Setup-$version.msi",
+    "$hash *N.T-Setup.msi",
     "$hash *NeoDM-Setup-$version.msi",
     "$hash *NeoDM-Setup.msi"
 )

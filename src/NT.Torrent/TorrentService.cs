@@ -6,6 +6,7 @@ using MonoTorrent.Connections;
 using MonoTorrent.Connections.Peer;
 using MonoTorrent.Connections.Tracker;
 using MonoTorrent.Trackers;
+using MonoTorrent.PiecePicking;
 using System.Net.Http;
 using System.Net.Sockets;
 using MtTorrent = MonoTorrent.Torrent;
@@ -25,6 +26,7 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
         public bool Paused;
         public string? Error;
         public long[] CachedFileDownloaded = [];
+        public bool IsSequential;
         public EventHandler<TorrentStateChangedEventArgs>? Handler;
     }
 
@@ -284,7 +286,7 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
     }
 
     async Task<TorrentJob> AddLockedAsync(MtTorrent torrent, byte[] fileBytes, string saveDir, bool start,
-        int[]? priorities, long[]? cached, bool persistTorrent)
+        int[]? priorities, long[]? cached, bool persistTorrent, bool isSequential = false)
     {
         var id = HashOf(torrent.InfoHashes);
         Directory.CreateDirectory(saveDir);
@@ -293,7 +295,8 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
         catch { await _engine.RemoveAsync(manager, RemoveMode.KeepAllData); throw; }
 
         if (persistTorrent) _store.WriteTorrent(id, fileBytes);
-        var entry = new Entry { Id = id, Manager = manager, SavePath = saveDir, Paused = !start };
+        var entry = new Entry { Id = id, Manager = manager, SavePath = saveDir, Paused = !start, IsSequential = isSequential };
+        if (isSequential) await manager.ChangePickerAsync(new StreamingPieceRequester());
         if (cached is not null && cached.Length == manager.Files.Count) entry.CachedFileDownloaded = cached;
         if (priorities is not null && priorities.Length == manager.Files.Count)
             for (int i = 0; i < priorities.Length; i++)
@@ -374,6 +377,27 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
     });
 
     public Task SkipFileAsync(string id, int fileIndex) => SetFilePriorityAsync(id, fileIndex, FilePriority.Skip);
+
+    public Task SetSequentialAsync(string id, bool sequential) => Control(id, async e =>
+    {
+        if (e.IsSequential == sequential) return;
+        e.IsSequential = sequential;
+        bool wasRunning = e.Manager.State is not TorrentState.Stopped and not TorrentState.Paused;
+        if (wasRunning)
+        {
+            await e.Manager.StopAsync(TimeSpan.FromSeconds(10));
+        }
+        if (sequential)
+            await e.Manager.ChangePickerAsync(new StreamingPieceRequester());
+        else
+            await e.Manager.ChangePickerAsync(new StandardPieceRequester(new PieceRequesterSettings()));
+        if (wasRunning && !e.Paused)
+        {
+            await StartEntryAsync(e);
+        }
+        SaveState();
+        RaiseChanged();
+    });
 
     /// <summary>Adds a manual peer (e.g. a known LAN/loopback peer) to an existing torrent.</summary>
     public async Task<bool> AddPeerAsync(string id, IPEndPoint peer)
@@ -462,7 +486,7 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
             selected == 0 ? 0 : Math.Min(100, selectedDone * 100.0 / selected),
             active ? m.Monitor.DownloadRate : 0, active ? m.Monitor.UploadRate : 0,
             m.Peers.Seeds, m.Peers.Leechs, m.OpenConnections,
-            (double)m.Monitor.DataBytesSent / Math.Max(1, downloaded), state, error, list);
+            (double)m.Monitor.DataBytesSent / Math.Max(1, downloaded), state, error, list, e.IsSequential);
     }
 
     static string HashOf(InfoHashes h) => Convert.ToHexString(h.V1OrV2.Span).ToLowerInvariant();
@@ -497,6 +521,7 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
                 Id = e.Id, SavePath = e.SavePath, TorrentFile = e.Id + ".torrent",
                 Priorities = s.Files.Select(f => (int)f.Priority).ToArray(),
                 FileDownloaded = e.CachedFileDownloaded.Length == s.Files.Count ? e.CachedFileDownloaded : s.Files.Select(f => f.DownloadedBytes).ToArray(),
+                IsSequential = e.IsSequential,
             });
         }
         _store.Save(st);
@@ -519,7 +544,7 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
                     var torrent = TorrentValidator.LoadTorrent(bytes, MaxTorrentFileBytes);
                     if (HashOf(torrent.InfoHashes) != s.Id) throw new TorrentRejectedException("stored torrent does not match its id");
                     var dir = TorrentValidator.NormalizeSaveDir(s.SavePath);
-                    await AddLockedAsync(torrent, bytes, dir, start: false, s.Priorities, s.FileDownloaded, persistTorrent: false);
+                    await AddLockedAsync(torrent, bytes, dir, start: false, s.Priorities, s.FileDownloaded, persistTorrent: false, isSequential: s.IsSequential);
                 }
                 catch (Exception ex)
                 {

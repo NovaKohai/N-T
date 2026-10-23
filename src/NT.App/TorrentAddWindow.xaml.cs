@@ -147,7 +147,7 @@ public partial class TorrentAddWindow : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         { ErrorText.Text = "The save folder is not writable. Choose another folder."; return; }
-        Selection = new TorrentAddSelection(_magnet, _data, _name, folder, selected, _fileCount, startNow);
+        Selection = new TorrentAddSelection(_magnet, _data, _name, folder, selected, _fileCount, startNow, SequentialBox.IsChecked == true);
         try { DialogResult = true; } catch (InvalidOperationException) { Close(); }
     }
 }

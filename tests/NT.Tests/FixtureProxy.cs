@@ -84,7 +84,10 @@ internal sealed class FixtureProxy : IDisposable
         else { await Exact(s, b, 16); host = new IPAddress(b.AsSpan(0, 16)).ToString(); }
         await Exact(s, b, 2); int port = (b[0] << 8) | b[1];
         TcpClient target;
-        try { target = new TcpClient(); await target.ConnectAsync(host == "localtest.invalid" ? "127.0.0.1" : host, port, stop.Token); }
+        var connectHost = host == "localtest.invalid" ? "127.0.0.1" : host;
+        var addresses = await Dns.GetHostAddressesAsync(connectHost, stop.Token);
+        var targetIp = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addresses[0];
+        try { target = new TcpClient(targetIp.AddressFamily); await target.ConnectAsync(targetIp, port, stop.Token); }
         catch (SocketException) { await s.WriteAsync(new byte[] { 5, 5, 0, 1, 0, 0, 0, 0, 0, 0 }, stop.Token); return; }
         using (target)
         {
@@ -123,8 +126,11 @@ internal sealed class FixtureProxy : IDisposable
         }
         if (parts[0] == "CONNECT")
         {
-            var hp = parts[1].Split(':'); using var target = new TcpClient();
-            try { await target.ConnectAsync(hp[0], int.Parse(hp[1]), stop.Token); }
+            var hp = parts[1].Split(':');
+            var connectAddresses = await Dns.GetHostAddressesAsync(hp[0], stop.Token);
+            var connectIp = connectAddresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? connectAddresses[0];
+            using var target = new TcpClient(connectIp.AddressFamily);
+            try { await target.ConnectAsync(connectIp, int.Parse(hp[1]), stop.Token); }
             catch (SocketException) { await s.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n"), stop.Token); return; }
             lock (Targets) Targets.Add("connect:" + parts[1]);
             Interlocked.Increment(ref connects);
@@ -133,8 +139,10 @@ internal sealed class FixtureProxy : IDisposable
             return;
         }
         if (!Uri.TryCreate(parts[1], UriKind.Absolute, out var uri)) { await s.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"), stop.Token); return; }
-        using var origin = new TcpClient();
-        await origin.ConnectAsync(uri.Host, uri.Port, stop.Token);
+        var originAddresses = await Dns.GetHostAddressesAsync(uri.Host, stop.Token);
+        var originIp = originAddresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? originAddresses[0];
+        using var origin = new TcpClient(originIp.AddressFamily);
+        await origin.ConnectAsync(originIp, uri.Port, stop.Token);
         lock (Targets) Targets.Add("forward:" + uri.Authority + uri.PathAndQuery);
         Interlocked.Increment(ref forwarded);
         var rewritten = new StringBuilder($"{parts[0]} {uri.PathAndQuery} {parts[2]}\r\n");

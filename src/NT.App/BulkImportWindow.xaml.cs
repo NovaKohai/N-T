@@ -39,14 +39,29 @@ public partial class BulkImportWindow : Window
                     pendingMagnets.Add((index + 1, url));
                     continue;
                 }
-                try { NativeBridge.ValidateUrl(url); }
-                catch (FormatException) { invalid++; results.Add(prefix + "invalid. Enter one complete HTTP(S) URL."); continue; }
-                string key = new Uri(url).AbsoluteUri;
-                if (seen.Contains(key)) { duplicates++; results.Add(prefix + "duplicate. Already in this import or queue, so it was skipped."); continue; }
-                try { await _manager.AddAsync(new DownloadRequest(url)); seen.Add(key); added++; results.Add(prefix + "added to queue."); }
-                catch (Exception) { failed++; results.Add(prefix + "not saved. Check the destination and try this line again."); }
-                // Keep the dialog responsive even when the core completes synchronously.
-                await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+                IReadOnlyList<string> subUrls;
+                try { subUrls = UrlPatternExpander.HasPattern(url) ? UrlPatternExpander.Expand(url) : [url]; }
+                catch (Exception ex) { invalid++; results.Add(prefix + "invalid pattern. " + ex.Message); continue; }
+                foreach (var subUrl in subUrls)
+                {
+                    string subPrefix = subUrls.Count > 1 ? $"{prefix}[{subUrl}] " : prefix;
+                    try { NativeBridge.ValidateUrl(subUrl); }
+                    catch (FormatException) { invalid++; results.Add(subPrefix + "invalid. Enter one complete HTTP(S) URL."); continue; }
+                    string key = new Uri(subUrl).AbsoluteUri;
+                    if (seen.Contains(key)) { duplicates++; results.Add(subPrefix + "duplicate. Already in this import or queue, so it was skipped."); continue; }
+                    try { await _manager.AddAsync(new DownloadRequest(subUrl)); seen.Add(key); added++; results.Add(subPrefix + "added to queue."); }
+                    catch (Exception) { failed++; results.Add(subPrefix + "not saved. Check the destination and try this line again."); }
+                    await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+    
+                }
+                continue;
+
+
+
+
+
+
+
             }
             if (pendingMagnets.Count > 0)
             {

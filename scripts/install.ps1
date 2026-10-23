@@ -24,11 +24,16 @@ if (Test-Path -LiteralPath $idFile -PathType Leaf) {
   if ($recorded -ne $id) { throw "Extension ID mismatch: manifest key gives $id but tools/extension-id.txt says $recorded" }
 }
 $utf8 = New-Object Text.UTF8Encoding($false)
-[IO.File]::WriteAllText((Join-Path $hostDir 'bridge-config.json'), (@{ extensionId=$id; appPath=$AppPath } | ConvertTo-Json), $utf8)
+$firefoxExtId = 'neodm@unlimitedera.com'
+[IO.File]::WriteAllText((Join-Path $hostDir 'bridge-config.json'), (@{ extensionId=$id; firefoxExtensionId=$firefoxExtId; appPath=$AppPath } | ConvertTo-Json), $utf8)
 $nativeManifest = Join-Path $hostDir 'com.ndm.bridge.json'
 [IO.File]::WriteAllText($nativeManifest, (@{ name='com.ndm.bridge'; description='N&T native download bridge'; path=$hostExe; type='stdio'; allowed_origins=@("chrome-extension://$id/") } | ConvertTo-Json), $utf8)
 $nativeManifestNt = Join-Path $hostDir 'com.nt.bridge.json'
 [IO.File]::WriteAllText($nativeManifestNt, (@{ name='com.nt.bridge'; description='N&T native download bridge'; path=$hostExe; type='stdio'; allowed_origins=@("chrome-extension://$id/") } | ConvertTo-Json), $utf8)
+$nativeManifestFf = Join-Path $hostDir 'com.ndm.bridge.firefox.json'
+[IO.File]::WriteAllText($nativeManifestFf, (@{ name='com.ndm.bridge'; description='N&T native download bridge'; path=$hostExe; type='stdio'; allowed_extensions=@($firefoxExtId) } | ConvertTo-Json), $utf8)
+$nativeManifestNtFf = Join-Path $hostDir 'com.nt.bridge.firefox.json'
+[IO.File]::WriteAllText($nativeManifestNtFf, (@{ name='com.nt.bridge'; description='N&T native download bridge'; path=$hostExe; type='stdio'; allowed_extensions=@($firefoxExtId) } | ConvertTo-Json), $utf8)
 # Same host manifest for each Chromium browser; both com.ndm.bridge and com.nt.bridge are written under HKCU.
 foreach ($vendor in 'Google\Chrome','Microsoft\Edge','BraveSoftware\Brave-Browser') {
   foreach ($pair in @(@{ Name = 'com.ndm.bridge'; Path = $nativeManifest }, @{ Name = 'com.nt.bridge'; Path = $nativeManifestNt })) {
@@ -38,5 +43,11 @@ foreach ($vendor in 'Google\Chrome','Microsoft\Edge','BraveSoftware\Brave-Browse
     if ((Get-Item -LiteralPath $registry).GetValue('') -ne $pair.Path) { throw "Registration verification failed for $vendor ($($pair.Name))" }
   }
 }
-Write-Host "Registered com.ndm.bridge and com.nt.bridge for $id"
+foreach ($pair in @(@{ Name = 'com.ndm.bridge'; Path = $nativeManifestFf }, @{ Name = 'com.nt.bridge'; Path = $nativeManifestNtFf })) {
+  $registry = "HKCU:\Software\Mozilla\NativeMessagingHosts\$($pair.Name)"
+  New-Item -Path $registry -Force | Out-Null
+  Set-Item -Path $registry -Value $pair.Path
+  if ((Get-Item -LiteralPath $registry).GetValue('') -ne $pair.Path) { throw "Registration verification failed for Mozilla ($($pair.Name))" }
+}
+Write-Host "Registered com.ndm.bridge and com.nt.bridge for $id (Chromium) and $firefoxExtId (Firefox)"
 Write-Host 'Load extension/ unpacked in chrome://extensions with Developer mode enabled (Chrome/Edge/Brave block off-store CRX installs without policy). No browser profile settings were changed.'

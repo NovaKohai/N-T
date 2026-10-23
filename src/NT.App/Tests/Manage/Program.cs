@@ -220,7 +220,7 @@ internal static partial class ManageTests
         try
         {
             window.Show(); Pump(800);
-            foreach (var name in new[] { "CtxOpen", "CtxOpenWith", "CtxFolder", "CtxCopyUrl", "CtxCopyPath", "CtxMove", "CtxProperties", "CtxResume", "CtxStop", "CtxRefreshUrl", "CtxRedownload", "CtxSpeed", "CtxSchedule", "CtxRemove", "CtxDelete" })
+            foreach (var name in new[] { "CtxOpen", "CtxOpenWith", "CtxFolder", "CtxCopyUrl", "CtxCopyPath", "CtxMove", "CtxProperties", "CtxResume", "CtxStop", "CtxSendToTray", "CtxRefreshUrl", "CtxRedownload", "CtxSpeed", "CtxSchedule", "CtxRemove", "CtxDelete" })
                 Check(window.FindName(name) is MenuItem, "Context menu has " + name);
             var list = Field<ListView>(window, "DownloadList");
             list.SelectedItems.Clear(); foreach (var r in window.Rows.Where(r => r.FileName is "menu.bin" or "bad.bin")) list.SelectedItems.Add(r);

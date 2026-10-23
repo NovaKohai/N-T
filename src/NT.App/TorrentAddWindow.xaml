@@ -30,6 +30,7 @@
       <Label Content="Save _to" Target="{Binding ElementName=SaveFolder}" Foreground="{DynamicResource InkBrush}" Padding="0,10,0,4"/>
       <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox x:Name="SaveFolder" AutomationProperties.Name="Save folder"/><Button Grid.Column="1" Content="_Browse…" Click="Browse_Click" Margin="8,0,0,0"/></Grid>
       <TextBlock x:Name="SpaceText" Style="{StaticResource Muted}" Margin="0,4,0,0"/>
+      <CheckBox x:Name="SequentialBox" Content="Download in se_quential order (stream / preview files while downloading)" Foreground="{DynamicResource InkBrush}" Margin="0,8,0,0"/>
     </StackPanel>
     <TextBlock Grid.Row="4" x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.LiveSetting="Assertive"/>
     <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">

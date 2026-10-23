@@ -33,6 +33,8 @@ public partial class MainWindow : Window
     public bool HasProgressWindow(string id) => _progressWindows.ContainsKey(id);
     public int ProgressWindowCount => _progressWindows.Count;
     private readonly TaskbarIcon? _trayIcon;
+    private readonly ClipboardMonitor _clipboardMonitor;
+    private MenuItem? _trayClipboardItem;
     /// <summary>Capture dialogs and progress windows, each an independent window; also listed in the tray menu so a minimised one can be restored.</summary>
     public TrayWindowList TrayWindows { get; } = new();
     private readonly bool _enableTray;
@@ -108,9 +110,13 @@ public partial class MainWindow : Window
         _ready = true;
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Background, (_, _) => Refresh(), Dispatcher);
         PreviewKeyDown += Window_KeyDown;
+        _clipboardMonitor = new ClipboardMonitor(this) { IsEnabled = _settings.EnableClipboardMonitoring };
+        _clipboardMonitor.DownloadableLinkDetected += OnClipboardLinkDetected;
+        MenuClipboardMonitor.IsChecked = _settings.EnableClipboardMonitoring;
+        UpdateGlobalSpeedButton();
         Refresh();
         _manager.Changed += ManagerChanged;
-        Closed += (_, _) => { _closed = true; _timer.Stop(); _manager.Changed -= ManagerChanged; _completion.Dispose(); _completionWindow?.Close(); _trayIcon?.Dispose(); };
+        Closed += (_, _) => { _closed = true; _timer.Stop(); _manager.Changed -= ManagerChanged; _completion.Dispose(); _completionWindow?.Close(); _trayIcon?.Dispose(); _clipboardMonitor.Dispose(); };
         if (_enableTray)
         {
             _trayIcon = new TaskbarIcon
@@ -119,7 +125,13 @@ public partial class MainWindow : Window
                 ToolTipText = "N&T"
             };
             _trayIcon.TrayMouseDoubleClick += (_, _) => RestoreFromTray();
-            _trayIcon.TrayLeftMouseUp += (_, _) => TrayWindows.RestorePendingDialog(); // a waiting capture dialog first; the main window stays where it is
+            _trayIcon.TrayLeftMouseUp += (_, _) =>
+            {
+                if (!TrayWindows.RestorePendingDialog())
+                {
+                    TrayWindows.RestoreHiddenProgress();
+                }
+            };
             _trayIcon.TrayContextMenuOpen += (_, _) => TrayWindows.Fill(_trayIcon.ContextMenu, 1);
             TrayWindows.Changed += UpdateTrayVisibility;
             var trayMenu = new System.Windows.Controls.ContextMenu();
@@ -132,6 +144,9 @@ public partial class MainWindow : Window
             CompletionMenu.Fill(trayFinish, () => FinishActions.Current, FinishActions.Choose);
             _finishMenus.Add(trayFinish);
             trayMenu.Items.Add(trayFinish);
+            _trayClipboardItem = new MenuItem { Header = "Monitor clipboard", IsCheckable = true, IsChecked = _settings.EnableClipboardMonitoring };
+            _trayClipboardItem.Click += (_, _) => ToggleClipboardMonitoring();
+            trayMenu.Items.Add(_trayClipboardItem);
             trayMenu.Items.Add(new Separator());
             trayMenu.Items.Add(exitItem);
             _trayIcon.ContextMenu = trayMenu;
@@ -186,10 +201,32 @@ public partial class MainWindow : Window
     {
         if (_enableTray && WindowState == WindowState.Minimized) MinimizeToTray();
     }
-    private void MinimizeToTray()
+    public (string Title, string Message)? LastTrayNotification { get; private set; }
+
+    public void EnsureTrayVisible()
+    {
+        if (_trayIcon is not null && !_closed) _trayIcon.Visibility = Visibility.Visible;
+    }
+
+    public void ShowTrayNotification(string title, string message)
+    {
+        LastTrayNotification = (title, message);
+        if (_trayIcon is null || _closed) return;
+        EnsureTrayVisible();
+        try
+        {
+            _trayIcon.ShowBalloonTip(title, message, BalloonIcon.Info);
+        }
+        catch
+        {
+            _trayIcon.ToolTipText = $"{title}: {message}";
+        }
+    }
+
+    public void MinimizeToTray()
     {
         Hide();
-        if (_trayIcon is not null) _trayIcon.Visibility = Visibility.Visible;
+        EnsureTrayVisible();
     }
     private void RestoreFromTray()
     {
@@ -244,6 +281,10 @@ public partial class MainWindow : Window
     public void OnJobCompleted(DownloadJob job)
     {
         if (CompletionSound.ShouldPlay(_settings, JobCompletion.Get(job.Id))) PlayCompletionSound();
+        if (_progressWindows.TryGetValue(job.Id, out var pw) && !pw.IsVisible)
+        {
+            ShowTrayNotification("Download complete", $"\"{job.FileName}\" has completed.");
+        }
         ShowCompletionWindow(job);
         RunJobCompletion(job);
     }
@@ -539,6 +580,11 @@ public partial class MainWindow : Window
             window.Owner = null;
             _progressWindows[id] = window;
             var created = window;
+            created.NotifyBackground = fileName =>
+            {
+                EnsureTrayVisible();
+                ShowTrayNotification("Downloading in background", $"\"{fileName}\" is downloading in the background. Click the tray icon to restore.");
+            };
             TrayWindows.Add(window, TrayWindowKind.Progress, () => $"{created.Row.FileName} ({created.Row.Percent})");
             window.Closed += (_, _) => { if (_progressWindows.TryGetValue(id, out var current) && ReferenceEquals(current, created)) _progressWindows.Remove(id); };
             window.Show();
@@ -596,6 +642,103 @@ public partial class MainWindow : Window
         dialog.ShowDialog();
         if (_torrents.IsAvailable) _ = _torrents.ApplySettingsAsync(_settings);
         SyncFinishMenus();
+        UpdateGlobalSpeedButton();
+        _clipboardMonitor.IsEnabled = _settings.EnableClipboardMonitoring;
+        MenuClipboardMonitor.IsChecked = _settings.EnableClipboardMonitoring;
+        if (_trayClipboardItem is not null) _trayClipboardItem.IsChecked = _settings.EnableClipboardMonitoring;
+        Refresh();
+    }
+    private void UpdateGlobalSpeedButton()
+    {
+        long? limit = _manager.GlobalSpeedLimit;
+        SpeedLimitButton.Content = limit.HasValue ? $"Speed: {DownloadRow.FormatBytes(limit.Value)}/s" : "Speed: Unlimited";
+    }
+    private void SpeedLimitButton_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new System.Windows.Controls.ContextMenu();
+        var presets = new (string Label, long? Bytes)[]
+        {
+            ("Unlimited", null),
+            ("10 MB/s", 10 * 1024 * 1024),
+            ("5 MB/s", 5 * 1024 * 1024),
+            ("2 MB/s", 2 * 1024 * 1024),
+            ("1 MB/s", 1024 * 1024),
+            ("500 KB/s", 500 * 1024)
+        };
+        foreach (var (label, bytes) in presets)
+        {
+            var item = new MenuItem { Header = label, IsChecked = _manager.GlobalSpeedLimit == bytes };
+            item.Click += (_, _) =>
+            {
+                _manager.SetGlobalSpeedLimit(bytes);
+                _settings.GlobalSpeedLimitBytesPerSecond = bytes;
+                _saveSettings();
+                UpdateGlobalSpeedButton();
+            };
+            menu.Items.Add(item);
+        }
+        menu.Items.Add(new Separator());
+        var custom = new MenuItem { Header = "Custom…" };
+        custom.Click += (_, _) =>
+        {
+            string initial = _manager.GlobalSpeedLimit.HasValue ? (_manager.GlobalSpeedLimit.Value / 1024).ToString() : "";
+            var prompt = new TextPromptWindow(
+                "Speed limit",
+                "Speed limit in KiB/s (1 to 2000000, 0 = unlimited):",
+                initial,
+                val =>
+                {
+                    if (string.IsNullOrWhiteSpace(val)) return "Please enter a speed limit.";
+                    if (!long.TryParse(val.Trim(), out var num) || num < 0 || num > 2_000_000)
+                        return "Speed limit must be between 0 and 2,000,000 KiB/s.";
+                    return null;
+                }) { Owner = this };
+
+            if (prompt.ShowDialog() == true && long.TryParse(prompt.Value.Trim(), out var kb))
+            {
+                long? bytes = kb > 0 ? kb * 1024 : null;
+                _manager.SetGlobalSpeedLimit(bytes);
+                _settings.GlobalSpeedLimitBytesPerSecond = bytes;
+                _saveSettings();
+                UpdateGlobalSpeedButton();
+            }
+        };
+        menu.Items.Add(custom);
+        menu.PlacementTarget = SpeedLimitButton;
+        menu.IsOpen = true;
+    }
+    private void ToggleClipboardMonitoring()
+    {
+        _settings.EnableClipboardMonitoring = !_settings.EnableClipboardMonitoring;
+        _clipboardMonitor.IsEnabled = _settings.EnableClipboardMonitoring;
+        MenuClipboardMonitor.IsChecked = _settings.EnableClipboardMonitoring;
+        if (_trayClipboardItem is not null) _trayClipboardItem.IsChecked = _settings.EnableClipboardMonitoring;
+        _saveSettings();
+        Notice.Text = _settings.EnableClipboardMonitoring ? "Clipboard monitoring enabled." : "Clipboard monitoring disabled.";
+    }
+    private void MenuClipboardMonitor_Click(object sender, RoutedEventArgs e) => ToggleClipboardMonitoring();
+    private async void OnClipboardLinkDetected(string url, bool isMagnet)
+    {
+        if (_adding) return;
+        RestoreFromTray();
+        BringToFront();
+        if (isMagnet)
+        {
+            if (EnsureTorrents())
+            {
+                await AddMagnetAsync(url);
+            }
+        }
+        else
+        {
+            await ShowAddAsync(url);
+        }
+    }
+    private async void ContextSequential_Click(object sender, RoutedEventArgs e)
+    {
+        if (Selected is not { IsTorrent: true } row) return;
+        bool next = !row.IsSequential;
+        await _torrents.SetSequentialAsync(row.Id, next);
         Refresh();
     }
     private async void Window_KeyDown(object sender, KeyEventArgs e)
@@ -635,9 +778,31 @@ public partial class MainWindow : Window
         CtxOpen.IsEnabled = state.Open; CtxOpenWith.IsEnabled = state.OpenWith; CtxFolder.IsEnabled = state.OpenFolder;
         CtxCopyUrl.IsEnabled = state.CopyUrl; CtxCopyPath.IsEnabled = state.CopyPath; CtxMagnet.IsEnabled = state.CopyMagnet;
         CtxMove.IsEnabled = state.MoveRename; CtxProperties.IsEnabled = state.Properties; CtxDetails.IsEnabled = state.TorrentDetails;
+        CtxSequential.Visibility = Selected is { IsTorrent: true } ? Visibility.Visible : Visibility.Collapsed;
+        CtxSequential.IsChecked = Selected is { IsTorrent: true, IsSequential: true };
         CtxResume.IsEnabled = state.Resume; CtxStop.IsEnabled = state.Stop; CtxRefreshUrl.IsEnabled = state.RefreshAddress; CtxRedownload.IsEnabled = state.Redownload;
+        CtxSendToTray.IsEnabled = rows.Any(r => r.Status == "Downloading" || r.CanPause);
         CtxSpeed.IsEnabled = state.SpeedLimit; CtxSchedule.IsEnabled = state.Schedule;
         CtxRemove.IsEnabled = state.Remove; CtxDelete.IsEnabled = state.DeleteFromDisk;
+    }
+    private void MinimizeToTray_Click(object sender, RoutedEventArgs e) => MinimizeToTray();
+    private void ContextSendToTray_Click(object sender, RoutedEventArgs e)
+    {
+        var active = SelectedRows.Where(r => r.Status == "Downloading" || r.CanPause).ToList();
+        if (active.Count == 0 && Selected is { } s && (s.Status == "Downloading" || s.CanPause)) active.Add(s);
+        if (active.Count == 0) return;
+
+        foreach (var row in active)
+        {
+            if (_progressWindows.TryGetValue(row.Id, out var pw))
+            {
+                pw.Hide();
+            }
+        }
+
+        MinimizeToTray();
+        string name = active.Count == 1 ? active[0].FileName : $"{active.Count} downloads";
+        ShowTrayNotification("Downloading in background", $"\"{name}\" continuing in background. Click tray icon to restore.");
     }
     private void ContextOpen_Click(object sender, RoutedEventArgs e) => Open_Click(sender, e);
     private void ContextFolder_Click(object sender, RoutedEventArgs e) => Folder_Click(sender, e);
@@ -649,6 +814,7 @@ public partial class MainWindow : Window
     }
     private void CopyToClipboard(string text, string success)
     {
+        _clipboardMonitor.IgnoreNext(text);
         try { Clipboard.SetText(text); Notice.Text = success; }
         catch (Exception) { Notice.Text = "Could not copy to clipboard."; }
     }

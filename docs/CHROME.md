@@ -52,3 +52,9 @@ Host name `com.ndm.bridge`; stdio frames: 4-byte little-endian UTF-8 length + JS
 - Real-browser smoke (Edge/Chrome/Brave if installed, isolated temp profile): `node tests/extension-browser-smoke.cjs`.
 - `node tools/make-icons.cjs` regenerates the icons; `dotnet run --project src/NDM.NativeHost -- --self-test` for the host.
 - `scripts/uninstall.ps1` removes only the `com.ndm.bridge` HKCU registrations.
+
+## Firefox support
+
+Firefox WebExtension support is provided with a dedicated manifest in `extension-firefox/manifest.json` using the Gecko extension ID `neodm@unlimitedera.com`.
+The native messaging bridge registers `com.ndm.bridge` and `com.nt.bridge` under `Mozilla\NativeMessagingHosts` with `allowed_extensions` configuration.
+Firefox builds output to `dist/firefox/` and `dist/N&T-Firefox.zip` and can be loaded via `about:debugging#/runtime/this-firefox`.

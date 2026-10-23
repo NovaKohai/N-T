@@ -64,6 +64,15 @@ public sealed class TrayWindowList
         return true;
     }
 
+    /// <summary>Restores and activates the oldest progress window that was hidden to the background tray; false when none.</summary>
+    public bool RestoreHiddenProgress()
+    {
+        var first = _items.FirstOrDefault(i => i.Kind == TrayWindowKind.Progress && !i.Window.IsVisible);
+        if (first is null) return false;
+        Activate(first.Window);
+        return true;
+    }
+
     /// <summary>Replaces the previously inserted section of <paramref name="menu"/> with the current one, starting at <paramref name="index"/>.</summary>
     public void Fill(ContextMenu menu, int index)
     {

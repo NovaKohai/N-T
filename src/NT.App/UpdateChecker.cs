@@ -50,7 +50,7 @@ public sealed class UpdateChecker
     public const string RepositoryUrl = "https://github.com/" + Repository;
     public const string ChangelogUrl = RepositoryUrl + "/blob/main/CHANGELOG.md";
     public const string DefaultCloudflareApiBase = "https://n-t.amouhamed1998.workers.dev";
-    private static readonly Regex InstallerName = new(@"^(?:NeoDM|N&T)-Setup(-[0-9A-Za-z.\-_]+)?\.msi$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex InstallerName = new(@"^(?:NeoDM|N[&.]T)-Setup(-[0-9A-Za-z.\-_]+)?\.msi$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private readonly string apiBase, currentVersion;
     private readonly Func<ProxyOptions?> proxy;
     private readonly HttpMessageHandler? handler;

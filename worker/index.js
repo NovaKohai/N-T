@@ -31,10 +31,13 @@ export default {
       if (env.MSI_URL) {
         return Response.redirect(env.MSI_URL, 302);
       }
-      const filename = url.pathname.split("/").pop();
+      const rawFilename = url.pathname.split("/").pop();
+      const filename = decodeURIComponent(rawFilename);
       const match = filename.match(/(?:Setup-)?(\d+\.\d+\.\d+)\.msi$/i);
       if (match) {
-        return Response.redirect(`https://github.com/NovaKohai/N-T/releases/download/v${match[1]}/${filename}`, 302);
+        // GitHub release assets replace '&' with '.' in uploaded filenames (e.g. N&T-Setup-*.msi -> N.T-Setup-*.msi)
+        const ghFilename = filename.replace(/&/g, ".");
+        return Response.redirect(`https://github.com/NovaKohai/N-T/releases/download/v${match[1]}/${ghFilename}`, 302);
       }
     }
 

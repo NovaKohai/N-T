@@ -42,6 +42,7 @@ public partial class SettingsWindow : Window
         FinishAction.SelectedIndex = CompletionActionInfo.All.ToList().IndexOf(settings.SessionCompletionAction);
         FinishForce.IsChecked = settings.CompletionForceClose;
         CheckForUpdates.IsChecked = settings.CheckForUpdates; _skipped = settings.SkippedUpdateVersion;
+        ClipboardMonitoring.IsChecked = settings.EnableClipboardMonitoring;
         ShowSkipped();
         FinishIgnoreScheduled.IsChecked = settings.CompletionIgnoreScheduled;
         RunProgramEnabled.IsChecked = settings.RunProgramEnabled;
@@ -271,6 +272,7 @@ public partial class SettingsWindow : Window
             updated.SessionCompletionAction = SelectedFinish;
             updated.CompletionAction = SelectedFinish;
             updated.CheckForUpdates = CheckForUpdates.IsChecked == true;
+            updated.EnableClipboardMonitoring = ClipboardMonitoring.IsChecked == true;
             updated.SkippedUpdateVersion = _skipped;
             updated.Save(_stateDirectory);
             _settings.CopyFrom(updated);

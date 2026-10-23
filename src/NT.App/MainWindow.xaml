@@ -78,6 +78,7 @@
         <MenuItem Header="Add _torrent file…" Click="AddTorrentFile_Click" Tag="torrent"/>
         <MenuItem Header="_Open file…" Click="Open_Click" IsEnabled="{Binding IsEnabled, ElementName=OpenButton}"/>
         <MenuItem Header="Open _folder" Click="Folder_Click" IsEnabled="{Binding IsEnabled, ElementName=FolderButton}"/>
+        <MenuItem Header="_Minimize to tray" Click="MinimizeToTray_Click"/>
         <MenuItem Header="E_xit" Click="Exit_Click"/>
       </MenuItem>
       <MenuItem Header="_Downloads">
@@ -86,9 +87,11 @@
         <MenuItem Header="Stop _all" Click="PauseAll_Click" IsEnabled="{Binding IsEnabled, ElementName=PauseAllButton}"/>
         <MenuItem Header="Resume all paused" Click="ResumeAll_Click" IsEnabled="{Binding IsEnabled, ElementName=ResumeAllButton}"/>
         <MenuItem x:Name="ProgressMenu" Header="_Progress…" Click="Progress_Click"/>
+        <MenuItem x:Name="MenuSendToTray" Header="Download in _background (tray)" Click="ContextSendToTray_Click"/>
         <MenuItem Header="Speed _limit…" Click="Speed_Click" IsEnabled="{Binding IsEnabled, ElementName=SpeedButton}"/>
         <MenuItem Header="_Remove…" Click="Remove_Click" IsEnabled="{Binding IsEnabled, ElementName=RemoveButton}"/>
         <Separator/>
+        <MenuItem x:Name="MenuClipboardMonitor" Header="Monitor _clipboard" IsCheckable="True" Click="MenuClipboardMonitor_Click"/>
         <MenuItem x:Name="FinishMenu" Header="When downloads _finish"/>
         <MenuItem Header="_Options…" Click="Settings_Click"/>
       </MenuItem>
@@ -127,6 +130,8 @@
         <Border Style="{StaticResource CommandSeparator}"/>
         <Button Content="Options…" Click="Settings_Click" Style="{StaticResource Command}"/>
         <Button x:Name="ScheduleButton" Content="Scheduler…" Click="Schedule_Click" Style="{StaticResource Command}"/>
+        <Border Style="{StaticResource CommandSeparator}"/>
+        <Button x:Name="SpeedLimitButton" Content="Speed: Unlimited" Click="SpeedLimitButton_Click" Style="{StaticResource Command}"/>
       </WrapPanel>
     </Border>
     <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="10,6">
@@ -256,9 +261,11 @@
                 <MenuItem x:Name="CtxMove" Header="Move / _Rename…" Click="ContextMove_Click"/>
                 <MenuItem x:Name="CtxProperties" Header="Propert_ies…" Click="ContextProperties_Click"/>
                 <MenuItem x:Name="CtxDetails" Header="Torrent _details…" Click="ContextDetails_Click"/>
+                <MenuItem x:Name="CtxSequential" Header="Download in se_quential order" Click="ContextSequential_Click"/>
                 <Separator/>
                 <MenuItem x:Name="CtxResume" Header="Resu_me" Click="ContextResume_Click"/>
                 <MenuItem x:Name="CtxStop" Header="S_top (pause)" Click="ContextStop_Click"/>
+                <MenuItem x:Name="CtxSendToTray" Header="Download in _background (tray)" Click="ContextSendToTray_Click"/>
                 <MenuItem x:Name="CtxRefreshUrl" Header="Re_fresh address…" Click="ContextRefreshUrl_Click"/>
                 <MenuItem x:Name="CtxRedownload" Header="Redo_wnload" Click="ContextRedownload_Click"/>
                 <Separator/>

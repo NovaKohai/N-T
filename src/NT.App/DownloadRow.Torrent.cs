@@ -6,6 +6,7 @@ namespace NT.App;
 public sealed partial class DownloadRow
 {
     public IReadOnlyList<TorrentFileJob> TorrentFiles { get; private set; } = Array.Empty<TorrentFileJob>();
+    public bool IsSequential { get; private set; }
     public DownloadRow(TorrentJob job) { Id = TorrentRowId(job.Id); IsTorrent = true; TorrentId = job.Id; Update(job); }
     /// <summary>Torrent counterpart of <see cref="Update(DownloadJob)"/>; same change-detection contract.</summary>
     public bool Update(TorrentJob job)
@@ -22,7 +23,7 @@ public sealed partial class DownloadRow
         if (!changed) return false;
         Url = TorrentController.MagnetFor(job); FileName = job.Name; FilePath = path; SavePath = job.SavePath; Status = job.State; Error = job.Error;
         TotalBytes = total; DownloadedBytes = job.DownloadedBytes; Speed = speed; UploadSpeed = upload; Progress = progress; RemainingTime = remaining;
-        Seeds = job.Seeds; Peers = job.Peers; Ratio = job.Ratio; ActiveConnectionCount = job.Connections; ResumeSupported = true; TorrentFiles = job.Files.ToArray(); TorrentFileCount = job.Files.Count(f => f.Selected && f.DownloadedBytes > 0);
+        Seeds = job.Seeds; Peers = job.Peers; Ratio = job.Ratio; ActiveConnectionCount = job.Connections; ResumeSupported = true; IsSequential = job.IsSequential; TorrentFiles = job.Files.ToArray(); TorrentFileCount = job.Files.Count(f => f.Selected && f.DownloadedBytes > 0);
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
         return true;
     }

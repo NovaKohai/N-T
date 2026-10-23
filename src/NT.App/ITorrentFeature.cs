@@ -34,6 +34,8 @@ public interface ITorrentFeature : IDisposable
     /// <summary>Null when the magnet is acceptable, otherwise the reason it is not (also null-identity info hash via <paramref name="id"/>).</summary>
     string? ValidateMagnet(string magnet, out string id);
     bool KnowsTorrent(string id);
+    Task SetSequentialAsync(string torrentId, bool sequential);
+    bool IsSequential(string torrentId);
 }
 
 /// <summary>Null object: no torrent engine attached.</summary>
@@ -48,6 +50,8 @@ public sealed class NoTorrentFeature : ITorrentFeature
     public Task<int> EnforceSeedLimitAsync() => Task.FromResult(0);
     public Task PauseAsync(DownloadRow row) => Task.CompletedTask;
     public Task ResumeAsync(DownloadRow row) => Task.CompletedTask;
+    public Task SetSequentialAsync(string torrentId, bool sequential) => Task.CompletedTask;
+    public bool IsSequential(string torrentId) => false;
     public Task<(int Deleted, int Failed)> RemoveAsync(string torrentId, bool deleteFiles) => Task.FromResult((0, 0));
     public IReadOnlyList<string> CompletedIds() => Array.Empty<string>();
     public Task<(int Changed, int Skipped, int Failed)> ChangeAllAsync(bool resume) => Task.FromResult((0, 0, 0));

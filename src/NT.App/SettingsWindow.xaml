@@ -46,6 +46,9 @@
         <TextBlock Text="N&amp;T contacts api.github.com once a day at most to look for a new release. Nothing is installed without your confirmation." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <StackPanel x:Name="SkippedPanel" Orientation="Horizontal" Margin="0,8,0,0" Visibility="Collapsed"><TextBlock x:Name="SkippedText" VerticalAlignment="Center" Style="{StaticResource Muted}"/><Button x:Name="ForgetSkipButton" Content="_Forget skipped version" Click="ForgetSkip_Click" Margin="12,0,0,0"/></StackPanel>
         <TextBlock x:Name="UpdateGap" Margin="0,0,0,20"/>
+        <TextBlock Text="Clipboard" Style="{StaticResource SectionTitle}"/>
+        <CheckBox x:Name="ClipboardMonitoring" Content="Monitor clipboard for downloadable _links and torrents" Margin="0,0,0,6"/>
+        <TextBlock Text="When copying an address ending with a downloadable file type or a magnet link, N&amp;T prompts you to start the download." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,20"/>
         <TextBlock Text="Browser integration" Style="{StaticResource SectionTitle}"/>
         <TextBlock Text="Chrome extension and native host setup are separate. Live browser integration has not been verified on this machine." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <Button Content="Open Chrome extension _setup help" Click="BrowserSetup_Click" HorizontalAlignment="Left" Margin="0,14,0,12"/>

@@ -41,6 +41,8 @@
         <File Id="BridgeConfig" Name="bridge-config.json" Source="payload\bridge-config.json" />
         <File Id="HostManifest" Name="com.ndm.bridge.json" Source="payload\com.ndm.bridge.json" />
         <File Id="HostManifestNt" Name="com.nt.bridge.json" Source="payload\com.nt.bridge.json" />
+        <File Id="HostManifestFf" Name="com.ndm.bridge.firefox.json" ShortName="ndmff.jso" Source="payload\com.ndm.bridge.firefox.json" />
+        <File Id="HostManifestNtFf" Name="com.nt.bridge.firefox.json" ShortName="ntff.jso" Source="payload\com.nt.bridge.firefox.json" />
       </Component>
     </ComponentGroup>
     <ComponentGroup Id="ExtensionFiles" Directory="ExtensionDir">
@@ -108,6 +110,10 @@
       <Component Id="NmhBrave" Guid="{68A1D3F4-C9E2-4B70-8F55-A0B72E1D9C36}">
         <RegistryValue Root="HKLM" Key="SOFTWARE\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.ndm.bridge" Type="string" Value="[#HostManifest]" KeyPath="yes" />
         <RegistryValue Root="HKLM" Key="SOFTWARE\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.nt.bridge" Type="string" Value="[#HostManifestNt]" />
+      </Component>
+      <Component Id="NmhFirefox" Guid="{E5A2D817-48F3-4C10-90D1-65C170B9FA18}">
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Mozilla\NativeMessagingHosts\com.ndm.bridge" Type="string" Value="[#HostManifestFf]" KeyPath="yes" />
+        <RegistryValue Root="HKLM" Key="SOFTWARE\Mozilla\NativeMessagingHosts\com.nt.bridge" Type="string" Value="[#HostManifestNtFf]" />
       </Component>
     </ComponentGroup>
 

@@ -31,7 +31,7 @@ public partial class DownloadCompleteWindow : Window
     {
         bool present = stillPresent();
         bool exists = present && File.Exists(job.FilePath);
-        OpenButton.IsEnabled = OpenWithButton.IsEnabled = exists;
+        OpenButton.IsEnabled = OpenWithButton.IsEnabled = ChecksumButton.IsEnabled = exists;
         FolderButton.IsEnabled = present && Directory.Exists(Path.GetDirectoryName(job.FilePath));
         if (!exists) Notice.Text = present ? "The saved file is missing. Opening is disabled." : "This download was removed from the queue. Opening is disabled.";
         else if (Notice.Text.StartsWith("The saved file") || Notice.Text.StartsWith("This download")) Notice.Text = "";
@@ -54,6 +54,11 @@ public partial class DownloadCompleteWindow : Window
     private void OpenWith_Click(object sender, RoutedEventArgs e) { if (GuardOpen()) Act(() => DownloadFileActions.OpenWith(this, job.FilePath)); }
     private void Folder_Click(object sender, RoutedEventArgs e) { RefreshAvailability(); if (FolderButton.IsEnabled) Act(() => DownloadFileActions.OpenFolder(job.FilePath)); }
     private void Copy_Click(object sender, RoutedEventArgs e) => Act(() => Clipboard.SetText(job.FilePath));
+    private void Checksum_Click(object sender, RoutedEventArgs e)
+    {
+        var row = new DownloadRow(job);
+        new PropertiesWindow(row) { Owner = this }.ShowDialog();
+    }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
     private void DontShowAgain_Changed(object sender, RoutedEventArgs e)
     {

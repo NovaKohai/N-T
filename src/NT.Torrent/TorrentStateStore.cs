@@ -10,6 +10,7 @@ sealed class SavedTorrent
     public string TorrentFile { get; set; } = "";
     public int[] Priorities { get; set; } = [];
     public long[] FileDownloaded { get; set; } = [];
+    public bool IsSequential { get; set; }
 }
 
 sealed class SavedState

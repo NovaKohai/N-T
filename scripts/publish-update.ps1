@@ -181,7 +181,7 @@ if (-not [string]::IsNullOrWhiteSpace($token) -and (Test-Path -LiteralPath $vers
             
             $msiName = [IO.Path]::GetFileName($versionedMsi)
             $msiBytes = [IO.File]::ReadAllBytes($versionedMsi)
-            $uploadUri = "$uploadBase?name=$msiName"
+            $uploadUri = "$uploadBase?name=" + [Uri]::EscapeDataString($msiName)
             $msiHeaders = @{
                 "Authorization" = "Bearer $token"
                 "Content-Type" = "application/octet-stream"
@@ -193,7 +193,7 @@ if (-not [string]::IsNullOrWhiteSpace($token) -and (Test-Path -LiteralPath $vers
             $sumsFile = Join-Path $root "artifacts\SHA256SUMS.txt"
             if (Test-Path -LiteralPath $sumsFile) {
                 $sumBytes = [IO.File]::ReadAllBytes($sumsFile)
-                $sumUri = "$uploadBase?name=SHA256SUMS.txt"
+                $sumUri = "$uploadBase?name=" + [Uri]::EscapeDataString("SHA256SUMS.txt")
                 $null = Invoke-RestMethod -Uri $sumUri -Method Post -Headers $msiHeaders -Body $sumBytes
             }
             

@@ -77,7 +77,8 @@ public sealed record TorrentJob(
     double Ratio,
     string State,
     string? Error,
-    IReadOnlyList<TorrentFileJob> Files);
+    IReadOnlyList<TorrentFileJob> Files,
+    bool IsSequential = false);
 
 public sealed record TorrentMetadataFile(string Path, long Length);
 

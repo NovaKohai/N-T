@@ -42,7 +42,7 @@ internal static partial class ManageTests
             var reopened = window.OpenProgressWindow(a.Id, false)!; Pump(300);
             Check(!ReferenceEquals(reopened, first) && window.ProgressWindowCount == 1 && reopened.IsVisible, "Closed window re-opens as the job's single window");
             Check(Field<TextBlock>(reopened, "StatusText").Text == "Complete" && Field<Button>(reopened, "OpenButton").Visibility == Visibility.Visible && Field<Button>(reopened, "FolderButton").Visibility == Visibility.Visible && Field<Button>(reopened, "CloseButton").Visibility == Visibility.Visible
-                && Field<Button>(reopened, "PauseButton").Visibility == Visibility.Collapsed && Field<Button>(reopened, "CancelButton").Visibility == Visibility.Collapsed, "Re-opened window is in the Complete state with Open / Open folder / Close");
+                && Field<Button>(reopened, "BackgroundButton").Visibility == Visibility.Collapsed && Field<Button>(reopened, "PauseButton").Visibility == Visibility.Collapsed && Field<Button>(reopened, "CancelButton").Visibility == Visibility.Collapsed, "Re-opened window is in the Complete state with Open / Open folder / Close");
             Check(!Field<CheckBox>(reopened, "ShowWindowBox").IsEnabled, "Completion options (including 'show this window') are disabled once the download is complete");
             Pump(900);
             Check(window.ProgressWindowCount == 1 && Dialogs(window) == 0, "Exactly one completion window: no second progress window and no complete dialog");

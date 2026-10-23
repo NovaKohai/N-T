@@ -54,13 +54,16 @@ public sealed class DownloadOptions
     public long MinimumSegmentSize { get; init; } = 256 * 1024;
     public int RetryCount { get; init; } = 3;
     public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(30);
+    /// <summary>Global aggregate speed limit in bytes per second across all concurrent downloads; null = unlimited.</summary>
+    public long? GlobalSpeedLimit { get; init; }
     /// <summary>Optional proxy for all HTTP(S) transfers; null or disabled means a direct connection.</summary>
     public ProxyOptions? Proxy { get; init; }
     internal void Validate()
     {
         if (MaxConcurrentDownloads is < 1 or > 16 || MaxSegments is < 1 or > 32 ||
             MinimumSegmentSize < 65536 || RetryCount is < 0 or > 8 ||
-            RequestTimeout < TimeSpan.FromMilliseconds(100) || RequestTimeout > TimeSpan.FromMinutes(5))
+            RequestTimeout < TimeSpan.FromMilliseconds(100) || RequestTimeout > TimeSpan.FromMinutes(5) ||
+            GlobalSpeedLimit is <= 0)
             throw new ArgumentOutOfRangeException(nameof(DownloadOptions));
         Proxy?.Validate();
     }

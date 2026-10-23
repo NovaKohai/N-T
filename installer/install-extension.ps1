@@ -22,7 +22,8 @@ $iconPath = if (Test-Path "$baseDir\Assets\NDM.ico") { "$baseDir\Assets\NDM.ico"
 $browserCatalog = @(
   @{ Id = 'chrome'; Name = 'Google Chrome'; Exe = 'chrome.exe'; Url = 'chrome://extensions' },
   @{ Id = 'edge';   Name = 'Microsoft Edge'; Exe = 'msedge.exe'; Url = 'edge://extensions' },
-  @{ Id = 'brave';  Name = 'Brave Browser';  Exe = 'brave.exe';  Url = 'brave://extensions' }
+  @{ Id = 'brave';  Name = 'Brave Browser';  Exe = 'brave.exe';  Url = 'brave://extensions' },
+  @{ Id = 'firefox'; Name = 'Mozilla Firefox'; Exe = 'firefox.exe'; Url = 'about:debugging#/runtime/this-firefox' }
 )
 
 $detected = @()
@@ -41,7 +42,9 @@ if ($detected.Count -eq 0) {
     @{ Id = 'chrome'; Path = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe" },
     @{ Id = 'chrome86'; Path = "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"; Target = 'chrome' },
     @{ Id = 'edge'; Path = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe" },
-    @{ Id = 'brave'; Path = "$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe" }
+    @{ Id = 'brave'; Path = "$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe" },
+    @{ Id = 'firefox'; Path = "$env:ProgramFiles\Mozilla Firefox\firefox.exe" },
+    @{ Id = 'firefox86'; Path = "${env:ProgramFiles(x86)}\Mozilla Firefox\firefox.exe"; Target = 'firefox' }
   )
   foreach ($fb in $fallbacks) {
     if (Test-Path -LiteralPath $fb.Path) {

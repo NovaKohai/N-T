@@ -31,6 +31,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("streaming pause restarts cleanly", StreamingPause),
     ("range retry uses validated offsets", RangeRetry),
     ("live removal of very low speed limit", LiveSpeedChange),
+    ("global speed limit throttle and live removal", GlobalSpeedChange),
     ("redirects bound cookies and final validator scope", Redirects),
     ("observer can dispose manager without deadlock", ObserverDispose),
     ("dynamic splits preserve coverage, hash and live cap", () => DynamicTests.Split(Paths())),
@@ -56,7 +57,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("file names: Content-Disposition / URL / query / MIME / magic-number parsing", NameTests.Parsing),
     ("file names: priority, extension repair, GUID/empty fallback", NameTests.Decisions),
     ("file names: real downloads resolve the right name (disposition, redirects, type, magic, HEAD 405, collisions)", () => NameTests.Downloads(Paths())),
-    ("file names: pre-download probe (HEAD, ranged-GET fallback, redirects, size/type)", () => NameTests.Probe(Paths()))
+    ("file names: pre-download probe (HEAD, ranged-GET fallback, redirects, size/type)", () => NameTests.Probe(Paths())),
+    ("URL range pattern expansion and Cartesian product", () => { UrlPatternTests.Run(); return Task.CompletedTask; }),
+    ("downloadable link classification and filtering", () => { DownloadableLinkDetectorTests.Run(); return Task.CompletedTask; })
 };
 foreach (var test in tests)
 {
@@ -298,6 +301,16 @@ async Task LiveSpeedChange()
     await Wait(() => Job(manager, j.Id).TotalBytes > 0, "Probe did not finish"); await Task.Delay(300);
     Check(Job(manager, j.Id).DownloadedBytes == 0, "One byte/second limit bypassed");
     manager.SetSpeedLimit(j.Id, null); Exact(await Complete(manager, j.Id), server.Payload);
+}
+async Task GlobalSpeedChange()
+{
+    using var server = new FixtureServer(); using var manager = Manager(Paths());
+    manager.SetGlobalSpeedLimit(1);
+    var j = await manager.AddAsync(new(server.BaseUrl + "/range"));
+    await Wait(() => Job(manager, j.Id).TotalBytes > 0, "Probe did not finish"); await Task.Delay(300);
+    Check(Job(manager, j.Id).DownloadedBytes == 0, "Global 1 byte/second limit bypassed");
+    manager.SetGlobalSpeedLimit(null);
+    Exact(await Complete(manager, j.Id), server.Payload);
 }
 async Task Redirects()
 {

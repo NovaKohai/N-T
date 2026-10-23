@@ -1,21 +1,70 @@
 <Window x:Class="NT.App.PropertiesWindow" Style="{StaticResource {x:Type Window}}" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Properties" Width="600" SizeToContent="Height" MinWidth="480" MaxHeight="700" ResizeMode="CanResizeWithGrip" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" FontSize="13">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="22,22,34,22">
-    <TextBlock x:Name="Title2" Style="{StaticResource DialogHeading}" TextTrimming="CharacterEllipsis"/>
-    <ItemsControl x:Name="Fields" Margin="0,14,0,0" AutomationProperties.Name="Download properties">
-      <ItemsControl.ItemTemplate>
-        <DataTemplate>
-          <Grid Margin="0,0,0,10">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="104"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <TextBlock Text="{Binding Label}" Style="{StaticResource Muted}" VerticalAlignment="Top" Padding="0,6,0,0"/>
-            <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource InkBrush}" AutomationProperties.Name="{Binding Label}"/>
-          </Grid>
-        </DataTemplate>
-      </ItemsControl.ItemTemplate>
-    </ItemsControl>
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+        Title="Properties" Width="620" Height="580" MinWidth="480" MinHeight="420" WindowStartupLocation="CenterOwner" ShowInTaskbar="False" FontSize="13">
+  <Grid Margin="18">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <TextBlock x:Name="Title2" Style="{StaticResource DialogHeading}" TextTrimming="CharacterEllipsis" Margin="0,0,0,12"/>
+    <TabControl Grid.Row="1" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Padding="14">
+      <TabItem Header="General">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="4">
+            <ItemsControl x:Name="Fields" AutomationProperties.Name="Download properties">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Label}" Style="{StaticResource Muted}" VerticalAlignment="Top" Padding="0,6,0,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource InkBrush}" AutomationProperties.Name="{Binding Label}"/>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Checksum">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="6">
+            <TextBlock Text="Calculate and verify file integrity hashes." Style="{StaticResource Muted}" Margin="0,0,0,14"/>
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="140"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Label Content="_Algorithm:" Target="{Binding ElementName=AlgorithmCombo}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <ComboBox x:Name="AlgorithmCombo" Grid.Column="1" SelectedIndex="0" VerticalAlignment="Center">
+                <ComboBoxItem Content="SHA-256" Tag="SHA256"/>
+                <ComboBoxItem Content="SHA-1" Tag="SHA1"/>
+                <ComboBoxItem Content="MD5" Tag="MD5"/>
+              </ComboBox>
+              <Button x:Name="ComputeButton" Grid.Column="2" Content="Calculate _checksum" Click="Compute_Click" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="14,0,0,0" MinWidth="140"/>
+            </Grid>
+            <ProgressBar x:Name="ChecksumProgress" Height="6" Margin="0,4,0,12" Visibility="Collapsed"/>
+            <Label Content="_Calculated hash:" Target="{Binding ElementName=HashOutput}" Foreground="{DynamicResource InkBrush}" Margin="0,4,0,2"/>
+            <Grid Margin="0,0,0,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBox x:Name="HashOutput" IsReadOnly="True" TextWrapping="Wrap" MinHeight="32"/>
+              <Button Grid.Column="1" Content="C_opy" Click="CopyHash_Click" Margin="8,0,0,0" MinWidth="70"/>
+            </Grid>
+            <Label Content="Compare with _expected checksum:" Target="{Binding ElementName=ExpectedHashInput}" Foreground="{DynamicResource InkBrush}" Margin="0,4,0,2"/>
+            <TextBox x:Name="ExpectedHashInput" TextChanged="ExpectedHashInput_TextChanged" TextWrapping="Wrap" MinHeight="32"/>
+            <Border x:Name="MatchResultBorder" CornerRadius="{DynamicResource ControlRadius}" Padding="10,8" Margin="0,10,0,0" Visibility="Collapsed" BorderThickness="1">
+              <TextBlock x:Name="MatchResultText" FontWeight="SemiBold"/>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
       <Button Content="Copy _address" Click="CopyAddress_Click" Margin="0,0,8,0" MinWidth="110" MinHeight="32"/>
       <Button Content="_Close" IsDefault="True" IsCancel="True" Click="Close_Click" MinWidth="90" MinHeight="32"/>
     </StackPanel>
-  </StackPanel></ScrollViewer>
+  </Grid>
 </Window>

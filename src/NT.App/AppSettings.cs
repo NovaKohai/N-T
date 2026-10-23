@@ -17,6 +17,8 @@ public sealed class AppSettings
     public int RetryCount { get; set; } = 3;
     public int RequestTimeoutSeconds { get; set; } = 30;
     public bool EnableDynamicSegmentation { get; set; } = true;
+    public long? GlobalSpeedLimitBytesPerSecond { get; set; }
+    public bool EnableClipboardMonitoring { get; set; } = false;
     public bool ShowCompletionDialog { get; set; } = true;
     public bool ShowProgressForCapturedDownloads { get; set; } = true;
     /// <summary>Re-open (or restore) a download's own window when it finishes, in the Complete state. A download can override this in its 'Options on completion' tab.</summary>

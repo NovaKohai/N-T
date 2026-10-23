@@ -106,6 +106,16 @@ internal static partial class ManageTests
             PumpUntil(() => Snap(m, a.Id).DownloadedBytes > frozen, "bytes after resume");
             Check(Snap(m, a.Id).Status == "Downloading", "Resume continues the same transfer");
 
+            // download in background (tray)
+            string? notified = null;
+            pw.NotifyBackground = name => notified = name;
+            Check(Field<Button>(pw, "BackgroundButton").Visibility == Visibility.Visible && (string)Field<Button>(pw, "BackgroundButton").Content == "Download in _background", "Background button is visible with access key");
+            Click(pw, "BackgroundButton"); Pump(100);
+            Check(!pw.IsVisible && notified == Snap(m, a.Id).FileName, "Background button hides progress window and notifies tray");
+            Check(window.TrayWindows.RestoreHiddenProgress(), "TrayWindows restores hidden progress window");
+            Pump(100);
+            Check(pw.IsVisible, "Progress window restored to visible");
+
             // options on completion: enable rules
             var show = Field<CheckBox>(pw, "ShowDialogBox"); var exit = Field<CheckBox>(pw, "ExitAppBox"); var off = Field<CheckBox>(pw, "TurnOffBox");
             var kind = Field<ComboBox>(pw, "TurnOffKind"); var force = Field<CheckBox>(pw, "ForceBox");
@@ -139,7 +149,7 @@ internal static partial class ManageTests
             PumpUntil(() => Field<TextBlock>(pw, "StatusText").Text == "Complete", "window shows Complete");
             Check(window.HasProgressWindow(a.Id) && pw.IsVisible, "Progress window persists after completion (no auto-close)");
             Check(Field<Button>(pw, "OpenButton").Visibility == Visibility.Visible && Field<Button>(pw, "FolderButton").Visibility == Visibility.Visible && Field<Button>(pw, "CloseButton").Visibility == Visibility.Visible
-                && Field<Button>(pw, "PauseButton").Visibility == Visibility.Collapsed && Field<Button>(pw, "CancelButton").Visibility == Visibility.Collapsed, "Complete state shows Open / Open folder / Close only");
+                && Field<Button>(pw, "BackgroundButton").Visibility == Visibility.Collapsed && Field<Button>(pw, "PauseButton").Visibility == Visibility.Collapsed && Field<Button>(pw, "CancelButton").Visibility == Visibility.Collapsed, "Complete state shows Open / Open folder / Close only");
             Pump(1200);
             Check(window.HasProgressWindow(a.Id) && !window.OwnedWindows.OfType<DownloadCompleteWindow>().Any(w => w.IsVisible), "Still open after more time; no second completion dialog for a job with a progress window");
             Check(power.Calls.SequenceEqual(new[] { (CompletionActionKind.Restart, true) }) && countdown.Shown == 1, "Per-job Restart(force) fired once for A with the countdown first");

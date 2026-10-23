@@ -46,12 +46,31 @@ public static class ProxyTunnel
     public static async Task<Stream> ConnectAsync(ProxyOptions proxy, string host, int port, CancellationToken ct = default)
     {
         if (!proxy.IsEnabled) throw new ArgumentException("The proxy is not configured.", nameof(proxy));
-        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+        IPAddress[] addresses;
+        if (IPAddress.TryParse(proxy.Host, out var parsedIp)) addresses = [parsedIp];
+        else addresses = await Dns.GetHostAddressesAsync(proxy.Host, ct).ConfigureAwait(false);
+
+        Socket? socket = null;
+        Exception? lastEx = null;
+        foreach (var addr in addresses)
+        {
+            var s = new Socket(addr.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await s.ConnectAsync(addr, proxy.Port, ct).ConfigureAwait(false);
+                socket = s;
+                break;
+            }
+            catch (Exception ex)
+            {
+                s.Dispose();
+                lastEx = ex;
+            }
+        }
+        if (socket is null) throw new ProxyException($"Could not connect to the proxy {proxy.Host}:{proxy.Port} ({Describe((lastEx as SocketException)?.SocketErrorCode ?? SocketError.HostUnreachable)}).", lastEx);
         Stream? stream = null;
         try
         {
-            try { await socket.ConnectAsync(proxy.Host, proxy.Port, ct).ConfigureAwait(false); }
-            catch (SocketException ex) { throw new ProxyException($"Could not connect to the proxy {proxy.Host}:{proxy.Port} ({Describe(ex.SocketErrorCode)}).", ex); }
             stream = new NetworkStream(socket, ownsSocket: true);
             if (proxy.Kind == ProxyKind.Https)
             {
@@ -164,7 +183,12 @@ public static class ProxyHttp
 {
     public static void Apply(SocketsHttpHandler handler, ProxyOptions? proxy)
     {
-        if (proxy is not { IsEnabled: true }) return;
+        if (proxy is not { IsEnabled: true })
+        {
+            handler.UseProxy = false;
+            handler.ConnectCallback = DefaultConnectAsync;
+            return;
+        }
         proxy.Validate();
         if (proxy.Kind == ProxyKind.Socks5 && !proxy.ResolveHostsThroughProxy)
         {
@@ -174,6 +198,40 @@ public static class ProxyHttp
         }
         handler.UseProxy = true;
         handler.Proxy = new WebProxy(proxy.ProxyUri) { Credentials = proxy.Credentials };
+        handler.ConnectCallback = DefaultConnectAsync;
+    }
+
+    public static async ValueTask<Stream> DefaultConnectAsync(SocketsHttpConnectionContext context, CancellationToken ct)
+    {
+        IPAddress[] addresses;
+        if (IPAddress.TryParse(context.DnsEndPoint.Host, out var parsedIp))
+        {
+            addresses = [parsedIp];
+        }
+        else
+        {
+            addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, ct).ConfigureAwait(false);
+        }
+
+        Socket? socket = null;
+        Exception? lastEx = null;
+        foreach (var addr in addresses)
+        {
+            var s = new Socket(addr.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await s.ConnectAsync(addr, context.DnsEndPoint.Port, ct).ConfigureAwait(false);
+                socket = s;
+                break;
+            }
+            catch (Exception ex)
+            {
+                s.Dispose();
+                lastEx = ex;
+            }
+        }
+        if (socket is null) throw lastEx ?? new SocketException((int)SocketError.HostUnreachable);
+        return new NetworkStream(socket, ownsSocket: true);
     }
 }
 

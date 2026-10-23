@@ -1,4 +1,4 @@
-importScripts('bridge.js', 'sniff.js');
+if (typeof importScripts === 'function') { importScripts('bridge.js', 'sniff.js'); }
 const { http, ack, transfer } = NDMBridge;
 const { ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, fromDom, suggestedName, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused } = NeoSniff;
 const PAUSE_KEY = 'neodm.pause', SCHEMA = 2;

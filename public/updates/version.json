@@ -1,19 +1,19 @@
 {
-    "body":  "## [1.0.3] - 2026-10-20\r\n\r\n### Changed\r\n- fixes\r\n\r\n# Changelog\r\n\r\nAll notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)\r\nand the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.",
-    "name":  "N&T 1.0.3",
-    "published_at":  "2026-10-19T23:17:34Z",
+    "body":  "## [1.2.2] - 2026-10-23\r\n\r\n### Changed\r\n- fixes",
+    "name":  "N&T 1.2.2",
+    "published_at":  "2026-10-23T17:33:21Z",
     "assets":  [
                    {
-                       "browser_download_url":  "/updates/N&T-Setup-1.0.3.msi",
-                       "name":  "N&T-Setup-1.0.3.msi",
-                       "size":  93337117
+                       "browser_download_url":  "/updates/N&T-Setup-1.2.2.msi",
+                       "name":  "N&T-Setup-1.2.2.msi",
+                       "size":  93341777
                    },
                    {
                        "browser_download_url":  "/updates/SHA256SUMS.txt",
                        "name":  "SHA256SUMS.txt",
-                       "size":  340
+                       "size":  508
                    }
                ],
-    "tag_name":  "v1.0.3",
-    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.0.3"
+    "tag_name":  "v1.2.2",
+    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.2.2"
 }

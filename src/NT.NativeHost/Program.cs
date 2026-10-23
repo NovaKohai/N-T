@@ -14,14 +14,29 @@ internal static class Program
     {
         try { if (GetNamedPipeServerProcessId(pipe.SafePipeHandle.DangerousGetHandle(), out var pid) && pid != 0) AllowSetForegroundWindow(pid); } catch { }
     }
-    internal record Config(string ExtensionId, string? AppPath);
+    internal record Config(string ExtensionId, string? AppPath, string? FirefoxExtensionId = null);
+    private static bool IsValidCaller(string[] args, Config config)
+    {
+        if (args.Length < 1) return false;
+        string caller = args[0];
+        if (config.ExtensionId.Length == 32 && !config.ExtensionId.Any(c => c < 'a' || c > 'p'))
+        {
+            if (caller == $"chrome-extension://{config.ExtensionId}/") return true;
+        }
+        string ffId = string.IsNullOrWhiteSpace(config.FirefoxExtensionId) ? "neodm@unlimitedera.com" : config.FirefoxExtensionId;
+        if (string.Equals(caller, ffId, StringComparison.OrdinalIgnoreCase)) return true;
+        if (caller.EndsWith("bridge.firefox.json", StringComparison.OrdinalIgnoreCase) ||
+            caller.EndsWith("com.ndm.bridge.json", StringComparison.OrdinalIgnoreCase) ||
+            caller.EndsWith("com.nt.bridge.json", StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
     static async Task<int> Main(string[] args)
     {
         if (args.Length == 1 && args[0] == "--self-test") return await SelfTest();
         try
         {
             var config = JsonSerializer.Deserialize<Config>(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "bridge-config.json")), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? throw new InvalidDataException();
-            if (config.ExtensionId.Length != 32 || config.ExtensionId.Any(c => c < 'a' || c > 'p') || args.Length < 1 || args[0] != $"chrome-extension://{config.ExtensionId}/") return 2;
+            if (!IsValidCaller(args, config)) return 2;
             using var input = Console.OpenStandardInput(); using var output = Console.OpenStandardOutput();
             while (true)
             {

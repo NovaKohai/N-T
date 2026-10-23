@@ -101,6 +101,13 @@ internal static partial class ManageTests
             PumpUntil(() => list.Model().First(e => e.Kind == TrayWindowKind.Progress).Header!.EndsWith("%)"), "progress window listed with a percentage");
             var progressLine = list.Model().First(e => e.Kind == TrayWindowKind.Progress);
             Check(progressLine.Header!.StartsWith("\u2022 Downloading: " + pw.Row.FileName + " (") && progressLine.Header.EndsWith("%)") && list.Model().Count == 4, "Progress window listed as \u2022 Downloading: name (NN%) after the dialogs");
+            activated.Clear();
+            pw.Hide();
+            Check(!pw.IsVisible, "Progress window hidden");
+            Check(list.RestoreHiddenProgress() && ReferenceEquals(activated.Single(), pw), "RestoreHiddenProgress restores hidden progress window");
+            pw.Show();
+            activated.Clear();
+            Check(!list.RestoreHiddenProgress() && activated.Count == 0, "No more hidden progress windows to restore");
             pw.Close(); m.Remove(job.Id);
             Check(list.Count == 2, "Closing a progress window removes it from the list");
 

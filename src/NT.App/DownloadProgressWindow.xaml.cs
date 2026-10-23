@@ -184,7 +184,7 @@ public partial class DownloadProgressWindow : Window
         if (job is null)
         {
             if (!removing) Notice.Text = "This download was removed. Closing this window has no effect on other downloads.";
-            PauseButton.IsEnabled = CancelButton.IsEnabled = ApplyLimitButton.IsEnabled = false; LimitCheck.IsEnabled = LimitInput.IsEnabled = false;
+            BackgroundButton.IsEnabled = PauseButton.IsEnabled = CancelButton.IsEnabled = ApplyLimitButton.IsEnabled = false; LimitCheck.IsEnabled = LimitInput.IsEnabled = false;
             timer.Stop(); return;
         }
         bool changed = Row.Update(job);
@@ -239,7 +239,7 @@ public partial class DownloadProgressWindow : Window
         ResumeText.Text = Row.ResumeSupported switch { true => "Yes", false => "No", _ => "(unknown)" };
         UpdateConnectionsAndSegments(changed);
         bool done = Row.IsComplete;
-        PauseButton.Visibility = CancelButton.Visibility = done ? Visibility.Collapsed : Visibility.Visible;
+        BackgroundButton.Visibility = PauseButton.Visibility = CancelButton.Visibility = done ? Visibility.Collapsed : Visibility.Visible;
         OpenButton.Visibility = FolderButton.Visibility = CloseButton.Visibility = done ? Visibility.Visible : Visibility.Collapsed;
         OpenButton.IsEnabled = done && File.Exists(Row.FilePath);
         PauseButton.Content = Row.CanResume ? "Resume" : "Pause";
@@ -388,4 +388,23 @@ public partial class DownloadProgressWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception) { Notice.Text = "Windows could not open the folder."; }
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close(); // View only; never cancels the job.
+
+    private void Background_Click(object sender, RoutedEventArgs e) => SendToBackground();
+
+    /// <summary>Hides this window to the system tray while keeping the download running in the background.</summary>
+    public void SendToBackground()
+    {
+        Hide();
+        NotifyBackground?.Invoke(Row.FileName);
+    }
+
+    /// <summary>Called when the window is sent to the background tray; tests can intercept this without UI infrastructure.</summary>
+    public Action<string>? NotifyBackground { get; set; } = fileName =>
+    {
+        if (Application.Current?.MainWindow is MainWindow main)
+        {
+            main.EnsureTrayVisible();
+            main.ShowTrayNotification("Downloading in background", $"\"{fileName}\" is downloading in the background. Click the tray icon to restore.");
+        }
+    };
 }

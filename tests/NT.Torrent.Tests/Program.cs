@@ -267,6 +267,8 @@ async Task Persistence()
         var job = await d.AddTorrentFileAsync(p.Torrent, dl); id = job.Id;
         var cIdx = job.Files.Single(f => f.Path == "c.bin").Index;
         await d.SetFilePriorityAsync(id, cIdx, FilePriority.High);
+        await d.SetSequentialAsync(id, true);
+        Check(d.Get(id)!.IsSequential, "sequential set");
         await d.AddPeerAsync(id, ep);
         await Wait(() => d.Get(id)!.DownloadedBytes > 200_000, "no progress");
         await d.PauseAsync(id);
@@ -282,6 +284,7 @@ async Task Persistence()
         Check(r.Name == before.Name && r.TotalBytes == before.TotalBytes, "restored metadata");
         Check(r.DownloadedBytes == before.DownloadedBytes, $"restored progress {r.DownloadedBytes} vs {before.DownloadedBytes}");
         Check(r.Files.Select(f => f.Priority).SequenceEqual(before.Files.Select(f => f.Priority)), "restored priorities");
+        Check(r.IsSequential, "restored sequential");
         await Task.Delay(500);
         Check(d2.Get(id)!.State == "Paused", "must not auto-start");
         await d2.ResumeAsync(id);

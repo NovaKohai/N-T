@@ -2,7 +2,7 @@
   <Grid Margin="28"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
     <StackPanel><TextBlock Text="Add a download" Style="{StaticResource DialogHeading}"/><TextBlock x:Name="Intro" Text="Enter a direct HTTP or HTTPS link to a file, or a magnet: link to a torrent (schedule and speed limit apply to HTTP links only)." Style="{StaticResource Muted}" Margin="0,7,0,20"/></StackPanel>
-    <StackPanel Grid.Row="1"><Label Content="Download _URL" Target="{Binding ElementName=UrlInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/><TextBox x:Name="UrlInput" AutomationProperties.Name="Download URL"/></StackPanel>
+    <StackPanel Grid.Row="1"><Label Content="Download _URL" Target="{Binding ElementName=UrlInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/><TextBox x:Name="UrlInput" AutomationProperties.Name="Download URL" TextChanged="UrlInput_TextChanged"/><TextBlock x:Name="PatternHint" Style="{StaticResource Muted}" Margin="0,4,0,0" Visibility="Collapsed" TextWrapping="Wrap"/></StackPanel>
     <StackPanel Grid.Row="2" Margin="0,16,0,0"><Label Content="File _name (optional)" Target="{Binding ElementName=NameInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/><TextBox x:Name="NameInput" AutomationProperties.Name="Optional file name"/></StackPanel>
     <StackPanel Grid.Row="3" Margin="0,16,0,0">
       <CheckBox x:Name="ScheduleEnabled" Content="_Schedule for later" Foreground="{DynamicResource InkBrush}" Margin="0,0,0,6"/>

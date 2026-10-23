@@ -25,6 +25,21 @@ public sealed partial class DownloadManager : IDisposable
     public event Action? Changed;
     public string? LastPersistenceError { get; private set; }
     public IReadOnlyList<DownloadJob> Jobs { get { lock (gate) return jobs.Select(SnapshotLocked).ToArray(); } }
+    private readonly object globalRateGate = new();
+    private long? globalSpeedLimit;
+    private double globalNextWriteAt;
+    private int globalRateVersion;
+    public long? GlobalSpeedLimit { get { lock (globalRateGate) return globalSpeedLimit; } }
+    public void SetGlobalSpeedLimit(long? bytesPerSecond)
+    {
+        if (bytesPerSecond is <= 0) throw new ArgumentOutOfRangeException(nameof(bytesPerSecond));
+        lock (globalRateGate)
+        {
+            globalSpeedLimit = bytesPerSecond;
+            globalNextWriteAt = Stopwatch.GetTimestamp();
+            globalRateVersion++;
+        }
+    }
 
     public DownloadManager(string downloadDirectory, string stateDirectory)
         : this(downloadDirectory, stateDirectory, new DownloadOptions()) { }
@@ -57,6 +72,7 @@ public sealed partial class DownloadManager : IDisposable
         client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         try { Restore(); }
         catch { ownership.Dispose(); client.Dispose(); throw; }
+        if (options.GlobalSpeedLimit is > 0) { globalSpeedLimit = options.GlobalSpeedLimit; globalNextWriteAt = Stopwatch.GetTimestamp(); }
         timer = new Timer(Tick, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(200));
     }
 
@@ -1630,28 +1646,53 @@ public sealed partial class DownloadManager : IDisposable
 
     private async Task ThrottleAsync(Work w, int bytes, CancellationToken token)
     {
-        double target = 0;
-        int version = -1;
+        if (w.SpeedLimit.HasValue)
+        {
+            double target = 0;
+            int version = -1;
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                double seconds;
+                lock (w.RateGate)
+                {
+                    if (w.SpeedLimit == null) break;
+                    var now = Stopwatch.GetTimestamp();
+                    if (version != w.RateVersion)
+                    {
+                        version = w.RateVersion;
+                        target = w.NextWriteAt = Math.Max(w.NextWriteAt, now) + bytes * (double)Stopwatch.Frequency / w.SpeedLimit.Value;
+                    }
+                    seconds = (target - now) / Stopwatch.Frequency;
+                }
+                if (seconds <= 0) break;
+                await Task.Delay(TimeSpan.FromSeconds(Math.Min(seconds, 0.25)), token).ConfigureAwait(false);
+            }
+        }
+
+        double gTarget = 0;
+        int gVer = -1;
         while (true)
         {
             token.ThrowIfCancellationRequested();
             double seconds;
-            lock (w.RateGate)
+            lock (globalRateGate)
             {
-                if (w.SpeedLimit == null) return;
+                if (globalSpeedLimit == null) return;
                 var now = Stopwatch.GetTimestamp();
-                if (version != w.RateVersion)
+                if (gVer != globalRateVersion)
                 {
-                    version = w.RateVersion;
-                    target = w.NextWriteAt = Math.Max(w.NextWriteAt, now) + bytes * (double)Stopwatch.Frequency / w.SpeedLimit.Value;
+                    gVer = globalRateVersion;
+                    gTarget = globalNextWriteAt = Math.Max(globalNextWriteAt, now) + bytes * (double)Stopwatch.Frequency / globalSpeedLimit.Value;
                 }
-                seconds = (target - now) / Stopwatch.Frequency;
+                seconds = (gTarget - now) / Stopwatch.Frequency;
             }
             if (seconds <= 0) return;
-            // Responsive to live rate changes, even at one byte/second.
             await Task.Delay(TimeSpan.FromSeconds(Math.Min(seconds, 0.25)), token).ConfigureAwait(false);
         }
     }
+
+
 
     private async Task PublishAsync(Work w, CancellationToken token)
     {

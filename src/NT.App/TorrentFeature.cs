@@ -57,6 +57,8 @@ public sealed class TorrentFeature : ITorrentFeature
     public Task<(int Deleted, int Failed)> RemoveAsync(string torrentId, bool deleteFiles) => _controller.RemoveAsync(torrentId, deleteFiles);
     public IReadOnlyList<string> CompletedIds() => _controller.List().Where(t => t.State == "Completed").Select(t => t.Id).ToArray();
     public bool KnowsTorrent(string id) => _controller.List().Any(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
+    public Task SetSequentialAsync(string torrentId, bool sequential) => _controller.SetSequentialAsync(torrentId, sequential);
+    public bool IsSequential(string torrentId) => _controller.List().FirstOrDefault(t => string.Equals(t.Id, torrentId, StringComparison.OrdinalIgnoreCase))?.IsSequential ?? false;
 
     private static bool Eligible(string state, bool resume) => resume ? state == "Paused" : state is "Downloading" or "Queued" or "Checking" or "Seeding";
     public async Task<(int Changed, int Skipped, int Failed)> ChangeAllAsync(bool resume)

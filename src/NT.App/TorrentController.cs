@@ -5,7 +5,7 @@ namespace NT.App;
 
 /// <summary>What the file-selection dialog hands back; everything the controller needs to add a torrent.</summary>
 public sealed record TorrentAddSelection(string? MagnetUri, byte[]? TorrentData, string Name, string SaveDirectory,
-    IReadOnlyList<int>? SelectedFileIndexes, int TotalFileCount, bool StartNow);
+    IReadOnlyList<int>? SelectedFileIndexes, int TotalFileCount, bool StartNow, bool IsSequential = false);
 
 /// <summary>Chooses the default save folder: the torrent-specific folder if set, else the same category rules as HTTP downloads.</summary>
 public static class TorrentSavePlanner
@@ -130,6 +130,7 @@ public sealed class TorrentController : IDisposable
                 var keep = indexes.ToHashSet();
                 foreach (var file in job.Files.Where(f => !keep.Contains(f.Index))) await service.SkipFileAsync(job.Id, file.Index);
             }
+            if (selection.IsSequential) await service.SetSequentialAsync(job.Id, true);
             if (selection.StartNow) await service.ResumeAsync(job.Id);
         }
         catch { try { await service.RemoveAsync(job.Id, deleteFiles: false); } catch { } throw; }
@@ -138,6 +139,7 @@ public sealed class TorrentController : IDisposable
 
     public async Task PauseAsync(string id) => await (await EnsureAsync()).PauseAsync(id);
     public async Task ResumeAsync(string id) => await (await EnsureAsync()).ResumeAsync(id);
+    public async Task SetSequentialAsync(string id, bool sequential) => await (await EnsureAsync()).SetSequentialAsync(id, sequential);
     public async Task<(int Deleted, int Failed)> RemoveAsync(string id, bool deleteFiles) => await (await EnsureAsync()).RemoveDetailedAsync(id, deleteFiles);
 
     /// <summary>With 'stop seeding at ratio' enabled, pauses seeding torrents whose ratio reached the limit. Returns how many were stopped.</summary>
