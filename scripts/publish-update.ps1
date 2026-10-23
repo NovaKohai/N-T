@@ -87,7 +87,11 @@ if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
     } else {
         $today = (Get-Date).ToString("yyyy-MM-dd")
         $newSection = "## [$targetVersion] - $today`r`n`r`n### Changed`r`n- $notes`r`n`r`n"
-        $changelog = $newSection + $changelog
+        if ($changelog -match "(?ms)^(# Changelog\r?\n.*?\r?\n)(## \[)") {
+            $changelog = [regex]::Replace($changelog, "(?ms)^(# Changelog\r?\n.*?\r?\n)(## \[)", "`${1}$newSection`${2}", 1)
+        } else {
+            $changelog = $newSection + $changelog
+        }
         [IO.File]::WriteAllText($changelogPath, $changelog, [Text.Encoding]::UTF8)
         Write-Host "--> Added release section for $targetVersion to CHANGELOG.md" -ForegroundColor Green
     }

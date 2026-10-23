@@ -44,7 +44,7 @@
       </Grid>
     </TabItem>
   </TabControl>
-  <ProgressBar x:Name="OverallBar" Grid.Row="1" Maximum="100" Height="10" Margin="0,12,0,12"/>
+  <ProgressBar x:Name="OverallBar" Grid.Row="1" Maximum="100" Height="10" Margin="0,12,0,12" AutomationProperties.Name="Overall download progress"/>
   <TextBlock x:Name="Notice" Grid.Row="2" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8" AutomationProperties.LiveSetting="Polite"/>
   <Grid Grid.Row="3" Margin="0,0,0,10">
     <Button x:Name="DetailsButton" Content="Hide details" Click="Details_Click" HorizontalAlignment="Left" MinWidth="130"/>

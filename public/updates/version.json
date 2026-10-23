@@ -1,12 +1,12 @@
 {
-    "body":  "## [1.2.2] - 2026-10-23\r\n\r\n### Changed\r\n- fixes",
-    "name":  "N&T 1.2.2",
-    "published_at":  "2026-10-23T17:33:21Z",
+    "body":  "## [1.2.3] - 2026-10-23\r\n\r\n### Changed\r\n- fixes",
+    "name":  "N&T 1.2.3",
+    "published_at":  "2026-10-23T18:41:42Z",
     "assets":  [
                    {
-                       "browser_download_url":  "/updates/N&T-Setup-1.2.2.msi",
-                       "name":  "N&T-Setup-1.2.2.msi",
-                       "size":  93341777
+                       "browser_download_url":  "/updates/N&T-Setup-1.2.3.msi",
+                       "name":  "N&T-Setup-1.2.3.msi",
+                       "size":  93358161
                    },
                    {
                        "browser_download_url":  "/updates/SHA256SUMS.txt",
@@ -14,6 +14,6 @@
                        "size":  508
                    }
                ],
-    "tag_name":  "v1.2.2",
-    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.2.2"
+    "tag_name":  "v1.2.3",
+    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.2.3"
 }

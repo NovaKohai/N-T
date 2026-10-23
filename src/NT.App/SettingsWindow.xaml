@@ -43,7 +43,7 @@
       <TabItem Header="_General"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Updates" Style="{StaticResource SectionTitle}"/>
         <CheckBox x:Name="CheckForUpdates" Content="Check for _updates automatically" Margin="0,0,0,6"/>
-        <TextBlock Text="N&amp;T contacts api.github.com once a day at most to look for a new release. Nothing is installed without your confirmation." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+        <TextBlock Text="N&amp;T checks once a day at most to look for a new release. Nothing is installed without your confirmation." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <StackPanel x:Name="SkippedPanel" Orientation="Horizontal" Margin="0,8,0,0" Visibility="Collapsed"><TextBlock x:Name="SkippedText" VerticalAlignment="Center" Style="{StaticResource Muted}"/><Button x:Name="ForgetSkipButton" Content="_Forget skipped version" Click="ForgetSkip_Click" Margin="12,0,0,0"/></StackPanel>
         <TextBlock x:Name="UpdateGap" Margin="0,0,0,20"/>
         <TextBlock Text="Clipboard" Style="{StaticResource SectionTitle}"/>

@@ -1,12 +1,26 @@
-﻿## [1.2.2] - 2026-10-23
+﻿# Changelog
+
+All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
+
+## [1.2.3] - 2026-10-23
 
 ### Changed
 - fixes
 
+## [1.2.2] - 2026-10-23
+
+### Fixed
+- Engine: Resolved IPv4/IPv6 socket address family mismatch (WSAEADDRNOTAVAIL 10049) on Windows loopback connections in proxy and HTTP handlers.
+- UI: Added accessible names and tooltips across the main toolbar, queue progress indicators, and status summary.
+- UI: Respected system-level reduced motion preferences (`ClientAreaAnimation`) in progress bar smoothing animations.
+- Extension: Added light mode theme support (`prefers-color-scheme`) and improved contrast in popup controls.
+
 ## [1.2.1] - 2026-10-23
 
-### Changed
-- Fixse
+### Fixed
+- Streaming: Prevented infinite looping and redundant segment requests when capturing live HLS media streams.
+- Streaming: Improved stream termination detection for continuous live broadcasts.
 
 ## [1.2.0] - 2026-10-20
 
@@ -27,13 +41,8 @@
 
 ## [1.0.3] - 2026-10-20
 
-### Changed
-- fixes
-
-# Changelog
-
-All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
+### Fixed
+- Core: Fixed connection retry backoff timing and proxy authentication state handling.
 
 ## [1.0.2] - 2026-10-19
 

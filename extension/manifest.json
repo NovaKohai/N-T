@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "N&T Integration",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Send downloads and detected media to the N&T desktop download manager.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnCbRlVOlgRaiYpAu9G+ebXnpLQk/iWQMrt7rMPkjaaKpEF/DeSyXQ691QSLqUCId0dCzV9gHeHHF4dU0i03nJ5i8vU85Ay9RA+Xig3V4+Jgn1Hi32h1/SLBhNL/V/yFZdkbSppHqjUoGjhP4Wvd/fr1c/h+TRc3KjQ7SQ9uM5NDFwbazzh+MdNkNXCKuVq+s2fjskxqde60IU0ajpDgbz1MxT1+IfUhXy3KBHG1iQyL5V82vOdjBpeyPFyI+RE5GD3zN1JMerI6uNRHy7C9DM3xGKJzwJ2nPdSV9QJ/rguSzj5sN7ZXC48/PPGQ6o95MMDFEGKbBvbbje+5k+nh2UwIDAQAB",
   "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },

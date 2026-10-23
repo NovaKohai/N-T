@@ -118,20 +118,20 @@
     </Menu>
     <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1" Padding="8,7" Background="{DynamicResource SidebarBrush}">
       <WrapPanel>
-        <Button Content="Add _URL…" Click="Add_Click" Style="{StaticResource PrimaryCommand}"/>
-        <Button x:Name="AddTorrentButton" Content="Add _torrent…" Click="AddTorrentFile_Click" Style="{StaticResource Command}"/>
+        <Button Content="Add _URL…" Click="Add_Click" Style="{StaticResource PrimaryCommand}" AutomationProperties.Name="Add URL" ToolTip="Add URL from clipboard or enter address (Ctrl+N)"/>
+        <Button x:Name="AddTorrentButton" Content="Add _torrent…" Click="AddTorrentFile_Click" Style="{StaticResource Command}" AutomationProperties.Name="Add torrent" ToolTip="Open and add a torrent file"/>
         <Border Style="{StaticResource CommandSeparator}"/>
-        <Button x:Name="ResumeButton" Content="Resume" Click="Resume_Click" Style="{StaticResource Command}"/>
-        <Button x:Name="StopButton" Content="Stop" Click="Stop_Click" Style="{StaticResource Command}"/>
-        <Button x:Name="PauseAllButton" Content="Stop all" Click="PauseAll_Click" Style="{StaticResource Command}"/>
+        <Button x:Name="ResumeButton" Content="Resume" Click="Resume_Click" Style="{StaticResource Command}" AutomationProperties.Name="Resume" ToolTip="Resume selected download"/>
+        <Button x:Name="StopButton" Content="Stop" Click="Stop_Click" Style="{StaticResource Command}" AutomationProperties.Name="Stop" ToolTip="Pause selected download"/>
+        <Button x:Name="PauseAllButton" Content="Stop all" Click="PauseAll_Click" Style="{StaticResource Command}" AutomationProperties.Name="Stop all" ToolTip="Pause all active downloads"/>
         <Border Style="{StaticResource CommandSeparator}"/>
-        <Button x:Name="RemoveButton" Content="Remove" Click="Remove_Click" Style="{StaticResource Command}"/>
-        <Button Content="Remove completed" Click="RemoveCompleted_Click" Style="{StaticResource Command}"/>
+        <Button x:Name="RemoveButton" Content="Remove" Click="Remove_Click" Style="{StaticResource Command}" AutomationProperties.Name="Remove" ToolTip="Remove selected download (Delete)"/>
+        <Button Content="Remove completed" Click="RemoveCompleted_Click" Style="{StaticResource Command}" AutomationProperties.Name="Remove completed" ToolTip="Remove completed downloads from queue"/>
         <Border Style="{StaticResource CommandSeparator}"/>
-        <Button Content="Options…" Click="Settings_Click" Style="{StaticResource Command}"/>
-        <Button x:Name="ScheduleButton" Content="Scheduler…" Click="Schedule_Click" Style="{StaticResource Command}"/>
+        <Button Content="Options…" Click="Settings_Click" Style="{StaticResource Command}" AutomationProperties.Name="Options" ToolTip="Application options and settings"/>
+        <Button x:Name="ScheduleButton" Content="Scheduler…" Click="Schedule_Click" Style="{StaticResource Command}" AutomationProperties.Name="Scheduler" ToolTip="Schedule downloads"/>
         <Border Style="{StaticResource CommandSeparator}"/>
-        <Button x:Name="SpeedLimitButton" Content="Speed: Unlimited" Click="SpeedLimitButton_Click" Style="{StaticResource Command}"/>
+        <Button x:Name="SpeedLimitButton" Content="Speed: Unlimited" Click="SpeedLimitButton_Click" Style="{StaticResource Command}" AutomationProperties.Name="Global speed limit" ToolTip="Set global download speed limit"/>
       </WrapPanel>
     </Border>
     <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="10,6">
@@ -142,8 +142,8 @@
         </Grid.ColumnDefinitions>
         <TextBlock x:Name="Notice" Text="Ready" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"/>
         <StackPanel Grid.Column="1" Orientation="Horizontal">
-          <TextBlock x:Name="Summary" Style="{StaticResource Muted}" Margin="12,0"/>
-          <TextBlock x:Name="RateLabel" Style="{StaticResource Muted}"/>
+          <TextBlock x:Name="Summary" Style="{StaticResource Muted}" Margin="12,0" AutomationProperties.Name="Queue summary"/>
+          <TextBlock x:Name="RateLabel" Style="{StaticResource Muted}" AutomationProperties.Name="Total transfer speed"/>
         </StackPanel>
       </Grid>
     </Border>
@@ -199,7 +199,7 @@
           </ListBox>
         </DockPanel>
       </Border>
-      <GridSplitter Grid.Column="0" Width="6" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" ShowsPreview="False" Panel.ZIndex="10"/>
+      <GridSplitter Grid.Column="0" Width="6" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" ShowsPreview="False" Panel.ZIndex="10" AutomationProperties.Name="Sidebar width splitter"/>
       <DockPanel Grid.Column="1" Margin="10,0,10,8">
         <Grid DockPanel.Dock="Top" Margin="0,9">
           <Grid.ColumnDefinitions>
@@ -309,7 +309,7 @@
                           <ColumnDefinition Width="55"/>
                           <ColumnDefinition Width="37"/>
                         </Grid.ColumnDefinitions>
-                        <ProgressBar local:SmoothProgressBar.SmoothValue="{Binding Progress}" Maximum="100" Height="5" VerticalAlignment="Center" ToolTip="{Binding Detail}"/>
+                        <ProgressBar local:SmoothProgressBar.SmoothValue="{Binding Progress}" Maximum="100" Height="5" VerticalAlignment="Center" ToolTip="{Binding Detail}" AutomationProperties.Name="{Binding Detail}"/>
                         <TextBlock Grid.Column="1" Text="{Binding Percent}" HorizontalAlignment="Right"/>
                       </Grid>
                     </DataTemplate>

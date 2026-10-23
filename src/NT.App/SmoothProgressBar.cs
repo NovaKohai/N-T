@@ -31,7 +31,7 @@ public static class SmoothProgressBar
         if (bar.IsIndeterminate) return;
 
         double current = bar.Value;
-        if (Math.Abs(current - target) < 0.1)
+        if (Math.Abs(current - target) < 0.1 || !SystemParameters.ClientAreaAnimation)
         {
             bar.BeginAnimation(RangeBase.ValueProperty, null);
             bar.Value = target;
