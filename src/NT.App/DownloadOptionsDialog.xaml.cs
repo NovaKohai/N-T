@@ -13,6 +13,7 @@ public partial class DownloadOptionsDialog : Window
     public DateTimeOffset? ScheduledAt { get; private set; }
     public long? SpeedLimit { get; private set; }
     public DialogAction UserAction { get; private set; } = DialogAction.Cancel;
+    public int? DesiredConcurrency { get; private set; }
     public string SavePath { get; private set; } = "";
     public string Category { get; private set; } = "General";
 
@@ -276,6 +277,8 @@ public partial class DownloadOptionsDialog : Window
             }
             
             SpeedLimit = DownloadDialogValidation.ParseSpeed(SpeedInput.Text);
+            if (ConcurrentInput.SelectedItem is System.Windows.Controls.ComboBoxItem concItem && int.TryParse(concItem.Tag as string, out var conc))
+                DesiredConcurrency = conc;
             
             var metadata = (dynamic?)Tag;
             // The user's own name, or the browser's, is kept as is. Only a name derived from the address alone that the server has not confirmed yet

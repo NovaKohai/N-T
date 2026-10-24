@@ -32,6 +32,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("proxy settings apply live; bad proxy login fails the peer, no direct fallback", ProxyLiveAndDenied),
     ("HTTP tracker announce goes through the tracker proxy", ProxyTracker),
     ("remove reports deleted and locked files", RemoveReport),
+    ("batch priority and sequential toggle", BatchPriorityAndSequential),
 };
 var filter = args.FirstOrDefault();
 foreach (var test in tests.Where(t => filter == null || filter.Split('|').Any(f => t.Name.Contains(f, StringComparison.OrdinalIgnoreCase))))
@@ -424,6 +425,9 @@ async Task MagnetLoopback()
     var meta = await d.FetchMetadataAsync(magnet, TimeSpan.FromSeconds(30));
     Check(tracker.Hits > 0, "tracker was contacted");
     Check(meta.Id == seedJob.Id && meta.Name == p.Name && meta.Files.Count == 3 && meta.TotalBytes == seedJob.TotalBytes, "metadata fetched over ut_metadata");
+    Check(meta.TorrentBytes is not null && meta.TorrentBytes.Length > 0, "torrent bytes included in metadata");
+    var loaded = TorrentValidator.LoadTorrent(meta.TorrentBytes!);
+    Check(loaded.Name == p.Name && loaded.Files.Count == 3, "torrent bytes load successfully");
     Check(d.List().Count == 0, "FetchMetadata does not add");
     var dl = Dir("dl");
     var job = await d.AddMagnetAsync(magnet, dl, TimeSpan.FromSeconds(30));
@@ -527,6 +531,22 @@ async Task RemoveReport()
     var report = await d.RemoveDetailedAsync(job.Id, deleteFiles: true);
     Check(report.Deleted == 2 && report.Failed == 1, $"expected 2 deleted and 1 locked, got {report}");
     Check(File.Exists(Path.Combine(dl, p.Name, "c.bin")) && File.Exists(outside), "locked and foreign files survive");
+}
+
+async Task BatchPriorityAndSequential()
+{
+    var p = MakePayload();
+    await using var d = await TorrentService.CreateAsync(Dir("dlstate"), Loopback());
+    var job = await d.AddTorrentFileAsync(p.Torrent, Dir("dl"), start: false);
+    Check(!job.IsSequential, "starts non-sequential");
+    await d.SetSequentialAsync(job.Id, true);
+    Check(d.Get(job.Id)!.IsSequential, "sequential enabled");
+    await d.SetSequentialAsync(job.Id, false);
+    Check(!d.Get(job.Id)!.IsSequential, "sequential disabled");
+    await d.SetFilesPriorityAsync(job.Id, new[] { 0, 2 }, FilePriority.Skip);
+    var updated = d.Get(job.Id)!;
+    Check(updated.Files[0].Priority == FilePriority.Skip && updated.Files[2].Priority == FilePriority.Skip, "batch skip applied");
+    Check(updated.Files[1].Priority == FilePriority.Normal, "untouched file stays normal");
 }
 
 /// <summary>Minimal HTTP tracker (loopback only) that answers every announce with one compact peer.</summary>

@@ -14,20 +14,22 @@ public partial class AddDownloadWindow : Window
     public IReadOnlyList<DownloadRequest>? BatchRequests { get; private set; }
     /// <summary>Set instead of <see cref="Request"/> when the user entered a magnet link; the torrent file-selection dialog takes over.</summary>
     public string? MagnetUri { get; private set; }
+    public bool StartImmediately { get; private set; } = true;
+    public int? DesiredConcurrency { get; private set; }
 
-    public async Task<IReadOnlyList<DownloadJob>> AddAllToAsync(DownloadManager manager)
+    public async Task<IReadOnlyList<DownloadJob>> AddAllToAsync(DownloadManager manager, bool startPaused = false)
     {
         var requests = BatchRequests ?? (Request is not null ? [Request] : throw new InvalidOperationException("Validate the download first."));
         var results = new List<DownloadJob>();
         foreach (var req in requests)
         {
-            var job = await manager.AddScheduledAsync(req, SpeedLimit.HasValue ? DateTimeOffset.UtcNow.AddYears(1) : ScheduledAt);
+            var job = await manager.AddScheduledAsync(req, SpeedLimit.HasValue ? DateTimeOffset.UtcNow.AddYears(1) : ScheduledAt, startPaused: startPaused);
             if (SpeedLimit.HasValue)
             {
                 try
                 {
                     manager.SetSpeedLimit(job.Id, SpeedLimit);
-                    manager.Schedule(job.Id, ScheduledAt ?? DateTimeOffset.UtcNow);
+                    if (!startPaused) manager.Schedule(job.Id, ScheduledAt ?? DateTimeOffset.UtcNow);
                 }
                 catch
                 {
@@ -40,16 +42,27 @@ public partial class AddDownloadWindow : Window
         return results;
     }
 
-    public async Task<DownloadJob> AddToAsync(DownloadManager manager)
+    public async Task<DownloadJob> AddToAsync(DownloadManager manager, bool startPaused = false)
     {
-        var all = await AddAllToAsync(manager);
+        var all = await AddAllToAsync(manager, startPaused);
         return all[0];
     }
 
-    public AddDownloadWindow(string initialUrl)
+    public AddDownloadWindow(string initialUrl, int? currentConcurrency = null)
     {
         InitializeComponent();
         UrlInput.Text = initialUrl;
+        if (currentConcurrency.HasValue)
+        {
+            foreach (ComboBoxItem item in ConcurrentInput.Items)
+            {
+                if (item.Tag as string == currentConcurrency.Value.ToString())
+                {
+                    ConcurrentInput.SelectedItem = item;
+                    break;
+                }
+            }
+        }
         Loaded += (_, _) => { UrlInput.Focus(); UrlInput.SelectAll(); };
     }
 
@@ -73,13 +86,34 @@ public partial class AddDownloadWindow : Window
                 return;
             }
         }
+        if (HostLinkResolver.CanResolve(text))
+        {
+            PatternHint.Text = "File host link detected (datanodes.to / fuckingfast.co): will resolve to direct download link.";
+            PatternHint.Visibility = Visibility.Visible;
+            return;
+        }
         PatternHint.Visibility = Visibility.Collapsed;
     }
 
-    private void Accept_Click(object sender, RoutedEventArgs e)
+    private async void DownloadLater_Click(object sender, RoutedEventArgs e)
+    {
+        StartImmediately = false;
+        await ProcessAcceptAsync();
+    }
+
+    private async void Accept_Click(object sender, RoutedEventArgs e)
+    {
+        StartImmediately = true;
+        await ProcessAcceptAsync();
+    }
+
+    private async Task ProcessAcceptAsync()
     {
         try
         {
+            if (ConcurrentInput.SelectedItem is ComboBoxItem concItem && int.TryParse(concItem.Tag as string, out var conc))
+                DesiredConcurrency = conc;
+
             string url = UrlInput.Text.Trim();
             if (url.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
             {
@@ -109,6 +143,23 @@ public partial class AddDownloadWindow : Window
             }
 
             NativeBridge.ValidateUrl(url);
+
+            if (HostLinkResolver.CanResolve(url))
+            {
+                ValidationError.Text = "Resolving host link…";
+                if (AcceptButton is not null) AcceptButton.IsEnabled = false;
+                if (DownloadLaterButton is not null) DownloadLaterButton.IsEnabled = false;
+                try
+                {
+                    url = await HostLinkResolver.ResolveAsync(url).ConfigureAwait(true);
+                }
+                finally
+                {
+                    if (AcceptButton is not null) AcceptButton.IsEnabled = true;
+                    if (DownloadLaterButton is not null) DownloadLaterButton.IsEnabled = true;
+                }
+            }
+
             string name = NameInput.Text.Trim();
             if (name.Length > 0 && (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name is "." or ".." || name.EndsWith('.') || name.EndsWith(' ')))
                 throw new FormatException("Use a file name without folder paths or invalid characters.");
@@ -119,5 +170,6 @@ public partial class AddDownloadWindow : Window
         }
         catch (TorrentRejectedException ex) { ValidationError.Text = ex.Message; UpdateLayout(); ValidationError.BringIntoView(); }
         catch (FormatException ex) { ValidationError.Text = ex.Message; UpdateLayout(); ValidationError.BringIntoView(); }
+        catch (Exception ex) { ValidationError.Text = "Host link resolution failed: " + ex.Message; UpdateLayout(); ValidationError.BringIntoView(); }
     }
 }

@@ -21,12 +21,16 @@ Statuses: `Queued`, `Scheduled`, `Downloading`, `Paused`, `Completed`, `Failed`.
 ## Additional APIs
 
 - `DownloadManager(string downloadDirectory, string stateDirectory, DownloadOptions options)`.
-- `AddScheduledAsync(DownloadRequest request, DateTimeOffset? scheduledAt)` returns `Task<DownloadJob>`; future jobs do not start early.
+- AddScheduledAsync(DownloadRequest request, DateTimeOffset? scheduledAt, bool startPaused = false) returns Task<DownloadJob>; future jobs do not start early. AddPausedAsync(request) adds a job paused in the queue.
+- MaxConcurrentDownloads gets or sets the live concurrency cap (bounds 1..16).
+- MoveJob(string id, int delta) shifts a job up or down in persistent queue order.
+- StartQueue() resumes paused queue items; StopQueue() pauses currently active transfers.
 - `Schedule(string id, DateTimeOffset scheduledAt)` changes the due time and cancels an active attempt before restarting at the due time.
 - `SetSpeedLimit(string id, long? bytesPerSecond)` sets an aggregate per-job limit shared by all segments; `null` removes the limit. Positive values only. Live changes are observed within 250 ms.
 - `LastPersistenceError` reports checkpoint write failures; explicit public mutations throw if their checkpoint cannot be written.
 - `DownloadOptions`: `MaxConcurrentDownloads` (default 3, bounds 1..16), `MaxSegments` (default 4, concurrent connection cap, bounds 1..32), `EnableDynamicSegmentation` (default `true`), `MinimumSegmentSize` (default 256 KiB, minimum 64 KiB), `RetryCount` (default 3, bounds 0..8), `RequestTimeout` (default 30 seconds, bounds 100 ms..5 minutes). Timeout applies to connecting, response headers and each read, not the entire large download.
 - `DownloadFileNames.Sanitize(string?)` provides the same Windows-safe sanitization used by the queue.
+- `HostLinkResolver` resolves intermediate file host links (`datanodes.to` and `fuckingfast.co`) into direct download links. `CanResolve` inspects URI formats, `ResolveAsync` fetches direct mirror URLs, and `ResolveAllAsync` executes batch operations with progress reporting.
 
 ## Safety and lifecycle
 

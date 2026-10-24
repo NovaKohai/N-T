@@ -128,7 +128,7 @@ public sealed class TorrentController : IDisposable
             {
                 if (job.Files.Count != selection.TotalFileCount) throw new InvalidOperationException("The torrent's file list changed after it was previewed.");
                 var keep = indexes.ToHashSet();
-                foreach (var file in job.Files.Where(f => !keep.Contains(f.Index))) await service.SkipFileAsync(job.Id, file.Index);
+                var skipped = job.Files.Where(f => !keep.Contains(f.Index)).Select(f => f.Index).ToList(); if (skipped.Count > 0) await service.SetFilesPriorityAsync(job.Id, skipped, FilePriority.Skip);
             }
             if (selection.IsSequential) await service.SetSequentialAsync(job.Id, true);
             if (selection.StartNow) await service.ResumeAsync(job.Id);

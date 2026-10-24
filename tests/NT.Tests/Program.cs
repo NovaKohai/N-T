@@ -25,6 +25,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("malicious filenames and collision protection", Names),
     ("remove keeps completed files and deletes partials", Remove),
     ("job concurrency bound and speed limit", Limits),
+    ("queue concurrency, live changes, reorder and queue controls", QueueControls),
     ("scheduling persists and starts at due time", Scheduling),
     ("detached snapshots and bad input rejection", Input),
     ("corrupt queue fails closed without data loss", Corrupt),
@@ -59,15 +60,18 @@ var tests = new (string Name, Func<Task> Run)[]
     ("file names: real downloads resolve the right name (disposition, redirects, type, magic, HEAD 405, collisions)", () => NameTests.Downloads(Paths())),
     ("file names: pre-download probe (HEAD, ranged-GET fallback, redirects, size/type)", () => NameTests.Probe(Paths())),
     ("URL range pattern expansion and Cartesian product", () => { UrlPatternTests.Run(); return Task.CompletedTask; }),
-    ("downloadable link classification and filtering", () => { DownloadableLinkDetectorTests.Run(); return Task.CompletedTask; })
+    ("downloadable link classification and filtering", () => { DownloadableLinkDetectorTests.Run(); return Task.CompletedTask; }),
+    ("host link resolution (datanodes.to, fuckingfast.co, batch, error handling)", HostLinkResolverTests.RunAsync)
 };
-foreach (var test in tests)
+var filter = args.FirstOrDefault(a => !a.StartsWith("--"));
+var activeTests = filter != null ? tests.Where(t => t.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToArray() : tests;
+foreach (var test in activeTests)
 {
     var clock = Stopwatch.StartNew();
     try { await test.Run(); passed++; Console.WriteLine($"PASS {test.Name} ({clock.ElapsedMilliseconds} ms)"); }
     catch (Exception ex) { failures.Add(test.Name); Console.WriteLine($"FAIL {test.Name}: {ex}"); }
 }
-Console.WriteLine($"RESULT {passed}/{tests.Length} passed; {failures.Count} failed");
+Console.WriteLine($"RESULT {passed}/{activeTests.Length} passed; {failures.Count} failed");
 Console.WriteLine($"Artifacts: {root}");
 if (failures.Count == 0) Directory.Delete(root, true);
 return failures.Count == 0 ? 0 : 1;
@@ -330,4 +334,48 @@ async Task ObserverDispose()
     manager.Changed += () => { manager.Dispose(); done.TrySetResult(); };
     manager.Schedule(j.Id, DateTimeOffset.UtcNow);
     await done.Task.WaitAsync(TimeSpan.FromSeconds(5)); manager.Dispose();
+}
+async Task QueueControls()
+{
+    using var server = new FixtureServer();
+    var paths = Paths();
+    using var manager = Manager(paths, concurrent: 1);
+    Check(manager.MaxConcurrentDownloads == 1, "Initial concurrency matches options");
+
+    bool threwMin = false, threwMax = false;
+    try { manager.MaxConcurrentDownloads = 0; } catch (ArgumentOutOfRangeException) { threwMin = true; }
+    try { manager.MaxConcurrentDownloads = 17; } catch (ArgumentOutOfRangeException) { threwMax = true; }
+    Check(threwMin && threwMax, "MaxConcurrentDownloads bounds 1..16 enforced");
+
+    var paused = await manager.AddPausedAsync(new(server.BaseUrl + "/range?paused"));
+    Check(Job(manager, paused.Id).Status == "Paused", "AddPausedAsync created paused job");
+
+    var first = await manager.AddAsync(new(server.BaseUrl + "/range?one"));
+    var second = await manager.AddAsync(new(server.BaseUrl + "/range?two"));
+    var third = await manager.AddAsync(new(server.BaseUrl + "/range?three"));
+
+    await Task.Delay(200);
+    Check(Job(manager, first.Id).Status is "Downloading" or "Completed", "First job starts");
+    Check(Job(manager, second.Id).Status == "Queued", "Second job queued at concurrency 1");
+    Check(Job(manager, third.Id).Status == "Queued", "Third job queued at concurrency 1");
+
+    var moved = manager.MoveJob(third.Id, -1);
+    Check(moved, "MoveJob moved third job");
+    var order = manager.Jobs.Select(j => j.Id).ToList();
+    Check(order.IndexOf(third.Id) < order.IndexOf(second.Id), "Third job is now ahead of second");
+
+    manager.MaxConcurrentDownloads = 2;
+    await Task.Delay(300);
+    Check(Job(manager, third.Id).Status is "Downloading" or "Completed", "Increasing concurrency dynamically started newly prioritized job");
+
+    var stopped = manager.StopQueue();
+    Check(stopped >= 0, "StopQueue executed");
+
+    var started = manager.StartQueue();
+    Check(started >= 0, "StartQueue executed");
+
+    Exact(await Complete(manager, first.Id), server.Payload);
+    Exact(await Complete(manager, third.Id), server.Payload);
+    Exact(await Complete(manager, second.Id), server.Payload);
+    Exact(await Complete(manager, paused.Id), server.Payload);
 }

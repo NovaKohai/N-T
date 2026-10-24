@@ -85,6 +85,13 @@ public static class DownloadableLinkDetector
         if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
             return false;
 
+        // Supported file hoster links (datanodes.to, fuckingfast.co)
+        if (HostLinkResolver.CanResolve(uri))
+        {
+            cleanedUrl = trimmed;
+            return true;
+        }
+
         // Supported video addresses (yt-dlp integration)
         if (IsYoutubeUrl(uri))
         {

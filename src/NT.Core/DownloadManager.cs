@@ -13,6 +13,23 @@ public sealed partial class DownloadManager : IDisposable
     private readonly object gate = new();
     private readonly string downloads, state, queuePath;
     private readonly DownloadOptions options;
+    private int maxConcurrentDownloads;
+    public int MaxConcurrentDownloads
+    {
+        get { lock (gate) return maxConcurrentDownloads; }
+        set
+        {
+            if (value is < 1 or > 16) throw new ArgumentOutOfRangeException(nameof(value), "Concurrent downloads must be between 1 and 16.");
+            lock (gate)
+            {
+                ThrowIfDisposed();
+                if (maxConcurrentDownloads == value) return;
+                maxConcurrentDownloads = value;
+            }
+            Notify();
+            Tick(null);
+        }
+    }
     private readonly Func<string, string>? pathResolver;
     private readonly HttpClient client;
     private readonly FileStream ownership;
@@ -51,6 +68,7 @@ public sealed partial class DownloadManager : IDisposable
     {
         options.Validate();
         this.options = options;
+        this.maxConcurrentDownloads = options.MaxConcurrentDownloads;
         this.pathResolver = pathResolver;
         downloads = Path.GetFullPath(downloadDirectory);
         state = Path.GetFullPath(stateDirectory);
@@ -63,7 +81,7 @@ public sealed partial class DownloadManager : IDisposable
         {
             AutomaticDecompression = DecompressionMethods.None,
             AllowAutoRedirect = false,
-            MaxConnectionsPerServer = options.MaxConcurrentDownloads * options.MaxSegments,
+            MaxConnectionsPerServer = Math.Max(16 * options.MaxSegments, options.MaxConcurrentDownloads * options.MaxSegments),
             ConnectTimeout = options.RequestTimeout,
             UseCookies = false,
             ResponseHeaderEncodingSelector = (_, _) => System.Text.Encoding.Latin1 // raw bytes; FileNameResolver re-decodes UTF-8 file names
@@ -76,8 +94,10 @@ public sealed partial class DownloadManager : IDisposable
         timer = new Timer(Tick, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(200));
     }
 
-    public Task<DownloadJob> AddAsync(DownloadRequest request) => AddScheduledAsync(request, null);
-    public Task<DownloadJob> AddScheduledAsync(DownloadRequest request, DateTimeOffset? scheduledAt)
+    public Task<DownloadJob> AddAsync(DownloadRequest request) => AddScheduledAsync(request, null, startPaused: false);
+    public Task<DownloadJob> AddPausedAsync(DownloadRequest request) => AddScheduledAsync(request, null, startPaused: true);
+    public Task<DownloadJob> AddScheduledAsync(DownloadRequest request, DateTimeOffset? scheduledAt) => AddScheduledAsync(request, scheduledAt, startPaused: false);
+    public Task<DownloadJob> AddScheduledAsync(DownloadRequest request, DateTimeOffset? scheduledAt, bool startPaused)
     {
         ValidateRequest(request);
         DownloadJob result;
@@ -101,6 +121,7 @@ public sealed partial class DownloadManager : IDisposable
                 name = AvailableName(DownloadFileNames.Sanitize(candidate));
                 targetDir = pathResolver?.Invoke(name) ?? downloads;
             }
+            var status = startPaused ? "Paused" : (scheduledAt > DateTimeOffset.UtcNow ? "Scheduled" : "Queued");
             var work = new Work
             {
                 Request = request,
@@ -109,7 +130,7 @@ public sealed partial class DownloadManager : IDisposable
                     Id = Guid.NewGuid().ToString("N"), Url = request.Url, FileName = name,
                     FilePath = Path.Combine(targetDir, name), ScheduledAt = scheduledAt,
                     Referer = request.Referer, AddedAt = DateTimeOffset.UtcNow,
-                    Status = scheduledAt > DateTimeOffset.UtcNow ? "Scheduled" : "Queued"
+                    Status = status
                 }
             };
             jobs.Add(work);
@@ -117,8 +138,75 @@ public sealed partial class DownloadManager : IDisposable
             catch { jobs.Remove(work); throw; }
             result = SnapshotLocked(work);
         }
-        Notify(); Tick(null);
+        Notify();
+        if (!startPaused) Tick(null);
         return Task.FromResult(result);
+    }
+
+    /// <summary>Moves a job up (negative delta) or down (positive delta) in the queue order. Returns true if the job was moved.</summary>
+    public bool MoveJob(string id, int delta)
+    {
+        lock (gate)
+        {
+            ThrowIfDisposed();
+            var index = jobs.FindIndex(w => w.Job.Id == id);
+            if (index < 0) return false;
+            var target = Math.Clamp(index + delta, 0, jobs.Count - 1);
+            if (target == index) return false;
+            var item = jobs[index];
+            jobs.RemoveAt(index);
+            jobs.Insert(target, item);
+            SaveLocked();
+        }
+        Notify();
+        Tick(null);
+        return true;
+    }
+
+    /// <summary>Starts processing queued downloads by resuming paused jobs to Queued status.</summary>
+    public int StartQueue()
+    {
+        int count = 0;
+        lock (gate)
+        {
+            ThrowIfDisposed();
+            foreach (var w in jobs)
+            {
+                if (w.Job.Status == "Paused")
+                {
+                    w.Job.Error = null;
+                    w.Job.Status = w.Job.ScheduledAt > DateTimeOffset.UtcNow ? "Scheduled" : "Queued";
+                    count++;
+                }
+            }
+            if (count > 0) SaveLocked();
+        }
+        Notify();
+        Tick(null);
+        return count;
+    }
+
+    /// <summary>Stops active queue downloads by pausing currently downloading jobs.</summary>
+    public int StopQueue()
+    {
+        int count = 0;
+        lock (gate)
+        {
+            ThrowIfDisposed();
+            foreach (var w in jobs)
+            {
+                if (w.Job.Status is "Downloading" or "Connecting")
+                {
+                    w.Job.Status = "Paused";
+                    w.Job.SpeedBytesPerSecond = 0;
+                    w.Cancellation?.Cancel();
+                    count++;
+                }
+            }
+            if (count > 0) SaveLocked();
+        }
+        Notify();
+        return count;
     }
 
     public void Pause(string id)
@@ -358,7 +446,7 @@ public sealed partial class DownloadManager : IDisposable
             var active = activeJobs.Count;
             foreach (var w in jobs)
             {
-                if (active >= options.MaxConcurrentDownloads) break;
+                if (active >= maxConcurrentDownloads) break;
                 if (w.Runner != null || w.Job.Status is not ("Queued" or "Scheduled") || w.Job.ScheduledAt > now) continue;
                 w.Job.Status = "Downloading"; w.Job.Error = null;
                 w.Cancellation = new CancellationTokenSource();

@@ -70,7 +70,10 @@
       <MenuItem Header="_Tasks">
         <MenuItem Header="_Add URL…" Click="Add_Click" InputGestureText="Ctrl+N"/>
         <MenuItem Header="_Import URLs…" Click="Bulk_Click"/>
+        <MenuItem Header="_Host link generator…" Click="LinkGenerator_Click"/>
         <MenuItem Header="Add _torrent file…" Click="AddTorrentFile_Click" Tag="torrent"/>
+        <MenuItem Header="Start _queue" Click="StartQueue_Click"/>
+        <MenuItem Header="Stop q_ueue" Click="StopQueue_Click"/>
         <MenuItem Header="Remove _completed" Click="RemoveCompleted_Click"/>
         <MenuItem Header="_Scheduler…" Click="Schedule_Click" IsEnabled="{Binding IsEnabled, ElementName=ScheduleButton}"/>
       </MenuItem>
@@ -86,6 +89,9 @@
         <MenuItem Header="_Stop" Click="Stop_Click" IsEnabled="{Binding IsEnabled, ElementName=StopButton}"/>
         <MenuItem Header="Stop _all" Click="PauseAll_Click" IsEnabled="{Binding IsEnabled, ElementName=PauseAllButton}"/>
         <MenuItem Header="Resume all paused" Click="ResumeAll_Click" IsEnabled="{Binding IsEnabled, ElementName=ResumeAllButton}"/>
+        <MenuItem Header="Start _queue" Click="StartQueue_Click"/>
+        <MenuItem Header="Stop q_ueue" Click="StopQueue_Click"/>
+        <MenuItem Header="Host _link generator (Datanodes)…" Click="LinkGenerator_Click"/>
         <MenuItem x:Name="ProgressMenu" Header="_Progress…" Click="Progress_Click"/>
         <MenuItem x:Name="MenuSendToTray" Header="Download in _background (tray)" Click="ContextSendToTray_Click"/>
         <MenuItem Header="Speed _limit…" Click="Speed_Click" IsEnabled="{Binding IsEnabled, ElementName=SpeedButton}"/>
@@ -125,12 +131,16 @@
         <Button x:Name="StopButton" Content="Stop" Click="Stop_Click" Style="{StaticResource Command}" AutomationProperties.Name="Stop" ToolTip="Pause selected download"/>
         <Button x:Name="PauseAllButton" Content="Stop all" Click="PauseAll_Click" Style="{StaticResource Command}" AutomationProperties.Name="Stop all" ToolTip="Pause all active downloads"/>
         <Border Style="{StaticResource CommandSeparator}"/>
+        <Button x:Name="StartQueueButton" Content="Start queue" Click="StartQueue_Click" Style="{StaticResource Command}" AutomationProperties.Name="Start queue" ToolTip="Start downloading queued items"/>
+        <Button x:Name="StopQueueButton" Content="Stop queue" Click="StopQueue_Click" Style="{StaticResource Command}" AutomationProperties.Name="Stop queue" ToolTip="Stop active queue downloads"/>
+        <Border Style="{StaticResource CommandSeparator}"/>
         <Button x:Name="RemoveButton" Content="Remove" Click="Remove_Click" Style="{StaticResource Command}" AutomationProperties.Name="Remove" ToolTip="Remove selected download (Delete)"/>
         <Button Content="Remove completed" Click="RemoveCompleted_Click" Style="{StaticResource Command}" AutomationProperties.Name="Remove completed" ToolTip="Remove completed downloads from queue"/>
         <Border Style="{StaticResource CommandSeparator}"/>
         <Button Content="Options…" Click="Settings_Click" Style="{StaticResource Command}" AutomationProperties.Name="Options" ToolTip="Application options and settings"/>
         <Button x:Name="ScheduleButton" Content="Scheduler…" Click="Schedule_Click" Style="{StaticResource Command}" AutomationProperties.Name="Scheduler" ToolTip="Schedule downloads"/>
         <Border Style="{StaticResource CommandSeparator}"/>
+        <Button x:Name="QueueConcurrentButton" Content="Queue: 3 at a time" Click="QueueConcurrentButton_Click" Style="{StaticResource Command}" AutomationProperties.Name="Queue concurrency" ToolTip="How many downloads to run at the same time"/>
         <Button x:Name="SpeedLimitButton" Content="Speed: Unlimited" Click="SpeedLimitButton_Click" Style="{StaticResource Command}" AutomationProperties.Name="Global speed limit" ToolTip="Set global download speed limit"/>
       </WrapPanel>
     </Border>
@@ -261,13 +271,16 @@
                 <MenuItem x:Name="CtxMove" Header="Move / _Rename…" Click="ContextMove_Click"/>
                 <MenuItem x:Name="CtxProperties" Header="Propert_ies…" Click="ContextProperties_Click"/>
                 <MenuItem x:Name="CtxDetails" Header="Torrent _details…" Click="ContextDetails_Click"/>
-                <MenuItem x:Name="CtxSequential" Header="Download in se_quential order" Click="ContextSequential_Click"/>
+                <MenuItem x:Name="CtxSequential" Header="Download in se_quential order" IsCheckable="True" Click="ContextSequential_Click"/>
                 <Separator/>
                 <MenuItem x:Name="CtxResume" Header="Resu_me" Click="ContextResume_Click"/>
                 <MenuItem x:Name="CtxStop" Header="S_top (pause)" Click="ContextStop_Click"/>
                 <MenuItem x:Name="CtxSendToTray" Header="Download in _background (tray)" Click="ContextSendToTray_Click"/>
                 <MenuItem x:Name="CtxRefreshUrl" Header="Re_fresh address…" Click="ContextRefreshUrl_Click"/>
                 <MenuItem x:Name="CtxRedownload" Header="Redo_wnload" Click="ContextRedownload_Click"/>
+                <Separator/>
+                <MenuItem x:Name="CtxMoveUp" Header="Move _up in queue" Click="MoveUp_Click" InputGestureText="Alt+Up"/>
+                <MenuItem x:Name="CtxMoveDown" Header="Move do_wn in queue" Click="MoveDown_Click" InputGestureText="Alt+Down"/>
                 <Separator/>
                 <MenuItem x:Name="CtxSpeed" Header="Set speed _limit…" Click="Speed_Click"/>
                 <MenuItem x:Name="CtxSchedule" Header="Sc_hedule…" Click="Schedule_Click"/>

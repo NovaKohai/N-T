@@ -1,0 +1,40 @@
+<Window x:Class="NT.App.LinkGeneratorWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Style="{StaticResource {x:Type Window}}" Icon="Assets/NT.ico" Title="Host Link Generator" Width="680" Height="680" MinWidth="520" MinHeight="480" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <Grid Margin="24">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="1*"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="1*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0">
+      <TextBlock Text="Host Link Generator" Style="{StaticResource DialogHeading}"/>
+      <TextBlock Text="Convert datanodes.to and fuckingfast.co links into direct download links." Style="{StaticResource Muted}" Margin="0,6,0,14" TextWrapping="Wrap"/>
+      <Label Content="Enter host _links (one per line):" Target="{Binding ElementName=LinksInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
+    </StackPanel>
+
+    <TextBox Grid.Row="1" x:Name="LinksInput" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" AutomationProperties.Name="Host links input"/>
+
+    <StackPanel Grid.Row="2" Margin="0,10,0,10">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <TextBlock x:Name="StatusLabel" Text="Paste links above and click Generate." Style="{StaticResource Muted}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+        <ProgressBar x:Name="GenProgressBar" Grid.Column="1" Width="140" Height="14" Visibility="Collapsed" VerticalAlignment="Center"/>
+      </Grid>
+      <Label Content="_Generated direct download links:" Target="{Binding ElementName=OutputBox}" Foreground="{DynamicResource InkBrush}" Margin="0,8,0,0" Padding="0,0,0,6"/>
+    </StackPanel>
+
+    <TextBox Grid.Row="3" x:Name="OutputBox" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="{DynamicResource SidebarBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" AutomationProperties.Name="Generated download links"/>
+
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button x:Name="CloseButton" Content="Close" IsCancel="True" MinWidth="84" Margin="0,0,8,0"/>
+      <Button x:Name="CopyButton" Content="Copy links" Click="Copy_Click" IsEnabled="False" MinWidth="94" Margin="0,0,8,0"/>
+      <Button x:Name="AddToQueueButton" Content="Add to download queue" Click="AddToQueue_Click" IsEnabled="False" MinWidth="170" Margin="0,0,8,0"/>
+      <Button x:Name="GenerateButton" Content="_Generate direct links" Click="Generate_Click" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="150"/>
+    </StackPanel>
+  </Grid>
+</Window>

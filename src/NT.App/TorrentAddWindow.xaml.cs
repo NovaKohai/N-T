@@ -12,7 +12,7 @@ public partial class TorrentAddWindow : Window
 {
     private readonly AppSettings _settings;
     private readonly string? _magnet;
-    private readonly byte[]? _data;
+    private byte[]? _data;
     private readonly MetadataFetcher? _fetch;
     private readonly TimeSpan _timeout;
     private CancellationTokenSource? _cts;
@@ -60,6 +60,7 @@ public partial class TorrentAddWindow : Window
         {
             var meta = await _fetch(_magnet, _timeout, cts.Token);
             if (cts.IsCancellationRequested) return;
+            if (meta.TorrentBytes is not null) _data = meta.TorrentBytes;
             ShowFiles(meta.Name, meta.Files.Select(f => (f.Path, f.Length)).ToList());
         }
         catch (OperationCanceledException) { if (!cts.IsCancellationRequested) ShowMetadataError("Metadata fetch was interrupted."); }

@@ -26,7 +26,20 @@
       <Label Content="Speed _limit (KiB/s; blank = unlimited)" Target="{Binding ElementName=SpeedInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/><TextBox x:Name="SpeedInput" AutomationProperties.Name="Speed limit in KiB per second"/>
       <TextBlock Text="Positive whole numbers; shared across this download's segments." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
     </StackPanel>
-    <StackPanel Grid.Row="6" Margin="0,16,0,0" x:Name="SchedulePanel" Visibility="Collapsed">
+    <StackPanel Grid.Row="6" Margin="0,16,0,0">
+      <Label Content="Queue _concurrency (download at the same time)" Target="{Binding ElementName=ConcurrentInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
+      <ComboBox x:Name="ConcurrentInput" AutomationProperties.Name="Queue concurrency">
+        <ComboBoxItem Content="1 download at a time (Sequential queue)" Tag="1"/>
+        <ComboBoxItem Content="2 downloads at a time" Tag="2"/>
+        <ComboBoxItem Content="3 downloads at a time (Default)" Tag="3" IsSelected="True"/>
+        <ComboBoxItem Content="4 downloads at a time" Tag="4"/>
+        <ComboBoxItem Content="5 downloads at a time" Tag="5"/>
+        <ComboBoxItem Content="8 downloads at a time" Tag="8"/>
+        <ComboBoxItem Content="16 downloads at a time" Tag="16"/>
+      </ComboBox>
+      <TextBlock Text="How many queued files to download at the same time." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+    </StackPanel>
+    <StackPanel Grid.Row="7" Margin="0,16,0,0" x:Name="SchedulePanel" Visibility="Collapsed">
       <Label Content="Local date and _time (yyyy-MM-dd HH:mm)" Target="{Binding ElementName=ScheduleInput}" Foreground="{DynamicResource InkBrush}"/><TextBox x:Name="ScheduleInput" AutomationProperties.Name="Scheduled local date and time"/>
       <TextBlock Text="Uses this computer's time zone. N&amp;T must be running at the due time." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
     </StackPanel>

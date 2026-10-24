@@ -65,7 +65,14 @@ public partial class MainWindow : Window
     internal void RefreshNow() => Refresh();
     internal void ShowAndSelect(string rowId)
     {
-        Search.Clear(); Navigation.SelectedIndex = 0;
+        Search.Clear();
+        if (rowId.StartsWith("bt:", StringComparison.OrdinalIgnoreCase))
+        {
+            var torrentTab = Navigation.Items.OfType<ListBoxItem>().FirstOrDefault(i => (i.Tag as string) == "T:All");
+            if (torrentTab is not null) Navigation.SelectedItem = torrentTab;
+            else Navigation.SelectedIndex = 0;
+        }
+        else Navigation.SelectedIndex = 0;
         Refresh();
         DownloadList.SelectedItem = Rows.FirstOrDefault(r => r.Id == rowId);
     }
@@ -100,6 +107,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = this;
         _torrents.Attach(this);
+        if (_torrents is TorrentFeature tf) tf.Controller.Changed += () => Dispatcher.BeginInvoke(new Action(() => { if (!_closed) Refresh(); }));
         ApplyFeatureVisibility();
         FinishActions.SessionActionChanged += SyncFinishMenus;
         _finishMenus.Add(FinishMenu);
@@ -114,6 +122,7 @@ public partial class MainWindow : Window
         _clipboardMonitor.DownloadableLinkDetected += OnClipboardLinkDetected;
         MenuClipboardMonitor.IsChecked = _settings.EnableClipboardMonitoring;
         UpdateGlobalSpeedButton();
+        UpdateQueueConcurrentButton();
         Refresh();
         _manager.Changed += ManagerChanged;
         Closed += (_, _) => { _closed = true; _timer.Stop(); _manager.Changed -= ManagerChanged; _completion.Dispose(); _completionWindow?.Close(); _trayIcon?.Dispose(); _clipboardMonitor.Dispose(); };
@@ -365,7 +374,8 @@ public partial class MainWindow : Window
             int active = Rows.Count(r => r.Status is "Downloading" or "Connecting" or "Checking");
             int seeding = Rows.Count(r => r.Status == "Seeding");
             Summary.Text = Rows.Count == 0 ? "Ready for your first download" : $"{active} active" + (seeding > 0 ? $"  ·  {seeding} seeding" : "") + $"  ·  {Rows.Count(r => r.IsComplete)} completed  ·  {Rows.Count} total";
-            RateLabel.Text = $"{DownloadRow.FormatBytes(Rows.Sum(r => r.Speed))}/s";
+            var downSpeed = Rows.Sum(r => r.Speed); var upSpeed = Rows.Sum(r => r.UploadSpeed);
+            RateLabel.Text = upSpeed > 0 ? $"↓ {DownloadRow.FormatBytes(downSpeed)}/s  ↑ {DownloadRow.FormatBytes(upSpeed)}/s" : $"{DownloadRow.FormatBytes(downSpeed)}/s";
             UpdateSelection();
             // Deferred: the countdown is modal and must not run inside a refresh pass.
             if (queueFinished) Dispatcher.BeginInvoke(new Action(RunFinishActions));
@@ -379,10 +389,12 @@ public partial class MainWindow : Window
         PauseButton.Content = row?.CanResume == true ? "Resume" : "Pause";
         ResumeButton.IsEnabled = row?.CanResume == true;
         StopButton.IsEnabled = row?.CanPause == true;
-        OpenButton.IsEnabled = row?.IsComplete == true && File.Exists(row.FilePath);
+        OpenButton.IsEnabled = row?.IsComplete == true && (File.Exists(row.FilePath) || (row.IsTorrent && Directory.Exists(row.FilePath)));
         FolderButton.IsEnabled = row is not null;
         RemoveButton.IsEnabled = row is not null;
         ScheduleButton.IsEnabled = SpeedButton.IsEnabled = row is not null && !row.IsComplete && !row.IsTorrent; // Torrent limits are global (Options > Torrents).
+        CtxMoveUp.IsEnabled = row is not null && !row.IsTorrent && !row.IsComplete;
+        CtxMoveDown.IsEnabled = row is not null && !row.IsTorrent && !row.IsComplete;
         ProgressMenu.IsEnabled = row is not null && (row.IsTorrent || !row.IsComplete);
         DetailTorrent.Text = row?.IsTorrent == true ? row.TorrentSummary : "";
         DetailTorrent.Visibility = row?.IsTorrent == true ? Visibility.Visible : Visibility.Collapsed;
@@ -416,17 +428,33 @@ public partial class MainWindow : Window
         _adding = true;
         try
         {
-            var dialog = new AddDownloadWindow(initialUrl) { Owner = this };
+            var dialog = new AddDownloadWindow(initialUrl, _settings.MaxConcurrentDownloads) { Owner = this };
             if (dialog.ShowDialog() != true) return;
+            if (dialog.DesiredConcurrency.HasValue && dialog.DesiredConcurrency.Value != _settings.MaxConcurrentDownloads)
+            {
+                _settings.MaxConcurrentDownloads = dialog.DesiredConcurrency.Value;
+                _manager.MaxConcurrentDownloads = dialog.DesiredConcurrency.Value;
+                _saveSettings();
+                UpdateQueueConcurrentButton();
+            }
             if (dialog.MagnetUri is { } magnet) { await _torrents.AddMagnetFromAddDialogAsync(magnet); return; }
             if (dialog.Request is null) return;
             Notice.Text = "Saving download…";
-            var job = await dialog.AddToAsync(_manager);
+            DownloadJob job;
+            if (dialog.StartImmediately)
+            {
+                job = await dialog.AddToAsync(_manager);
+                Notice.Text = "Download added.";
+            }
+            else
+            {
+                job = await dialog.AddToAsync(_manager, startPaused: true);
+                Notice.Text = "Download added to queue (paused).";
+            }
             Search.Clear();
             Navigation.SelectedIndex = 0;
             Refresh();
             DownloadList.SelectedItem = Rows.FirstOrDefault(r => r.Id == job.Id);
-            Notice.Text = "Download added.";
         }
         catch (Exception) { Refresh(); MessageBox.Show(this, "The download or its options could not be saved. Check the queue before retrying: a saved job may be paused. Check the destination folder as well.", "Could not finish adding download", MessageBoxButton.OK, MessageBoxImage.Error); Notice.Text = "Add did not finish. Check the queue before retrying."; }
         finally { _adding = false; }
@@ -495,6 +523,11 @@ public partial class MainWindow : Window
         try { new BulkImportWindow(_manager, _torrents, _settings) { Owner = this }.ShowDialog(); Refresh(); Notice.Text = "Import closed. Per-line results were shown in the import dialog."; }
         finally { _adding = false; }
     }
+    private void LinkGenerator_Click(object sender, RoutedEventArgs e)
+    {
+        new LinkGeneratorWindow(_manager) { Owner = this }.ShowDialog();
+        Refresh();
+    }
     private async void PauseAll_Click(object sender, RoutedEventArgs e) => await ChangeAllAsync(false);
     private async void ResumeAll_Click(object sender, RoutedEventArgs e) => await ChangeAllAsync(true);
     private static bool Eligible(string status, bool resume) => resume ? status == "Paused" : status is "Downloading" or "Queued" or "Connecting" or "Scheduled";
@@ -540,6 +573,13 @@ public partial class MainWindow : Window
     private void Open_Click(object sender, RoutedEventArgs e)
     {
         if (Selected is not { IsComplete: true } row) return;
+        if (row.IsTorrent)
+        {
+            if (File.Exists(row.FilePath)) { Perform(() => DownloadFileActions.Open(row.FilePath), "File opened."); return; }
+            if (Directory.Exists(row.FilePath)) { Perform(() => Process.Start(new ProcessStartInfo(row.FilePath) { UseShellExecute = true })?.Dispose(), "Download folder opened."); return; }
+            Notice.Text = "The file is no longer in its saved location.";
+            return;
+        }
         if (!File.Exists(row.FilePath)) { Notice.Text = "The file is no longer in its saved location."; return; }
         Perform(() => DownloadFileActions.Open(row.FilePath), "File opened.");
     }
@@ -643,6 +683,8 @@ public partial class MainWindow : Window
         if (_torrents.IsAvailable) _ = _torrents.ApplySettingsAsync(_settings);
         SyncFinishMenus();
         UpdateGlobalSpeedButton();
+        _manager.MaxConcurrentDownloads = _settings.MaxConcurrentDownloads;
+        UpdateQueueConcurrentButton();
         _clipboardMonitor.IsEnabled = _settings.EnableClipboardMonitoring;
         MenuClipboardMonitor.IsChecked = _settings.EnableClipboardMonitoring;
         if (_trayClipboardItem is not null) _trayClipboardItem.IsChecked = _settings.EnableClipboardMonitoring;
@@ -652,6 +694,81 @@ public partial class MainWindow : Window
     {
         long? limit = _manager.GlobalSpeedLimit;
         SpeedLimitButton.Content = limit.HasValue ? $"Speed: {DownloadRow.FormatBytes(limit.Value)}/s" : "Speed: Unlimited";
+    }
+    public void UpdateQueueConcurrentButton()
+    {
+        int conc = _manager.MaxConcurrentDownloads;
+        QueueConcurrentButton.Content = conc == 1 ? "Queue: 1 at a time" : $"Queue: {conc} at a time";
+    }
+    private void QueueConcurrentButton_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new System.Windows.Controls.ContextMenu();
+        var presets = new (string Label, int Count)[]
+        {
+            ("1 at a time (Sequential queue)", 1),
+            ("2 downloads at a time", 2),
+            ("3 downloads at a time (Default)", 3),
+            ("4 downloads at a time", 4),
+            ("5 downloads at a time", 5),
+            ("8 downloads at a time", 8),
+            ("16 downloads at a time (Max)", 16),
+        };
+        foreach (var (label, count) in presets)
+        {
+            var item = new System.Windows.Controls.MenuItem { Header = label, IsChecked = _manager.MaxConcurrentDownloads == count };
+            int current = count;
+            item.Click += (_, _) =>
+            {
+                _manager.MaxConcurrentDownloads = current;
+                _settings.MaxConcurrentDownloads = current;
+                _saveSettings();
+                UpdateQueueConcurrentButton();
+                Refresh();
+                Notice.Text = current == 1 ? "Queue set to 1 download at a time (sequential)." : $"Queue set to {current} downloads at a time.";
+            };
+            menu.Items.Add(item);
+        }
+        menu.PlacementTarget = QueueConcurrentButton;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
+    private void StartQueue_Click(object sender, RoutedEventArgs e)
+    {
+        int started = _manager.StartQueue();
+        Refresh();
+        Notice.Text = started > 0 ? $"Queue started ({_manager.MaxConcurrentDownloads} downloading at a time)." : "Queue started.";
+    }
+    private void StopQueue_Click(object sender, RoutedEventArgs e)
+    {
+        int stopped = _manager.StopQueue();
+        Refresh();
+        Notice.Text = stopped > 0 ? $"Queue stopped ({stopped} paused)." : "Queue stopped.";
+    }
+    private void MoveUp_Click(object sender, RoutedEventArgs e)
+    {
+        if (Selected is { } row && !row.IsTorrent && !row.IsComplete)
+        {
+            if (_manager.MoveJob(row.Id, -1))
+            {
+                int oldIdx = Rows.IndexOf(row);
+                if (oldIdx > 0) Rows.Move(oldIdx, oldIdx - 1);
+                Refresh();
+                Notice.Text = $"Moved \"{row.FileName}\" up in queue.";
+            }
+        }
+    }
+    private void MoveDown_Click(object sender, RoutedEventArgs e)
+    {
+        if (Selected is { } row && !row.IsTorrent && !row.IsComplete)
+        {
+            if (_manager.MoveJob(row.Id, 1))
+            {
+                int oldIdx = Rows.IndexOf(row);
+                if (oldIdx < Rows.Count - 1) Rows.Move(oldIdx, oldIdx + 1);
+                Refresh();
+                Notice.Text = $"Moved \"{row.FileName}\" down in queue.";
+            }
+        }
     }
     private void SpeedLimitButton_Click(object sender, RoutedEventArgs e)
     {
@@ -738,12 +855,15 @@ public partial class MainWindow : Window
     {
         if (Selected is not { IsTorrent: true } row) return;
         bool next = !row.IsSequential;
-        await _torrents.SetSequentialAsync(row.Id, next);
+        CtxSequential.IsChecked = next;
+        await _torrents.SetSequentialAsync(row.TorrentId, next);
         Refresh();
     }
     private async void Window_KeyDown(object sender, KeyEventArgs e)
     {
-        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.N) { e.Handled = true; await ShowAddAsync(); }
+        if (Keyboard.Modifiers == ModifierKeys.Alt && e.Key == Key.Up) { e.Handled = true; MoveUp_Click(this, new RoutedEventArgs()); }
+        else if (Keyboard.Modifiers == ModifierKeys.Alt && e.Key == Key.Down) { e.Handled = true; MoveDown_Click(this, new RoutedEventArgs()); }
+        else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.N) { e.Handled = true; await ShowAddAsync(); }
         else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.F) { e.Handled = true; Search.Focus(); Search.SelectAll(); }
         else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.V && Keyboard.FocusedElement is not TextBox) { e.Handled = true; Paste_Click(this, new RoutedEventArgs()); }
         else if (e.Key == Key.F5) { e.Handled = true; Refresh(true); }

@@ -47,12 +47,26 @@ public partial class BulkImportWindow : Window
                     string subPrefix = subUrls.Count > 1 ? $"{prefix}[{subUrl}] " : prefix;
                     try { NativeBridge.ValidateUrl(subUrl); }
                     catch (FormatException) { invalid++; results.Add(subPrefix + "invalid. Enter one complete HTTP(S) URL."); continue; }
-                    string key = new Uri(subUrl).AbsoluteUri;
+                    string finalUrl = subUrl;
+                    if (HostLinkResolver.CanResolve(subUrl))
+                    {
+                        try
+                        {
+                            Summary.Text = $"Resolving host link on line {index + 1}…";
+                            finalUrl = await HostLinkResolver.ResolveAsync(subUrl).ConfigureAwait(true);
+                        }
+                        catch (Exception ex)
+                        {
+                            failed++;
+                            results.Add(subPrefix + "host link resolution failed: " + ex.Message);
+                            continue;
+                        }
+                    }
+                    string key = new Uri(finalUrl).AbsoluteUri;
                     if (seen.Contains(key)) { duplicates++; results.Add(subPrefix + "duplicate. Already in this import or queue, so it was skipped."); continue; }
-                    try { await _manager.AddAsync(new DownloadRequest(subUrl)); seen.Add(key); added++; results.Add(subPrefix + "added to queue."); }
+                    try { await _manager.AddAsync(new DownloadRequest(finalUrl)); seen.Add(key); added++; results.Add(subPrefix + "added to queue."); }
                     catch (Exception) { failed++; results.Add(subPrefix + "not saved. Check the destination and try this line again."); }
                     await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
-    
                 }
                 continue;
 

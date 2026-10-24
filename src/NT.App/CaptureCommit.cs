@@ -10,6 +10,7 @@ public static class CaptureCommit
     public static async Task<DownloadJob?> AddAsync(DownloadManager manager, DownloadOptionsDialog dialog)
     {
         if (dialog.Request is null) return null;
+        if (dialog.DesiredConcurrency.HasValue) manager.MaxConcurrentDownloads = dialog.DesiredConcurrency.Value;
         var limit = dialog.SpeedLimit;
         DownloadJob job;
         switch (dialog.UserAction)
@@ -38,5 +39,5 @@ public static class CaptureCommit
 
     /// <summary>Only downloads that start right now open the window; queued-with-limit and scheduled ones stay quiet.</summary>
     public static bool StartsNow(DownloadOptionsDialog dialog) =>
-        dialog.UserAction == DownloadOptionsDialog.DialogAction.StartNow || (dialog.UserAction == DownloadOptionsDialog.DialogAction.Queue && !dialog.SpeedLimit.HasValue);
+        dialog.UserAction == DownloadOptionsDialog.DialogAction.StartNow;
 }

@@ -1,8 +1,54 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.2.8] - 2026-10-24
+
+### Changed
+- Queue Management: Enhanced queue concurrency controls, live reordering, and queue start/stop automation.
+
+### Fixed
+- Engine: Eliminated race condition and redundant cancellation churn during dynamic shard splitting when multiple connection slots are available simultaneously.
+
+## [1.2.7] - 2026-10-24
+
+### Added
+- Host Link Generator: Dedicated tool window and automatic link resolution for supported file hosts (datanodes.to, fuckingfast.co).
+
+### Fixed
+- Engine: Resolved dynamic shard truncation retry offset verification during multi-connection downloads.
+
+## [1.2.6] - 2026-10-24
+
+### Added
+- Host Link Generator: Added dedicated host link generator tool window under Tasks and Downloads menus to convert batches of `datanodes.to` and `fuckingfast.co` links into direct download links with one-click queue addition and clipboard copying.
+- Automatic Host Link Resolution: Integrated `HostLinkResolver` into `BulkImportWindow` and `AddDownloadWindow` so pasted host links are automatically resolved into direct mirror download links.
+- Downloadable Link Detection for Hosters: Integrated `HostLinkResolver` into `DownloadableLinkDetector` so copied `datanodes.to` and `fuckingfast.co` URLs are recognized by the clipboard monitor and import tools.
+
+## [1.2.5] - 2026-10-24
+
+### Added
+- Queue Concurrency Controls: Added live simultaneous download controls (1 to 16 at a time) directly accessible from the main toolbar button and queue context menus.
+- Download Later in Add URL: Added a dedicated "Download later" action in the Add download dialog to queue downloads in paused status without immediate network transfer.
+- Queue Order Reordering: Added "Move up in queue" and "Move down in queue" actions with keyboard shortcuts (Alt+Up, Alt+Down) to reorder queued downloads.
+- Start and Stop Queue Actions: Added dedicated toolbar buttons and menu commands to start queue processing or pause all active transfers.
+- Concurrency Selection on Link Addition: Added queue concurrency selection in both Add Download and browser capture dialogs.
+
+### Fixed
+- Queue Concurrency Live Update: Ensured that changing concurrent downloads in Settings or toolbar updates the running engine immediately without restart.
+- Quiet Browser Add-to-Queue: Fixed browser capture dialog so selecting "Add to queue" adds the job quietly without opening a popup progress window.
+
+## [1.2.4] - 2026-10-24
+
+### Fixed
+- Torrent: Fixed view filter routing so newly added torrents display immediately in the list rather than being hidden by the default download filter.
+- Torrent: Fixed context menu sequential download toggle and prevented ID mismatch exceptions.
+- Torrent: Optimized magnet link addition by retaining resolved metadata bytes and eliminating redundant second metadata network requests.
+- Torrent: Enabled file and folder opening for completed multi-file torrent downloads.
+- Torrent: Enhanced announce URL extraction and tracker merging from magnet links.
+- Torrent: Added immediate UI queue updates on torrent state and speed changes.
+- Torrent: Implemented batch file priority updates to eliminate repeated disk I/O when adding torrents with skipped files.
 ## [1.2.3] - 2026-10-23
 
 ### Fixed

@@ -184,6 +184,12 @@ public partial class App : Application
                     request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in N&T.", Cancelled: true));
                     return;
                 }
+                if (dialog.DesiredConcurrency.HasValue)
+                {
+                    Settings.MaxConcurrentDownloads = dialog.DesiredConcurrency.Value;
+                    Settings.Save(StateDirectory);
+                    if (MainWindow is MainWindow mw) mw.UpdateQueueConcurrentButton();
+                }
                 if (CaptureCommit.StartsNow(dialog) && MainWindow is MainWindow main) main.ShowCapturedProgress(job.Id);
                 request.Respond(new NativeBridge.BrowserDownloadResponse(true, job.Id));
             }

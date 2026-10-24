@@ -54,11 +54,12 @@ public sealed class TorrentFeature : ITorrentFeature
     public Task<int> EnforceSeedLimitAsync() => _settings.TorrentStopSeedingAtRatio ? _controller.EnforceSeedLimitAsync() : Task.FromResult(0);
     public Task PauseAsync(DownloadRow row) => _controller.PauseAsync(row.TorrentId);
     public Task ResumeAsync(DownloadRow row) => _controller.ResumeAsync(row.TorrentId);
-    public Task<(int Deleted, int Failed)> RemoveAsync(string torrentId, bool deleteFiles) => _controller.RemoveAsync(torrentId, deleteFiles);
+    private static string CleanId(string id) => id.StartsWith("bt:", StringComparison.OrdinalIgnoreCase) ? id[3..] : id;
+    public Task<(int Deleted, int Failed)> RemoveAsync(string torrentId, bool deleteFiles) => _controller.RemoveAsync(CleanId(torrentId), deleteFiles);
     public IReadOnlyList<string> CompletedIds() => _controller.List().Where(t => t.State == "Completed").Select(t => t.Id).ToArray();
-    public bool KnowsTorrent(string id) => _controller.List().Any(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
-    public Task SetSequentialAsync(string torrentId, bool sequential) => _controller.SetSequentialAsync(torrentId, sequential);
-    public bool IsSequential(string torrentId) => _controller.List().FirstOrDefault(t => string.Equals(t.Id, torrentId, StringComparison.OrdinalIgnoreCase))?.IsSequential ?? false;
+    public bool KnowsTorrent(string id) => _controller.List().Any(t => string.Equals(t.Id, CleanId(id), StringComparison.OrdinalIgnoreCase));
+    public Task SetSequentialAsync(string torrentId, bool sequential) => _controller.SetSequentialAsync(CleanId(torrentId), sequential);
+    public bool IsSequential(string torrentId) => _controller.List().FirstOrDefault(t => string.Equals(t.Id, CleanId(torrentId), StringComparison.OrdinalIgnoreCase))?.IsSequential ?? false;
 
     private static bool Eligible(string state, bool resume) => resume ? state == "Paused" : state is "Downloading" or "Queued" or "Checking" or "Seeding";
     public async Task<(int Changed, int Skipped, int Failed)> ChangeAllAsync(bool resume)

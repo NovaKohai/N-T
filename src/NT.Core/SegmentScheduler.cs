@@ -75,17 +75,24 @@ public sealed partial class DownloadManager
                     lock (gate)
                     {
                         var remaining = candidate.Length - candidate.Done;
-                        if (remaining / 2 >= options.MinimumSegmentSize)
+                        var pieces = Math.Min(options.MaxSegments - running.Count, MaximumShards - w.Segments.Count + 1);
+                        pieces = Math.Min(pieces, (int)(remaining / options.MinimumSegmentSize));
+                        if (pieces >= 2)
                         {
                             var oldLength = candidate.Length;
-                            candidate.Length = candidate.Done + remaining / 2;
-                            var tail = new Segment
+                            var pieceSize = remaining / pieces;
+                            candidate.Length = candidate.Done + pieceSize;
+                            for (var i = 1; i < pieces; i++)
                             {
-                                PartId = Enumerable.Range(0, MaximumShards).First(id => w.Segments.All(s => s.PartId != id)),
-                                Start = candidate.Start + candidate.Length,
-                                Length = oldLength - candidate.Length
-                            };
-                            w.Segments.Add(tail);
+                                var tailStart = candidate.Start + candidate.Done + i * pieceSize;
+                                var tail = new Segment
+                                {
+                                    PartId = Enumerable.Range(0, MaximumShards).First(id => w.Segments.All(s => s.PartId != id)),
+                                    Start = tailStart,
+                                    Length = i == pieces - 1 ? (candidate.Start + oldLength) - tailStart : pieceSize
+                                };
+                                w.Segments.Add(tail);
+                            }
                             w.Segments.Sort((a, b) => a.Start.CompareTo(b.Start));
                             if (!ValidSegments(w)) throw new IOException("Invalid split coverage.");
                             SaveLocked();

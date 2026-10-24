@@ -16,7 +16,8 @@ public sealed partial class DownloadRow
         var progress = double.IsFinite(job.Progress) ? Math.Clamp(job.Progress, 0, 100) : 0;
         long total = job.SelectedBytes > 0 ? job.SelectedBytes : job.TotalBytes;
         string path = job.Files.Count == 1 ? job.Files[0].FullPath : System.IO.Path.Combine(job.SavePath, job.Name);
-        TimeSpan? remaining = job.State == "Downloading" && speed > 0 && total > job.DownloadedBytes ? TimeSpan.FromSeconds(Math.Min((total - job.DownloadedBytes) / speed, TimeSpan.MaxValue.TotalSeconds - 1)) : null;
+        long remainingBytes = (long)Math.Max(0, total * (1.0 - progress / 100.0));
+        TimeSpan? remaining = job.State == "Downloading" && speed > 0 && remainingBytes > 0 ? TimeSpan.FromSeconds(Math.Min(remainingBytes / speed, TimeSpan.MaxValue.TotalSeconds - 1)) : null;
         bool changed = FileName != job.Name || FilePath != path || SavePath != job.SavePath || Status != job.State || Error != job.Error || TotalBytes != total || DownloadedBytes != job.DownloadedBytes
             || Speed != speed || UploadSpeed != upload || Progress != progress || RemainingTime != remaining || Seeds != job.Seeds || Peers != job.Peers || Ratio != job.Ratio
             || ActiveConnectionCount != job.Connections || !TorrentFiles.SequenceEqual(job.Files);

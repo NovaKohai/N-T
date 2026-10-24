@@ -18,6 +18,7 @@ public static class RowMenu
         bool single = rows.Count == 1;
         var first = rows[0];
         bool FileOk(DownloadRow r) => !r.IsTorrent && r.IsComplete && !string.IsNullOrEmpty(r.FilePath) && fileExists(r.FilePath);
+        bool TorrentOpenOk(DownloadRow r) => r.IsTorrent && r.IsComplete && !string.IsNullOrEmpty(r.FilePath) && (fileExists(r.FilePath) || directoryExists(r.FilePath));
         string? Folder(DownloadRow r)
         {
             if (r.IsTorrent) return Directory.Exists(r.FilePath) || directoryExists(r.FilePath) ? r.FilePath : r.SavePath;
@@ -25,8 +26,8 @@ public static class RowMenu
         }
         var folder = single ? Folder(first) : null;
         return new RowMenuState(
-            Open: single && FileOk(first),
-            OpenWith: single && FileOk(first),
+            Open: single && (FileOk(first) || TorrentOpenOk(first)),
+            OpenWith: single && (FileOk(first) || (first.IsTorrent && first.IsComplete && fileExists(first.FilePath))),
             OpenFolder: single && folder is { Length: > 0 } && directoryExists(folder),
             CopyUrl: http.Length > 0 && http.All(r => r.Url.Length > 0),
             CopyPath: rows.Any(r => !string.IsNullOrEmpty(r.FilePath)),

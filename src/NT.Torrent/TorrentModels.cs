@@ -83,7 +83,7 @@ public sealed record TorrentJob(
 public sealed record TorrentMetadataFile(string Path, long Length);
 
 /// <summary>Result of resolving a magnet link without adding it.</summary>
-public sealed record TorrentMetadata(string Id, string Name, long TotalBytes, IReadOnlyList<TorrentMetadataFile> Files);
+public sealed record TorrentMetadata(string Id, string Name, long TotalBytes, IReadOnlyList<TorrentMetadataFile> Files, byte[]? TorrentBytes = null);
 
 /// <summary>Input was rejected (bad magnet, oversize or unsafe torrent, bad path).</summary>
 public sealed class TorrentRejectedException(string message) : ArgumentException(message);

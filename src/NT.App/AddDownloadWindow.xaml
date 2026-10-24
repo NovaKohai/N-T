@@ -10,9 +10,26 @@
       <TextBlock Text="Uses this computer's time zone. N&amp;T must be running at the due time." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
       <Label Content="Speed _limit (KiB/s; blank = unlimited)" Target="{Binding ElementName=SpeedInput}" Foreground="{DynamicResource InkBrush}" Margin="0,12,0,0"/><TextBox x:Name="SpeedInput" AutomationProperties.Name="Speed limit in KiB per second"/>
       <TextBlock Text="Positive whole numbers; shared across this download's segments." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+    </StackPanel>
+    <StackPanel Grid.Row="4" Margin="0,16,0,0">
+      <Label Content="Queue _concurrency (download at the same time)" Target="{Binding ElementName=ConcurrentInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
+      <ComboBox x:Name="ConcurrentInput" AutomationProperties.Name="Queue concurrency">
+        <ComboBoxItem Content="1 download at a time (Sequential queue)" Tag="1"/>
+        <ComboBoxItem Content="2 downloads at a time" Tag="2"/>
+        <ComboBoxItem Content="3 downloads at a time (Default)" Tag="3" IsSelected="True"/>
+        <ComboBoxItem Content="4 downloads at a time" Tag="4"/>
+        <ComboBoxItem Content="5 downloads at a time" Tag="5"/>
+        <ComboBoxItem Content="8 downloads at a time" Tag="8"/>
+        <ComboBoxItem Content="16 downloads at a time" Tag="16"/>
+      </ComboBox>
+      <TextBlock Text="Set how many files the queue downloads simultaneously." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
       <TextBlock x:Name="ValidationError" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,12,0,8" AutomationProperties.LiveSetting="Assertive"/>
     </StackPanel>
     </StackPanel></ScrollViewer>
-    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0"><Button Content="Cancel" IsCancel="True" MinWidth="84" Margin="0,0,8,0"/><Button Content="Add download" IsDefault="True" Click="Accept_Click" Style="{StaticResource PrimaryButton}"/></StackPanel>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Content="Cancel" IsCancel="True" MinWidth="84" Margin="0,0,8,0"/>
+      <Button x:Name="DownloadLaterButton" Content="Download _later" Click="DownloadLater_Click" MinWidth="110" Margin="0,0,8,0"/>
+      <Button x:Name="AcceptButton" Content="Add download" IsDefault="True" Click="Accept_Click" Style="{StaticResource PrimaryButton}" MinWidth="120"/>
+    </StackPanel>
   </Grid>
 </Window>

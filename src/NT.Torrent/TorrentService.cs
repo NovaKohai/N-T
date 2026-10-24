@@ -197,9 +197,9 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
     {
         ThrowIfDisposed();
         var magnet = TorrentValidator.ParseMagnet(magnetUri);
-        var (t, _) = await ResolveMagnetAsync(magnet, timeout ?? DefaultMetadataTimeout, ct);
+        var (t, bytes) = await ResolveMagnetAsync(magnet, timeout ?? DefaultMetadataTimeout, ct);
         return new TorrentMetadata(HashOf(t.InfoHashes), t.Name, t.Size,
-            t.Files.Select(f => new TorrentMetadataFile(f.Path, f.Length)).ToList());
+            t.Files.Select(f => new TorrentMetadataFile(f.Path, f.Length)).ToList(), bytes);
     }
 
     /// <summary>Resolves the magnet's metadata (validated, with timeout), then adds and starts the torrent.
@@ -256,11 +256,21 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
             else root = new BEncodedDictionary { ["info"] = decoded };
         }
         catch (Exception ex) { throw new TorrentRejectedException("Magnet metadata is malformed: " + ex.Message); }
-        if (magnet.AnnounceUrls.Count > 0 && !root.ContainsKey("announce-list"))
+        if (magnet.AnnounceUrls.Count > 0)
         {
-            var tier = new BEncodedList();
-            foreach (var u in magnet.AnnounceUrls) tier.Add((BEncodedString)u);
-            root["announce-list"] = new BEncodedList { tier };
+            if (!root.ContainsKey("announce")) root["announce"] = (BEncodedString)magnet.AnnounceUrls[0];
+            BEncodedList announceList;
+            if (root.TryGetValue("announce-list", out var raw) && raw is BEncodedList existing) announceList = existing;
+            else { announceList = new BEncodedList(); root["announce-list"] = announceList; }
+            var existingUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var tv in announceList) if (tv is BEncodedList tl) foreach (var u in tl) if (u is BEncodedString bs) existingUrls.Add(bs.Text);
+            var newTier = new BEncodedList();
+            foreach (var u in magnet.AnnounceUrls) if (existingUrls.Add(u)) newTier.Add((BEncodedString)u);
+            if (newTier.Count > 0) announceList.Add(newTier);
+        }
+        else if (!root.ContainsKey("announce") && root.TryGetValue("announce-list", out var al) && al is BEncodedList alList && alList.Count > 0 && alList[0] is BEncodedList firstTier && firstTier.Count > 0 && firstTier[0] is BEncodedString firstTracker)
+        {
+            root["announce"] = firstTracker;
         }
         var bytes = root.Encode();
         var torrent = TorrentValidator.LoadTorrent(bytes, MaxTorrentFileBytes);
@@ -378,6 +388,18 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
 
     public Task SkipFileAsync(string id, int fileIndex) => SetFilePriorityAsync(id, fileIndex, FilePriority.Skip);
 
+    public Task SetFilesPriorityAsync(string id, IEnumerable<int> fileIndexes, FilePriority priority) => Control(id, async e =>
+    {
+        if (!Enum.IsDefined(priority)) throw new ArgumentOutOfRangeException(nameof(priority));
+        var files = e.Manager.Files;
+        var monoPriority = ToMono(priority);
+        foreach (var fileIndex in fileIndexes)
+        {
+            if (fileIndex < 0 || fileIndex >= files.Count) throw new ArgumentOutOfRangeException(nameof(fileIndexes));
+            await e.Manager.SetFilePriorityAsync(files[fileIndex], monoPriority);
+        }
+    });
+
     public Task SetSequentialAsync(string id, bool sequential) => Control(id, async e =>
     {
         if (e.IsSequential == sequential) return;
@@ -471,7 +493,7 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
             total += f.Length; downloaded += done;
             if (pr != FilePriority.Skip) { selected += f.Length; selectedDone += done; }
         }
-        bool complete = selected > 0 && selectedDone >= selected;
+        bool complete = list.Count > 0 && list.Any(f => f.Selected) && (selected == 0 || selectedDone >= selected);
         string? error = e.Error ?? m.Error?.Exception?.Message;
         var state = (error != null || m.State == TorrentState.Error) ? "Failed" : m.State switch
         {
