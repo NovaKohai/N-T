@@ -526,6 +526,7 @@ public sealed partial class DownloadManager : IDisposable
             {
                 if (w.Job.Status == "Downloading") w.Job.Status = "Paused";
                 w.Job.SpeedBytesPerSecond = 0;
+                w.Job.IsAssembling = false;
                 w.Cancellation?.Dispose(); w.Cancellation = null; w.Runner = null; activeJobs.Remove(w);
                 if (w.Removed) DeletePartial(w);
                 try { SaveLocked(); } catch (Exception ex) { LastPersistenceError = ex.Message; }
@@ -1787,13 +1788,32 @@ public sealed partial class DownloadManager : IDisposable
         var staging = StagingFile(w);
         try
         {
-            await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous))
+            lock (gate)
+            {
+                w.Job.IsAssembling = true;
+                w.Job.AssemblyProgress = 0;
+            }
+            Notify();
+
+            const int BufferSize = 4 * 1024 * 1024;
+            var buffer = new byte[BufferSize];
+            long totalWritten = 0;
+            long totalExpected = w.Total > 0 ? w.Total : w.Segments.Sum(s => s.Done);
+            var lastAssemblyNotify = Stopwatch.GetTimestamp();
+
+            await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous))
             {
                 var parts = w.Segments.Where(s => s.PartId != null).Select(s => PartFile(w, s.PartId!.Value)).Distinct().ToArray();
                 if (parts.Length > 1 && !File.Exists(parts[1]) && File.Exists(parts[0]))
                 {
-                    await using var input = new FileStream(parts[0], FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    await input.CopyToAsync(output, 65536, token).ConfigureAwait(false);
+                    await using var input = new FileStream(parts[0], FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                    int read;
+                    while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
+                    {
+                        await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                        totalWritten += read;
+                        UpdateAssemblyProgress(w, totalWritten, totalExpected, ref lastAssemblyNotify);
+                    }
                 }
                 else
                 {
@@ -1801,9 +1821,15 @@ public sealed partial class DownloadManager : IDisposable
                     {
                         var s = w.Segments[i];
                         if (s.Done != s.Length) throw new IOException("Incomplete segment cannot be published.");
-                        await using var input = new FileStream(PartFile(w, s.PartId!.Value), FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                        await using var input = new FileStream(PartFile(w, s.PartId!.Value), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
                         if (input.Length != s.Length) throw new IOException("Partial file length changed.");
-                        await input.CopyToAsync(output, 65536, token).ConfigureAwait(false);
+                        int read;
+                        while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
+                        {
+                            await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                            totalWritten += read;
+                            UpdateAssemblyProgress(w, totalWritten, totalExpected, ref lastAssemblyNotify);
+                        }
                     }
                 }
                 await output.FlushAsync(token).ConfigureAwait(false);
@@ -1824,12 +1850,36 @@ public sealed partial class DownloadManager : IDisposable
                     try { File.Move(staging, Path.Combine(targetDir, name), false); w.Job.FileName = name; w.Job.FilePath = Path.Combine(targetDir, name); break; }
                     catch (IOException) when (File.Exists(Path.Combine(targetDir, name))) { }
                 }
+                w.Job.IsAssembling = false;
+                w.Job.AssemblyProgress = 100;
                 w.Job.Status = "Completed"; w.Job.Error = null;
                 SaveLocked();
             }
+            Notify();
             DeletePartial(w);
         }
-        finally { if (File.Exists(staging)) File.Delete(staging); }
+        finally
+        {
+            lock (gate)
+            {
+                w.Job.IsAssembling = false;
+            }
+            if (File.Exists(staging)) File.Delete(staging);
+        }
+    }
+
+    private void UpdateAssemblyProgress(Work w, long written, long expected, ref long lastNotify)
+    {
+        var now = Stopwatch.GetTimestamp();
+        if ((now - lastNotify) * 1000.0 / Stopwatch.Frequency >= 150)
+        {
+            lastNotify = now;
+            lock (gate)
+            {
+                w.Job.AssemblyProgress = expected > 0 ? Math.Clamp(100.0 * written / expected, 0, 100) : 0;
+            }
+            Notify();
+        }
     }
 
     private void ResetParts(Work w)
@@ -1839,19 +1889,43 @@ public sealed partial class DownloadManager : IDisposable
             DeletePartial(w); w.Segments.Clear(); w.Total = 0; w.ETag = null; w.Modified = null; w.ResolvedUrl = null;
             w.Job.TotalBytes = w.Job.DownloadedBytes = 0;
             w.Job.SpeedBytesPerSecond = 0; w.HasSpeedSample = false;
+            w.Job.IsAssembling = false; w.Job.AssemblyProgress = 0;
             w.SampleAt = Stopwatch.GetTimestamp(); w.SampleBytes = 0;
         }
     }
     private static void UpdateProgressLocked(Work w) { w.Job.TotalBytes = w.Total; w.Job.DownloadedBytes = w.Segments.Sum(s => s.Done); }
     private string PartDirectory(Work w) => Path.Combine(state, w.Job.Id + ".parts");
     private string PartFile(Work w, int index) => Path.Combine(PartDirectory(w), index + ".part");
-    private string StagingFile(Work w) => Path.Combine(downloads, ".ndm-staging", w.Job.Id + ".tmp");
+    private string StagingDirectory(Work w)
+    {
+        var targetDir = Path.GetDirectoryName(w.Job.FilePath);
+        var baseDir = !string.IsNullOrEmpty(targetDir) ? targetDir : downloads;
+        try
+        {
+            var stagingDir = Path.Combine(baseDir, ".ndm-staging");
+            Directory.CreateDirectory(stagingDir);
+            return stagingDir;
+        }
+        catch
+        {
+            var stagingDir = Path.Combine(downloads, ".ndm-staging");
+            Directory.CreateDirectory(stagingDir);
+            return stagingDir;
+        }
+    }
+    private string StagingFile(Work w) => Path.Combine(StagingDirectory(w), w.Job.Id + ".tmp");
     private void DeletePartial(Work w)
     {
         try { if (Directory.Exists(PartDirectory(w))) Directory.Delete(PartDirectory(w), true); }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
-        try { if (File.Exists(StagingFile(w))) File.Delete(StagingFile(w)); }
+        try
+        {
+            var staging = StagingFile(w);
+            if (File.Exists(staging)) File.Delete(staging);
+            var legacyStaging = Path.Combine(downloads, ".ndm-staging", w.Job.Id + ".tmp");
+            if (File.Exists(legacyStaging)) File.Delete(legacyStaging);
+        }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
     }

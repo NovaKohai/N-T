@@ -1,7 +1,14 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
+
+## [1.2.9] - 2026-10-26
+
+### Fixed
+- File Assembly: Eliminated cross-volume post-download file copying by placing intermediate assembly staging on the destination volume, enabling near-instantaneous completion and preventing excessive disk writes.
+- File Assembly: Increased sequential file assembly stream buffer from 64 KiB to 4 MiB, drastically accelerating part stitching on SSD and HDD storage.
+- UI Feedback: Added clear "Assembling file..." status, disk writing indicator, and live assembly progress telemetry so multi-gigabyte downloads provide continuous visual feedback instead of appearing frozen at 100%.
 
 ## [1.2.8] - 2026-10-24
 

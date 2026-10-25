@@ -306,7 +306,7 @@
                     <GridViewColumnHeader Content="Size" Tag="TotalBytes" Click="Sort_Click"/>
                   </GridViewColumn.Header>
                 </GridViewColumn>
-                <GridViewColumn Width="95" DisplayMemberBinding="{Binding Status}">
+                <GridViewColumn Width="95" DisplayMemberBinding="{Binding DisplayStatus}">
                   <GridViewColumn.Header>
                     <GridViewColumnHeader Content="Status" Tag="Status" Click="Sort_Click"/>
                   </GridViewColumn.Header>

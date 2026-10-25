@@ -1,12 +1,12 @@
 {
-    "body":  "## [1.2.8] - 2026-10-24\n\n### Changed\n- Queue Management: Enhanced queue concurrency controls, live reordering, and queue start/stop automation.\n\n### Fixed\n- Engine: Eliminated race condition and redundant cancellation churn during dynamic shard splitting when multiple connection slots are available simultaneously.",
-    "name":  "N&T 1.2.8",
-    "published_at":  "2026-10-24T03:55:52Z",
+    "body":  "## [1.2.9] - 2026-10-26\n\n### Fixed\n- File Assembly: Eliminated cross-volume post-download file copying by placing intermediate assembly staging on the destination volume, enabling near-instantaneous completion and preventing excessive disk writes.\n- File Assembly: Increased sequential file assembly stream buffer from 64 KiB to 4 MiB, drastically accelerating part stitching on SSD and HDD storage.\n- UI Feedback: Added clear \"Assembling file...\" status, disk writing indicator, and live assembly progress telemetry so multi-gigabyte downloads provide continuous visual feedback instead of appearing frozen at 100%.",
+    "name":  "N&T 1.2.9",
+    "published_at":  "2026-10-25T23:52:06Z",
     "assets":  [
                    {
-                       "browser_download_url":  "/updates/N&T-Setup-1.2.8.msi",
-                       "name":  "N&T-Setup-1.2.8.msi",
-                       "size":  93370449
+                       "browser_download_url":  "/updates/N&T-Setup-1.2.9.msi",
+                       "name":  "N&T-Setup-1.2.9.msi",
+                       "size":  93366353
                    },
                    {
                        "browser_download_url":  "/updates/SHA256SUMS.txt",
@@ -14,6 +14,6 @@
                        "size":  508
                    }
                ],
-    "tag_name":  "v1.2.8",
-    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.2.8"
+    "tag_name":  "v1.2.9",
+    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.2.9"
 }

@@ -60,6 +60,17 @@ public partial class DownloadProgressWindow : Window
     }
     private void UpdateDisplays()
     {
+        if (Row.IsAssembling)
+        {
+            long curBytes = Row.DownloadedBytes;
+            DownloadedText.Text = Row.TotalBytes > 0
+                ? $"{DownloadRow.FormatBytes(curBytes, 2)} (100%) · Assembling to destination"
+                : DownloadRow.FormatBytes(curBytes, 2);
+            RateText.Text = "Writing to disk...";
+            TimeLeftText.Text = Row.AssemblyProgress > 0 ? $"{Row.AssemblyProgress:0}% assembled" : "Assembling...";
+            return;
+        }
+
         long cur = Row.DownloadedBytes;
         if (Row.TotalBytes > 0)
         {
@@ -193,7 +204,7 @@ public partial class DownloadProgressWindow : Window
         if (SaveToText.Text != Row.FilePath) SaveToText.Text = Row.FilePath;
         ChangeLocationButton.IsEnabled = !Row.IsTorrent;
         ChangeLocationButton.ToolTip = Row.IsTorrent ? "Torrent data is stored by the torrent engine; change its folder in Options > Torrents." : null;
-        StatusText.Text = Row.IsComplete ? "Complete" : Row.Status switch
+        StatusText.Text = Row.IsComplete ? "Complete" : Row.IsAssembling ? "Assembling file..." : Row.Status switch
         {
             "Connecting" => "Checking address: " + Row.Url,
             "Failed" => "Failed" + (string.IsNullOrWhiteSpace(Row.Error) ? "" : ": " + Row.Error),
@@ -209,6 +220,13 @@ public partial class DownloadProgressWindow : Window
                 : DownloadRow.FormatBytes(Row.DownloadedBytes, 2);
             RateText.Text = "0 Bytes/sec";
             TimeLeftText.Text = "Done";
+            OverallBar.BeginAnimation(RangeBase.ValueProperty, null);
+            OverallBar.IsIndeterminate = false;
+            OverallBar.Value = 100;
+        }
+        else if (Row.IsAssembling)
+        {
+            UpdateDisplays();
             OverallBar.BeginAnimation(RangeBase.ValueProperty, null);
             OverallBar.IsIndeterminate = false;
             OverallBar.Value = 100;
@@ -243,7 +261,7 @@ public partial class DownloadProgressWindow : Window
         OpenButton.Visibility = FolderButton.Visibility = CloseButton.Visibility = done ? Visibility.Visible : Visibility.Collapsed;
         OpenButton.IsEnabled = done && File.Exists(Row.FilePath);
         PauseButton.Content = Row.CanResume ? "Resume" : "Pause";
-        PauseButton.IsEnabled = Row.CanPause || Row.CanResume;
+        PauseButton.IsEnabled = !Row.IsAssembling && (Row.CanPause || Row.CanResume);
         SpeedTab.IsEnabled = !done;
         if (done)
         {

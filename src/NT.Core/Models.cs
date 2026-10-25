@@ -24,6 +24,8 @@ public sealed class DownloadJob
     public DateTimeOffset? ScheduledAt { get; internal set; }
     public TimeSpan? RemainingTime { get; internal set; }
     public bool? ResumeSupported { get; internal set; }
+    public bool IsAssembling { get; internal set; }
+    public double AssemblyProgress { get; internal set; }
     public int ActiveConnectionCount { get; internal set; }
     public int ConnectionLimit { get; internal set; }
     /// <summary>The per-download speed limit in bytes per second; null = unlimited.</summary>
