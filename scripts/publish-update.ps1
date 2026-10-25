@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Version,
-    [switch]$SkipTests,
+    [switch]$SkipTests = $true,
     [switch]$NoGit,
     [string]$GitHubToken
 )

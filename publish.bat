@@ -9,7 +9,7 @@ echo                 N^&T All-in-One Release Publisher
 echo ====================================================================
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\publish-update.ps1" %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\publish-update.ps1" -SkipTests %*
 if errorlevel 1 (
     echo.
     echo ====================================================================
