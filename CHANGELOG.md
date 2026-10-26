@@ -3,6 +3,19 @@
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.3.0] - 2026-10-27
+
+### Added
+- Reliability: Added pre-download, pre-assembly, and torrent volume capacity verification to prevent drive exhaustion and partial staging corruption.
+- Engine: Implemented smart resume disk space calculation that checks only remaining un-downloaded bytes instead of total file size, allowing partial downloads to resume safely.
+- UI: Added a direct "Refresh address…" action in DownloadProgressWindow and queue context menus to immediately update expired links and resume failed or paused downloads.
+- UI: Added live free disk space telemetry to the main window status bar alongside aggregate transfer rates.
+- Torrent: Added interactive context menu to TorrentDetailsWindow file list supporting live priority changes (High, Normal, Low, Skip) and one-click file and folder opening.
+
+### Fixed
+- Torrent: Guarded file opening in TorrentDetailsWindow to require 100% completion before launching, preventing execution of sparse or incomplete placeholder files.
+- Reliability: Hardened bulk import URI evaluation with safe parsing to prevent dialog crashes on malformed or non-standard addresses.
+
 ## [1.2.9] - 2026-10-26
 
 ### Fixed

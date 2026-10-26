@@ -301,7 +301,22 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
         var id = HashOf(torrent.InfoHashes);
         Directory.CreateDirectory(saveDir);
         var manager = await _engine.AddAsync(torrent, saveDir, TorrentSettingsFor(_options));
-        try { TorrentValidator.EnsureInside(saveDir, manager); }
+        try
+        {
+            TorrentValidator.EnsureInside(saveDir, manager);
+            if (persistTorrent)
+            {
+                long required = 0;
+                for (int i = 0; i < manager.Files.Count; i++)
+                {
+                    if (priorities is null || priorities[i] != (int)FilePriority.Skip)
+                        required += manager.Files[i].Length;
+                }
+                long alreadyDone = cached?.Sum() ?? 0;
+                long needed = Math.Max(0, required - alreadyDone);
+                TorrentValidator.EnsureDiskSpace(saveDir, needed);
+            }
+        }
         catch { await _engine.RemoveAsync(manager, RemoveMode.KeepAllData); throw; }
 
         if (persistTorrent) _store.WriteTorrent(id, fileBytes);
@@ -445,7 +460,21 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
 
     async Task StartEntryAsync(Entry e)
     {
-        try { await e.Manager.StartAsync(); }
+        try
+        {
+            long required = 0, downloaded = 0;
+            foreach (var f in e.Manager.Files)
+            {
+                if (f.Priority != Priority.DoNotDownload)
+                {
+                    required += f.Length;
+                    downloaded += f.BitField.AllTrue ? f.Length : (long)(f.Length * f.BitField.PercentComplete / 100.0);
+                }
+            }
+            long remaining = Math.Max(0, required - downloaded);
+            TorrentValidator.EnsureDiskSpace(e.SavePath, remaining);
+            await e.Manager.StartAsync();
+        }
         catch (Exception ex) { e.Error = ex.Message; }
     }
 

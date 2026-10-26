@@ -19,6 +19,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("magnet parse validation errors", MagnetValidation),
     ("torrent file validation: garbage, oversize, traversal names", TorrentValidation),
     ("final-path guard rejects escapes and sibling prefixes", PathGuard),
+    ("disk space validation rejects oversized requirements and accepts valid sizes", DiskSpaceTest),
     ("persistence restores paused with priorities, resumes via fast-resume", Persistence),
     ("remove with and without deleteFiles", Remove),
     ("rate limit, connection, port, discovery and encryption setters", Setters),
@@ -253,6 +254,19 @@ Task PathGuard()
     Check(!TorrentValidator.IsInside(r, Path.Combine(r, "..", "x.txt")), "dotdot escape");
     Check(!TorrentValidator.IsInside(r, r + "-sibling" + Path.DirectorySeparatorChar + "x.txt"), "sibling with common prefix");
     Check(!TorrentValidator.IsInside(r, Path.Combine(Path.GetPathRoot(r)!, "evil.txt")), "drive root");
+    return Task.CompletedTask;
+}
+
+Task DiskSpaceTest()
+{
+    var r = Path.Combine(root, "space");
+    Directory.CreateDirectory(r);
+    TorrentValidator.EnsureDiskSpace(r, 0);
+    TorrentValidator.EnsureDiskSpace(r, 1024);
+    bool threw = false;
+    try { TorrentValidator.EnsureDiskSpace(r, 10_000_000_000_000_000L); }
+    catch (DiskSpaceException) { threw = true; }
+    Check(threw, "TorrentValidator.EnsureDiskSpace throws on huge requirement");
     return Task.CompletedTask;
 }
 

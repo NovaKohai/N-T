@@ -88,7 +88,7 @@
         <MenuItem Header="_Resume" Click="Resume_Click" IsEnabled="{Binding IsEnabled, ElementName=ResumeButton}"/>
         <MenuItem Header="_Stop" Click="Stop_Click" IsEnabled="{Binding IsEnabled, ElementName=StopButton}"/>
         <MenuItem Header="Stop _all" Click="PauseAll_Click" IsEnabled="{Binding IsEnabled, ElementName=PauseAllButton}"/>
-        <MenuItem Header="Resume all paused" Click="ResumeAll_Click" IsEnabled="{Binding IsEnabled, ElementName=ResumeAllButton}"/>
+        <MenuItem Header="Resume all _paused" Click="ResumeAll_Click" IsEnabled="{Binding IsEnabled, ElementName=ResumeAllButton}"/>
         <MenuItem Header="Start _queue" Click="StartQueue_Click"/>
         <MenuItem Header="Stop q_ueue" Click="StopQueue_Click"/>
         <MenuItem Header="Host _link generator (Datanodes)…" Click="LinkGenerator_Click"/>
@@ -152,7 +152,8 @@
         </Grid.ColumnDefinitions>
         <TextBlock x:Name="Notice" Text="Ready" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"/>
         <StackPanel Grid.Column="1" Orientation="Horizontal">
-          <TextBlock x:Name="Summary" Style="{StaticResource Muted}" Margin="12,0" AutomationProperties.Name="Queue summary"/>
+          <TextBlock x:Name="DiskSpaceLabel" Style="{StaticResource Muted}" Margin="0,0,14,0" AutomationProperties.Name="Free disk space"/>
+          <TextBlock x:Name="Summary" Style="{StaticResource Muted}" Margin="0,0,14,0" AutomationProperties.Name="Queue summary"/>
           <TextBlock x:Name="RateLabel" Style="{StaticResource Muted}" AutomationProperties.Name="Total transfer speed"/>
         </StackPanel>
       </Grid>

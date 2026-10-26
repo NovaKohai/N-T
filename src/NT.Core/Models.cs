@@ -1,5 +1,8 @@
 namespace NT.Core;
 
+/// <summary>Thrown when the destination volume does not have sufficient free disk space to store or assemble the file.</summary>
+public sealed class DiskSpaceException(string message) : IOException(message);
+
 /// <summary>TargetDirectory (optional): the exact folder to save into, chosen by the user; null = the engine's own folder (category rules). It is created if
 /// missing, must be writable, and is kept for the job's lifetime (also across restarts and name refinement).
 /// FileName null or AutoName true = NeoDM may still refine the name from the server (Content-Disposition, redirects, Content-Type, file signature); an explicit name is kept as is.</summary>

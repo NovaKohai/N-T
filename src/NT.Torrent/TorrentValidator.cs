@@ -1,6 +1,7 @@
 using MonoTorrent;
 using MonoTorrent.Client;
 using MtTorrent = MonoTorrent.Torrent;
+using NT.Core;
 
 namespace NT.Torrent;
 
@@ -91,6 +92,33 @@ public static class TorrentValidator
     }
 
     /// <summary>Final guard on the paths MonoTorrent will actually use. Throws if any escapes <paramref name="saveDir"/>.</summary>
+    public static void EnsureDiskSpace(string saveDir, long requiredBytes)
+    {
+        if (requiredBytes <= 0) return;
+        try
+        {
+            var fullPath = Path.GetFullPath(saveDir);
+            var root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrEmpty(root)) return;
+            var drive = new DriveInfo(root);
+            if (drive.IsReady && drive.AvailableFreeSpace < requiredBytes)
+            {
+                throw new DiskSpaceException($"Not enough disk space on {drive.Name.TrimEnd('\\')} (needed {FormatBytes(requiredBytes)}, available {FormatBytes(drive.AvailableFreeSpace)}).");
+            }
+        }
+        catch (ArgumentException) { }
+        catch (NotSupportedException) { }
+    }
+
+    private static string FormatBytes(double bytes)
+    {
+        if (!double.IsFinite(bytes) || bytes < 0) bytes = 0;
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        int index = 0;
+        while (bytes >= 1024 && index < units.Length - 1) { bytes /= 1024; index++; }
+        return index == 0 ? $"{(long)bytes} B" : $"{bytes:0.#} {units[index]}";
+    }
+
     public static void EnsureInside(string saveDir, TorrentManager manager)
     {
         foreach (var f in manager.Files)

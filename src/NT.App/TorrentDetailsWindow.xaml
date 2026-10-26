@@ -27,6 +27,17 @@
     </StackPanel>
     <ListView x:Name="FileList" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="Torrent files">
       <ListView.Resources><Style TargetType="GridViewColumnHeader"><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style></ListView.Resources>
+      <ListView.ContextMenu>
+        <ContextMenu x:Name="FileContextMenu">
+          <MenuItem x:Name="MenuPriorityHigh" Header="Priority: _High" Click="FilePriorityHigh_Click"/>
+          <MenuItem x:Name="MenuPriorityNormal" Header="Priority: _Normal" Click="FilePriorityNormal_Click"/>
+          <MenuItem x:Name="MenuPriorityLow" Header="Priority: _Low" Click="FilePriorityLow_Click"/>
+          <MenuItem x:Name="MenuPrioritySkip" Header="Priority: _Do not download (Skip)" Click="FilePrioritySkip_Click"/>
+          <Separator/>
+          <MenuItem x:Name="MenuFileOpen" Header="_Open file" Click="FileOpen_Click"/>
+          <MenuItem x:Name="MenuFileFolder" Header="Open _containing folder" Click="FileOpenFolder_Click"/>
+        </ContextMenu>
+      </ListView.ContextMenu>
       <ListView.View><GridView>
         <GridViewColumn Header="File" Width="320"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}"/></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
         <GridViewColumn Header="Size" Width="80" DisplayMemberBinding="{Binding Size}"/>

@@ -262,6 +262,7 @@ public partial class DownloadProgressWindow : Window
         OpenButton.IsEnabled = done && File.Exists(Row.FilePath);
         PauseButton.Content = Row.CanResume ? "Resume" : "Pause";
         PauseButton.IsEnabled = !Row.IsAssembling && (Row.CanPause || Row.CanResume);
+        RefreshUrlButton.Visibility = !done && (Row.Status is "Failed" or "Paused" || !string.IsNullOrWhiteSpace(Row.Error)) ? Visibility.Visible : Visibility.Collapsed;
         SpeedTab.IsEnabled = !done;
         if (done)
         {
@@ -366,6 +367,22 @@ public partial class DownloadProgressWindow : Window
         }
         catch (FormatException ex) { LimitMessage.Text = ex.Message; }
         catch (Exception) { LimitMessage.Text = "The limit could not be applied. Check the queue and try again."; }
+    }
+    private void RefreshUrl_Click(object sender, RoutedEventArgs e)
+    {
+        var prompt = new TextPromptWindow("Refresh address", "Enter the new address for \"" + Row.FileName + "\". Progress is kept when the new link serves the same file.", Row.Url,
+            text => { try { NativeBridge.ValidateUrl(text); return null; } catch (FormatException ex) { return ex.Message; } }) { Owner = this };
+        if (prompt.ShowDialog() != true) return;
+        try
+        {
+            manager.UpdateUrl(Row.Id, prompt.Value);
+            manager.Resume(Row.Id);
+            Refresh();
+        }
+        catch (Exception ex)
+        {
+            Notice.Text = "Could not update address: " + ex.Message;
+        }
     }
     private void Pause_Click(object sender, RoutedEventArgs e)
     {

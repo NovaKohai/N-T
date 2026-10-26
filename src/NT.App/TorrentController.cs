@@ -140,6 +140,8 @@ public sealed class TorrentController : IDisposable
     public async Task PauseAsync(string id) => await (await EnsureAsync()).PauseAsync(id);
     public async Task ResumeAsync(string id) => await (await EnsureAsync()).ResumeAsync(id);
     public async Task SetSequentialAsync(string id, bool sequential) => await (await EnsureAsync()).SetSequentialAsync(id, sequential);
+    public async Task SetFilePriorityAsync(string id, int fileIndex, FilePriority priority) => await (await EnsureAsync()).SetFilePriorityAsync(id, fileIndex, priority);
+    public async Task SetFilesPriorityAsync(string id, IEnumerable<int> fileIndexes, FilePriority priority) => await (await EnsureAsync()).SetFilesPriorityAsync(id, fileIndexes, priority);
     public async Task<(int Deleted, int Failed)> RemoveAsync(string id, bool deleteFiles) => await (await EnsureAsync()).RemoveDetailedAsync(id, deleteFiles);
 
     /// <summary>With 'stop seeding at ratio' enabled, pauses seeding torrents whose ratio reached the limit. Returns how many were stopped.</summary>

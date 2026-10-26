@@ -86,4 +86,70 @@ public partial class TorrentDetailsWindow : Window
         catch (Exception ex) { ErrorText.Text = ex.Message; }
     }
     private void Hide_Click(object sender, RoutedEventArgs e) => Close();
+
+    private async void FilePriorityHigh_Click(object sender, RoutedEventArgs e) => await SetSelectedFilesPriorityAsync(FilePriority.High);
+    private async void FilePriorityNormal_Click(object sender, RoutedEventArgs e) => await SetSelectedFilesPriorityAsync(FilePriority.Normal);
+    private async void FilePriorityLow_Click(object sender, RoutedEventArgs e) => await SetSelectedFilesPriorityAsync(FilePriority.Low);
+    private async void FilePrioritySkip_Click(object sender, RoutedEventArgs e) => await SetSelectedFilesPriorityAsync(FilePriority.Skip);
+
+    public async Task SetSelectedFilesPriorityAsync(FilePriority priority)
+    {
+        var selected = FileList.SelectedItems.OfType<TorrentFileRow>().ToList();
+        if (selected.Count == 0 && FileList.SelectedItem is TorrentFileRow single) selected.Add(single);
+        if (selected.Count == 0) return;
+        try
+        {
+            var indexes = selected.Select(r => r.Index).ToList();
+            await _torrents.SetFilesPriorityAsync(_id, indexes, priority);
+            Refresh();
+        }
+        catch (Exception ex)
+        {
+            ErrorText.Text = "Could not change priority: " + ex.Message;
+        }
+    }
+
+    private void FileOpen_Click(object sender, RoutedEventArgs e)
+    {
+        if (FileList.SelectedItem is not TorrentFileRow row) return;
+        var job = _torrents.List().FirstOrDefault(j => j.Id == _id);
+        if (job is null) return;
+        var fileJob = row.Index < job.Files.Count ? job.Files[row.Index] : null;
+        if (fileJob is not null && fileJob.Progress < 100.0)
+        {
+            ErrorText.Text = $"File has not finished downloading yet ({fileJob.Progress:0}% complete).";
+            return;
+        }
+        var fullPath = fileJob?.FullPath ?? System.IO.Path.Combine(job.SavePath, row.Path);
+        if (System.IO.File.Exists(fullPath))
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = fullPath, UseShellExecute = true }); }
+            catch (Exception ex) { ErrorText.Text = "Could not open file: " + ex.Message; }
+        }
+        else
+        {
+            ErrorText.Text = "File has not been fully downloaded yet.";
+        }
+    }
+
+    private void FileOpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (FileList.SelectedItem is not TorrentFileRow row) return;
+        var job = _torrents.List().FirstOrDefault(j => j.Id == _id);
+        if (job is null) return;
+        var fullPath = row.Index < job.Files.Count ? job.Files[row.Index].FullPath : System.IO.Path.Combine(job.SavePath, row.Path);
+        var dir = System.IO.Path.GetDirectoryName(fullPath);
+        if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir)) dir = job.SavePath;
+        if (System.IO.Directory.Exists(dir))
+        {
+            try
+            {
+                if (System.IO.File.Exists(fullPath))
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{fullPath}\"", UseShellExecute = true });
+                else
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            }
+            catch (Exception ex) { ErrorText.Text = "Could not open folder: " + ex.Message; }
+        }
+    }
 }

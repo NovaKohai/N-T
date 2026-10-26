@@ -77,6 +77,11 @@ internal sealed class FixtureServer : IDisposable
                 await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 302 Found\r\nLocation: " + location + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"), stop.Token);
                 return;
             }
+            if (path == "/oversized")
+            {
+                await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: application/octet-stream\r\nContent-Length: 10000000000000000\r\n\r\n"), stop.Token);
+                return;
+            }
             if (path == "/fail" || path == "/retry" && requestCount <= 2)
             {
                 await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"), stop.Token);

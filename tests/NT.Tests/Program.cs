@@ -35,6 +35,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("global speed limit throttle and live removal", GlobalSpeedChange),
     ("redirects bound cookies and final validator scope", Redirects),
     ("observer can dispose manager without deadlock", ObserverDispose),
+    ("insufficient disk space fails early without retries", DiskSpace),
     ("dynamic splits preserve coverage, hash and live cap", () => DynamicTests.Split(Paths())),
     ("dynamic shards pause/restore at a smaller connection cap", () => DynamicTests.Restore(Paths(), false)),
     ("dynamic shard restore rejects changed validators", () => DynamicTests.Restore(Paths(), true)),
@@ -334,6 +335,20 @@ async Task ObserverDispose()
     manager.Changed += () => { manager.Dispose(); done.TrySetResult(); };
     manager.Schedule(j.Id, DateTimeOffset.UtcNow);
     await done.Task.WaitAsync(TimeSpan.FromSeconds(5)); manager.Dispose();
+}
+async Task DiskSpace()
+{
+    using var server = new FixtureServer(); using var manager = Manager(Paths(), retry: 0);
+    var j = await manager.AddAsync(new(server.BaseUrl + "/oversized"));
+    await Wait(() => Job(manager, j.Id).Status == "Failed", "Oversized file did not fail");
+    var job = Job(manager, j.Id);
+    Check(job.Error != null && job.Error.Contains("Not enough disk space", StringComparison.OrdinalIgnoreCase), "Expected disk space error, got: " + job.Error);
+
+    DownloadManager.EnsureDiskSpace(job.FilePath, 0);
+    bool threw = false;
+    try { DownloadManager.EnsureDiskSpace(job.FilePath, 10_000_000_000_000_000L); }
+    catch (DiskSpaceException) { threw = true; }
+    Check(threw, "EnsureDiskSpace throws on huge byte requirement");
 }
 async Task QueueControls()
 {

@@ -482,6 +482,13 @@ public sealed partial class DownloadManager : IDisposable
                     finally { lock (gate) w.Probing = false; }
                     lock (gate) w.Job.ResumeSupported = probe.Ranges;
                     if (probe.Description is not null) SettleName(w, probe.Description, null);
+                    if (probe.Length > 0)
+                    {
+                        long downloaded;
+                        lock (gate) downloaded = w.Segments.Sum(s => s.Done);
+                        long remaining = Math.Max(0, probe.Length - downloaded);
+                        if (remaining > 0) EnsureDiskSpace(w.Job.FilePath, remaining);
+                    }
                     if (IsYoutube(w))
                     {
                         await DownloadYoutubeAsync(w, token).ConfigureAwait(false);
@@ -536,7 +543,7 @@ public sealed partial class DownloadManager : IDisposable
     }
 
     private const string DefaultBrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-    private static bool IsRetryable(Exception ex) => ex is IOException or HttpRequestException or OperationCanceledException;
+    private static bool IsRetryable(Exception ex) => ex is not DiskSpaceException && (ex is IOException or HttpRequestException or OperationCanceledException);
 
     private HttpRequestMessage Request(Work w) => Request(w, w.Request.Url);
 
@@ -1799,6 +1806,7 @@ public sealed partial class DownloadManager : IDisposable
             var buffer = new byte[BufferSize];
             long totalWritten = 0;
             long totalExpected = w.Total > 0 ? w.Total : w.Segments.Sum(s => s.Done);
+            EnsureDiskSpace(staging, totalExpected);
             var lastAssemblyNotify = Stopwatch.GetTimestamp();
 
             await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous))
@@ -1914,6 +1922,33 @@ public sealed partial class DownloadManager : IDisposable
         }
     }
     private string StagingFile(Work w) => Path.Combine(StagingDirectory(w), w.Job.Id + ".tmp");
+
+    public static void EnsureDiskSpace(string targetPath, long requiredBytes)
+    {
+        if (requiredBytes <= 0) return;
+        try
+        {
+            var fullPath = Path.GetFullPath(targetPath);
+            var root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrEmpty(root)) return;
+            var drive = new DriveInfo(root);
+            if (drive.IsReady && drive.AvailableFreeSpace < requiredBytes)
+            {
+                throw new DiskSpaceException($"Not enough disk space on {drive.Name.TrimEnd('\\')} (needed {FormatBytes(requiredBytes)}, available {FormatBytes(drive.AvailableFreeSpace)}).");
+            }
+        }
+        catch (ArgumentException) { }
+        catch (NotSupportedException) { }
+    }
+
+    private static string FormatBytes(double bytes)
+    {
+        if (!double.IsFinite(bytes) || bytes < 0) bytes = 0;
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        int index = 0;
+        while (bytes >= 1024 && index < units.Length - 1) { bytes /= 1024; index++; }
+        return index == 0 ? $"{(long)bytes} B" : $"{bytes:0.#} {units[index]}";
+    }
     private void DeletePartial(Work w)
     {
         try { if (Directory.Exists(PartDirectory(w))) Directory.Delete(PartDirectory(w), true); }

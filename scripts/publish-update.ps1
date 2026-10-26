@@ -130,7 +130,7 @@ if ($LASTEXITCODE -ne 0) {
 # 5. Deploy to Cloudflare
 Write-Host ""
 Write-Host "--> Deploying to Cloudflare (Worker & Static Assets)..." -ForegroundColor Cyan
-npx wrangler deploy
+npx --yes wrangler deploy
 if ($LASTEXITCODE -ne 0) {
     throw "Cloudflare deployment (wrangler deploy) failed with exit code $LASTEXITCODE"
 }

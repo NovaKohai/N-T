@@ -2,16 +2,16 @@
   <Grid Margin="28"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
     <StackPanel><TextBlock Text="Download captured from browser" Style="{StaticResource DialogHeading}"/><TextBlock Text="Choose how to handle this download in N&amp;T." Style="{StaticResource Muted}" Margin="0,7,0,4"/><TextBlock x:Name="CaptureNote" Text="The browser download has already been stopped. Cancel discards it; if N&amp;T fails, the browser download is restarted." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,20"/></StackPanel>
-    <StackPanel Grid.Row="1"><Label Content="Download _URL" Target="{Binding ElementName=UrlDisplay}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/><TextBox x:Name="UrlDisplay" IsReadOnly="True" Background="{DynamicResource SidebarBrush}" AutomationProperties.Name="Download URL"/></StackPanel>
-    <StackPanel Grid.Row="2" Margin="0,16,0,0"><Label Content="File _name" Target="{Binding ElementName=NameInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/><TextBox x:Name="NameInput" AutomationProperties.Name="File name"/><TextBlock x:Name="DetectedInfo" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0" AutomationProperties.Name="Detected size and type"/></StackPanel>
-    <StackPanel Grid.Row="3" Margin="0,16,0,0">
+    <StackPanel><Label Content="Download _URL" Target="{Binding ElementName=UrlDisplay}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/><TextBox x:Name="UrlDisplay" IsReadOnly="True" Background="{DynamicResource SidebarBrush}" AutomationProperties.Name="Download URL"/></StackPanel>
+    <StackPanel Margin="0,16,0,0"><Label Content="File _name" Target="{Binding ElementName=NameInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/><TextBox x:Name="NameInput" AutomationProperties.Name="File name"/><TextBlock x:Name="DetectedInfo" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0" AutomationProperties.Name="Detected size and type"/></StackPanel>
+    <StackPanel Margin="0,16,0,0">
       <Label Content="_Save to" Target="{Binding ElementName=PathInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
       <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <TextBox x:Name="PathInput" Grid.Column="0" AutomationProperties.Name="Save to path"/>
         <Button x:Name="BrowseButton" Grid.Column="1" Content="Browse…" Click="Browse_Click" MinWidth="84" Margin="8,0,0,0"/>
       </Grid>
     </StackPanel>
-    <StackPanel Grid.Row="4" Margin="0,16,0,0">
+    <StackPanel Margin="0,16,0,0">
       <Label Content="_Category" Target="{Binding ElementName=CategoryDropdown}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
       <ComboBox x:Name="CategoryDropdown" AutomationProperties.Name="Download category">
         <ComboBoxItem Content="General" Tag="General"/>
@@ -22,11 +22,11 @@
         <ComboBoxItem Content="Video" Tag="Video"/>
       </ComboBox>
     </StackPanel>
-    <StackPanel Grid.Row="5" Margin="0,16,0,0">
+    <StackPanel Margin="0,16,0,0">
       <Label Content="Speed _limit (KiB/s; blank = unlimited)" Target="{Binding ElementName=SpeedInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/><TextBox x:Name="SpeedInput" AutomationProperties.Name="Speed limit in KiB per second"/>
       <TextBlock Text="Positive whole numbers; shared across this download's segments." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
     </StackPanel>
-    <StackPanel Grid.Row="6" Margin="0,16,0,0">
+    <StackPanel Margin="0,16,0,0">
       <Label Content="Queue _concurrency (download at the same time)" Target="{Binding ElementName=ConcurrentInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
       <ComboBox x:Name="ConcurrentInput" AutomationProperties.Name="Queue concurrency">
         <ComboBoxItem Content="1 download at a time (Sequential queue)" Tag="1"/>
@@ -39,7 +39,7 @@
       </ComboBox>
       <TextBlock Text="How many queued files to download at the same time." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
     </StackPanel>
-    <StackPanel Grid.Row="7" Margin="0,16,0,0" x:Name="SchedulePanel" Visibility="Collapsed">
+    <StackPanel Margin="0,16,0,0" x:Name="SchedulePanel" Visibility="Collapsed">
       <Label Content="Local date and _time (yyyy-MM-dd HH:mm)" Target="{Binding ElementName=ScheduleInput}" Foreground="{DynamicResource InkBrush}"/><TextBox x:Name="ScheduleInput" AutomationProperties.Name="Scheduled local date and time"/>
       <TextBlock Text="Uses this computer's time zone. N&amp;T must be running at the due time." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
     </StackPanel>

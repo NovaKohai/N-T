@@ -90,7 +90,7 @@ if (Test-Path -LiteralPath $publicUpdates) {
     $bodyText = "### What's new in N&T $version"
     $changelogPath = Join-Path $root 'CHANGELOG.md'
     if (Test-Path -LiteralPath $changelogPath) {
-        $cl = Get-Content -LiteralPath $changelogPath -Raw
+        $cl = [IO.File]::ReadAllText($changelogPath, [Text.Encoding]::UTF8)
         $clMatch = [regex]::Match($cl, "(?ms)## \[$([regex]::Escape($version))\].*?(?=(?:`r?`n## \[|\Z))")
         if ($clMatch.Success -and $clMatch.Value.Trim().Length -gt 0) {
             $bodyText = $clMatch.Value.Trim()

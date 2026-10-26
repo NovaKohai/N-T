@@ -55,6 +55,8 @@ internal static class UiTests
             window.Show(); Pump();
             Check(((SolidColorBrush)window.Background).Color == (Color)ColorConverter.ConvertFromString("#F3F4F6"), "Light window token applied to derived WPF window");
             Check(window.Rows.Count == 0 && ((StackPanel)window.FindName("EmptyState")).Visibility == Visibility.Visible, "Genuine empty queue shown");
+            var diskLabel = (TextBlock)window.FindName("DiskSpaceLabel");
+            Check(diskLabel != null && !string.IsNullOrEmpty(diskLabel.Text) && diskLabel.Text.StartsWith("Free on "), "Main window status bar shows free disk space: " + diskLabel?.Text);
             app.ApplyTheme("Dark"); Pump();
             Check(((SolidColorBrush)window.Background).Color == (Color)ColorConverter.ConvertFromString("#171B1E"), "Dark token updates live");
             Check(((SolidColorBrush)((TextBox)window.FindName("Search")).Foreground).Color == (Color)ColorConverter.ConvertFromString("#F3F5F6"), "Dark input foreground updates live");
@@ -80,6 +82,11 @@ internal static class UiTests
             Check(list.Items.Count == 0, "Completed filter excludes paused job");
             ((ListBox)window.FindName("Navigation")).SelectedIndex = 2; Pump();
             Check(list.Items.Count == 1, "Paused filter shows paused job");
+            var progressWin = new DownloadProgressWindow(manager, job.Id) { Owner = window, ShowInTaskbar = false };
+            progressWin.Show(); Pump();
+            var refreshBtn = (Button)progressWin.FindName("RefreshUrlButton");
+            Check(refreshBtn != null && refreshBtn.Visibility == Visibility.Visible, "Download progress window exposes Refresh address for paused job");
+            progressWin.Close();
             var preferences = new SettingsWindow(settings) { Owner = window };
             preferences.Show(); Pump();
             Check(((SolidColorBrush)preferences.Background).Color == ((SolidColorBrush)window.Background).Color, "Settings inherits dark palette");
@@ -95,6 +102,7 @@ internal static class UiTests
             app.ApplyTheme("Light"); Pump();
             Check(((SolidColorBrush)window.Background).Color == (Color)ColorConverter.ConvertFromString("#F3F4F6"), "Light theme can be restored");
             TorrentAddTests(Pump);
+            TorrentDetailsTests(Pump);
             SidebarTests();
             Console.WriteLine("ALL WPF UI TESTS PASSED");
             return 0;
@@ -151,6 +159,33 @@ internal static class UiTests
             Check(win.Selection is null && ((TextBlock)win.FindName("ErrorText")).Text.Contains("at least one"), "Torrent add: Start with nothing selected is refused");
         }
         finally { win.Close(); }
+    }
+
+    private static void TorrentDetailsTests(Action pump)
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "ndm-details-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        try
+        {
+            var controller = new TorrentController(temp, new AppSettings { DownloadDirectory = temp });
+            var win = new TorrentDetailsWindow(controller, "non-existent") { ShowInTaskbar = false };
+            win.Show(); pump();
+            var list = (ListView)win.FindName("FileList");
+            Check(list != null, "Torrent details window has FileList");
+            var menu = list!.ContextMenu;
+            Check(menu != null, "Torrent details FileList has context menu");
+            Check(menu!.Items.OfType<MenuItem>().Any(m => m.Header?.ToString()?.Contains("High") == true), "Torrent details context menu has High priority");
+            Check(menu.Items.OfType<MenuItem>().Any(m => m.Header?.ToString()?.Contains("Skip") == true), "Torrent details context menu has Skip priority");
+            var openItem = menu.Items.OfType<MenuItem>().First(m => m.Header?.ToString()?.Contains("Open file") == true);
+            Check(openItem != null, "Torrent details context menu has Open file");
+            openItem!.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); pump();
+            Check(((TextBlock)win.FindName("ErrorText")).Text.Length == 0, "Open file with nothing selected is a safe no-op");
+            win.Close();
+        }
+        finally
+        {
+            try { Directory.Delete(temp, true); } catch { }
+        }
     }
 
     private static void SidebarTests()

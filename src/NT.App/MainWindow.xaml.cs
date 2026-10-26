@@ -43,6 +43,7 @@ public partial class MainWindow : Window
     private readonly List<MenuItem> _finishMenus = new();
     private readonly ITorrentFeature _torrents;
     private bool _enforcingSeedLimit;
+    private readonly Stopwatch _diskCheckClock = Stopwatch.StartNew();
     public ITorrentFeature Torrents => _torrents;
     public CompletionActionRunner FinishActions { get; }
     public MenuItem FinishSubmenu => FinishMenu;
@@ -376,6 +377,24 @@ public partial class MainWindow : Window
             Summary.Text = Rows.Count == 0 ? "Ready for your first download" : $"{active} active" + (seeding > 0 ? $"  ·  {seeding} seeding" : "") + $"  ·  {Rows.Count(r => r.IsComplete)} completed  ·  {Rows.Count} total";
             var downSpeed = Rows.Sum(r => r.Speed); var upSpeed = Rows.Sum(r => r.UploadSpeed);
             RateLabel.Text = upSpeed > 0 ? $"↓ {DownloadRow.FormatBytes(downSpeed)}/s  ↑ {DownloadRow.FormatBytes(upSpeed)}/s" : $"{DownloadRow.FormatBytes(downSpeed)}/s";
+            if (_diskCheckClock.ElapsedMilliseconds > 3000 || string.IsNullOrEmpty(DiskSpaceLabel.Text))
+            {
+                _diskCheckClock.Restart();
+                try
+                {
+                    var target = _settings.DownloadDirectory;
+                    var root = Path.GetPathRoot(Path.GetFullPath(target));
+                    if (!string.IsNullOrEmpty(root))
+                    {
+                        var drive = new DriveInfo(root);
+                        if (drive.IsReady)
+                        {
+                            DiskSpaceLabel.Text = $"Free on {drive.Name.TrimEnd('\\')}: {DownloadRow.FormatBytes(drive.AvailableFreeSpace)}";
+                        }
+                    }
+                }
+                catch { DiskSpaceLabel.Text = ""; }
+            }
             UpdateSelection();
             // Deferred: the countdown is modal and must not run inside a refresh pass.
             if (queueFinished) Dispatcher.BeginInvoke(new Action(RunFinishActions));

@@ -25,7 +25,7 @@ public partial class BulkImportWindow : Window
         int added = 0, invalid = 0, duplicates = 0, failed = 0, blanks = 0;
         try
         {
-            var seen = _manager.Jobs.Select(j => new Uri(j.Url).AbsoluteUri).ToHashSet(StringComparer.Ordinal);
+            var seen = _manager.Jobs.Select(j => Uri.TryCreate(j.Url, UriKind.Absolute, out var u) ? u.AbsoluteUri : j.Url).ToHashSet(StringComparer.Ordinal);
             var lines = UrlsInput.Text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
             for (int index = 0; index < lines.Length; index++)
             {
@@ -62,7 +62,7 @@ public partial class BulkImportWindow : Window
                             continue;
                         }
                     }
-                    string key = new Uri(finalUrl).AbsoluteUri;
+                    string key = Uri.TryCreate(finalUrl, UriKind.Absolute, out var finalParsed) ? finalParsed.AbsoluteUri : finalUrl;
                     if (seen.Contains(key)) { duplicates++; results.Add(subPrefix + "duplicate. Already in this import or queue, so it was skipped."); continue; }
                     try { await _manager.AddAsync(new DownloadRequest(finalUrl)); seen.Add(key); added++; results.Add(subPrefix + "added to queue."); }
                     catch (Exception) { failed++; results.Add(subPrefix + "not saved. Check the destination and try this line again."); }
