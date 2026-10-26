@@ -1,7 +1,7 @@
 {
     "body":  "## [1.2.9] - 2026-10-26\n\n### Fixed\n- File Assembly: Eliminated cross-volume post-download file copying by placing intermediate assembly staging on the destination volume, enabling near-instantaneous completion and preventing excessive disk writes.\n- File Assembly: Increased sequential file assembly stream buffer from 64 KiB to 4 MiB, drastically accelerating part stitching on SSD and HDD storage.\n- UI Feedback: Added clear \"Assembling file...\" status, disk writing indicator, and live assembly progress telemetry so multi-gigabyte downloads provide continuous visual feedback instead of appearing frozen at 100%.",
     "name":  "N&T 1.2.9",
-    "published_at":  "2026-10-25T23:52:06Z",
+    "published_at":  "2026-10-26T00:01:29Z",
     "assets":  [
                    {
                        "browser_download_url":  "/updates/N&T-Setup-1.2.9.msi",
