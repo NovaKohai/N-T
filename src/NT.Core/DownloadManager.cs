@@ -1844,6 +1844,35 @@ public sealed partial class DownloadManager : IDisposable
                 output.Flush(true);
             }
             if (w.Request.AutoName) SettleName(w, null, ReadHead(staging));
+            if (!string.IsNullOrWhiteSpace(w.Request.ExpectedHash))
+            {
+                var algo = (w.Request.HashAlgorithm ?? "SHA256").Trim().ToUpperInvariant();
+                await using (var checkStream = new FileStream(staging, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                {
+                    byte[] hashBytes = algo switch
+                    {
+                        "MD5" => await System.Security.Cryptography.MD5.HashDataAsync(checkStream, token).ConfigureAwait(false),
+                        "SHA1" => await System.Security.Cryptography.SHA1.HashDataAsync(checkStream, token).ConfigureAwait(false),
+                        _ => await System.Security.Cryptography.SHA256.HashDataAsync(checkStream, token).ConfigureAwait(false)
+                    };
+                    string actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                    string expectedClean = w.Request.ExpectedHash.Trim().ToLowerInvariant();
+                    if (!string.Equals(actualHash, expectedClean, StringComparison.OrdinalIgnoreCase))
+                    {
+                        lock (gate)
+                        {
+                            w.Job.IsAssembling = false;
+                            w.ChecksumVerified = false;
+                            w.Job.Status = "Failed";
+                            w.Job.Error = $"Integrity check failed: expected {expectedClean}, got {actualHash}";
+                            SaveLocked();
+                        }
+                        Notify();
+                        return;
+                    }
+                }
+                w.ChecksumVerified = true;
+            }
             lock (gate)
             {
                 token.ThrowIfCancellationRequested();
@@ -1861,6 +1890,7 @@ public sealed partial class DownloadManager : IDisposable
                 w.Job.IsAssembling = false;
                 w.Job.AssemblyProgress = 100;
                 w.Job.Status = "Completed"; w.Job.Error = null;
+                w.Job.ChecksumVerified = w.ChecksumVerified;
                 SaveLocked();
             }
             Notify();
@@ -1992,7 +2022,7 @@ public sealed partial class DownloadManager : IDisposable
             Id = w.Job.Id, Request = w.Request, FileName = w.Job.FileName, Status = w.Job.Status,
             Total = w.Total, ETag = w.ETag, Modified = w.Modified, ResolvedUrl = w.ResolvedUrl, Segments = w.Segments,
             ScheduledAt = w.Job.ScheduledAt, Error = w.Job.Error, SpeedLimit = w.SpeedLimit,
-            FilePath = w.Job.FilePath, AddedAt = w.Job.AddedAt
+            FilePath = w.Job.FilePath, AddedAt = w.Job.AddedAt, ChecksumVerified = w.ChecksumVerified
         }).ToArray();
         var temporary = queuePath + ".tmp";
         using (var file = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -2020,6 +2050,7 @@ public sealed partial class DownloadManager : IDisposable
             {
                 Request = r.Request, Total = r.Total, ETag = r.ETag, Modified = r.Modified,
                 Segments = r.Segments, ResolvedUrl = r.ResolvedUrl, SpeedLimit = r.SpeedLimit is > 0 ? r.SpeedLimit : null,
+                ChecksumVerified = r.ChecksumVerified,
                 Job = new DownloadJob { Id = r.Id, Url = r.Request.Url, FileName = name, FilePath = SavedPath(r.FilePath, name) ?? Path.Combine(downloads, name), Status = status, ScheduledAt = r.ScheduledAt, Error = r.Error, Referer = r.Request.Referer, AddedAt = r.AddedAt }
             };
             if (status == "Completed") { w.Job.TotalBytes = w.Job.DownloadedBytes = r.Total; }
@@ -2084,6 +2115,7 @@ public sealed partial class DownloadManager : IDisposable
         public long SampleAt;
         public long SampleBytes;
         public bool HasSpeedSample, Probing, Streaming;
+        public bool? ChecksumVerified { get; set; }
     }
     private sealed class Segment
     {
@@ -2110,5 +2142,6 @@ public sealed partial class DownloadManager : IDisposable
         public long? SpeedLimit { get; set; }
         public string? FilePath { get; set; }
         public DateTimeOffset? AddedAt { get; set; }
+        public bool? ChecksumVerified { get; set; }
     }
 }

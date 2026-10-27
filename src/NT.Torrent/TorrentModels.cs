@@ -86,4 +86,21 @@ public sealed record TorrentMetadataFile(string Path, long Length);
 public sealed record TorrentMetadata(string Id, string Name, long TotalBytes, IReadOnlyList<TorrentMetadataFile> Files, byte[]? TorrentBytes = null);
 
 /// <summary>Input was rejected (bad magnet, oversize or unsafe torrent, bad path).</summary>
+public sealed record TorrentTrackerInfo(
+    string Url,
+    string Status,
+    string Warning,
+    string Failure,
+    TimeSpan UpdateInterval,
+    int Tier);
+
+public sealed record TorrentPeerInfo(
+    string Endpoint,
+    string Client,
+    long DownloadSpeed,
+    long UploadSpeed,
+    double Progress,
+    bool IsSeeder,
+    bool IsEncrypted);
+
 public sealed class TorrentRejectedException(string message) : ArgumentException(message);

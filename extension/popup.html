@@ -39,6 +39,16 @@
 </div>
 <p class="hint">Applies to both the media ribbon and download capture. Unticked types are left to the browser.</p>
 </details>
+<details><summary>Blacklisted domains</summary>
+<div id="blacklistPanel">
+  <div style="display:flex;gap:4px;margin-bottom:6px;">
+    <input type="text" id="blacklistInput" placeholder="example.com" style="flex:1;">
+    <button type="button" id="blacklistAdd">Add</button>
+  </div>
+  <ul id="blacklistList" style="list-style:none;padding:0;margin:0;max-height:100px;overflow-y:auto;"></ul>
+</div>
+<p class="hint">Downloads and media detection are permanently disabled for these domains.</p>
+</details>
 <p id="status" role="status" aria-live="polite"></p>
 </main>
 <script src="sniff.js"></script>

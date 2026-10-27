@@ -234,3 +234,36 @@ test('ribbon: displays real video title and resolves quality from DOM video elem
   assert.match(text, /1080p/);
   assert.match(text, /20\.0 MB/);
 });
+
+test('sniff: subtitle stream and manifest detection (.vtt, .srt)', () => {
+  const vttResp = response('https://cdn.example/subtitles/en.vtt', 'text/vtt', 12345);
+  const vttItem = S.inspect(vttResp).item;
+  assert.ok(vttItem, 'vtt item detected');
+  assert.equal(vttItem.kind, 'subtitle');
+  assert.equal(vttItem.track, 'subtitle');
+  assert.equal(vttItem.isSubtitle, true);
+  assert.equal(S.extensionFor(vttItem), '.vtt');
+  assert.equal(S.typeOfFile('subtitles.vtt'), 'document');
+
+  const srtResp = response('https://cdn.example/subtitles/movie.srt', 'application/x-subrip', 54321);
+  const srtItem = S.inspect(srtResp).item;
+  assert.ok(srtItem, 'srt item detected');
+  assert.equal(srtItem.kind, 'subtitle');
+  assert.equal(S.extensionFor(srtItem), '.srt');
+  assert.equal(S.typeOfFile('movie.srt'), 'document');
+
+  const domSub = S.fromDom('https://cdn.example/sub.vtt', 'track', 0, 0, 0, 'https://page.example', 'English Subtitles');
+  assert.ok(domSub, 'dom subtitle detected');
+  assert.equal(domSub.kind, 'subtitle');
+  assert.equal(domSub.title, 'English Subtitles');
+});
+
+test('blacklist: persistent domains bypass interception and media detection', () => {
+  const blacklist = ['adserver.com', 'internal.corp'];
+  assert.equal(S.isBlacklisted(blacklist, 'https://adserver.com/download.zip'), true);
+  assert.equal(S.isBlacklisted(blacklist, 'https://sub.adserver.com/video.mp4'), true);
+  assert.equal(S.isBlacklisted(blacklist, 'https://internal.corp/file.exe'), true);
+  assert.equal(S.isBlacklisted(blacklist, 'https://goodsite.org/file.zip'), false);
+  assert.equal(S.isBlacklisted([], 'https://adserver.com/download.zip'), false);
+  assert.equal(S.isBlacklisted(null, 'https://adserver.com/download.zip'), false);
+});

@@ -103,6 +103,7 @@ internal static class UiTests
             Check(((SolidColorBrush)window.Background).Color == (Color)ColorConverter.ConvertFromString("#F3F4F6"), "Light theme can be restored");
             TorrentAddTests(Pump);
             TorrentDetailsTests(Pump);
+            Phase2Tests(Pump);
             SidebarTests();
             Console.WriteLine("ALL WPF UI TESTS PASSED");
             return 0;
@@ -180,6 +181,14 @@ internal static class UiTests
             Check(openItem != null, "Torrent details context menu has Open file");
             openItem!.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)); pump();
             Check(((TextBlock)win.FindName("ErrorText")).Text.Length == 0, "Open file with nothing selected is a safe no-op");
+            var tabs = (TabControl)win.FindName("DetailsTabs");
+            Check(tabs != null, "Torrent details window has DetailsTabs");
+            var trackersList = (ListView)win.FindName("TrackerList");
+            Check(trackersList != null, "Torrent details window has TrackerList");
+            var peersList = (ListView)win.FindName("PeerList");
+            Check(peersList != null, "Torrent details window has PeerList");
+            var addTrackerBtn = (Button)win.FindName("AddTrackerButton");
+            Check(addTrackerBtn != null, "Torrent details window has AddTrackerButton");
             win.Close();
         }
         finally
@@ -209,5 +218,51 @@ internal static class UiTests
             Check(!AppSettings.Load(dir).EnableCategoryFolders, "Explicit opt-out after migration is respected");
         }
         finally { Directory.Delete(dir, true); }
+    }
+
+    private static void Phase2Tests(Action pump)
+    {
+        var widget = new MiniWidgetWindow(
+            () => { },
+            s => Task.CompletedTask,
+            (x, y) => { },
+            100, 200
+        ) { ShowInTaskbar = false };
+        try
+        {
+            widget.Show(); pump();
+            Check(widget.Left == 100 && widget.Top == 200, "Mini widget respects initial position");
+            widget.UpdateTelemetry(1024 * 1024 * 5, 2);
+            Check(widget.CurrentSpeedText.Contains("5 MB/s"), "Mini widget displays formatted speed: " + widget.CurrentSpeedText);
+            Check(widget.CurrentActiveCountText == "2 active", "Mini widget displays active count: " + widget.CurrentActiveCountText);
+        }
+        finally { widget.Close(); }
+
+        string dummyFile = Path.Combine(Path.GetTempPath(), "test-toast-" + Guid.NewGuid().ToString("N") + ".zip");
+        File.WriteAllBytes(dummyFile, new byte[16]);
+        try
+        {
+            var balloon = new DownloadToastBalloon("test-toast.zip", dummyFile);
+            var fnText = (TextBlock)balloon.FindName("FileNameText");
+            Check(fnText != null && fnText.Text == "test-toast.zip", "Toast balloon binds filename");
+            var openBtn = (Button)balloon.FindName("OpenButton");
+            Check(openBtn != null && openBtn.IsEnabled, "Toast balloon Open button is enabled for existing file");
+            var folderBtn = (Button)balloon.FindName("FolderButton");
+            Check(folderBtn != null && folderBtn.IsEnabled, "Toast balloon Folder button is enabled");
+            var closeBtn = (Button)balloon.FindName("CloseButton");
+            Check(closeBtn != null, "Toast balloon has Close/Dismiss button");
+        }
+        finally
+        {
+            try { File.Delete(dummyFile); } catch { }
+        }
+
+        bool InSchedule(int hour, int start, int end) =>
+            start <= end ? (hour >= start && hour < end) : (hour >= start || hour < end);
+
+        Check(InSchedule(9, 9, 17) && InSchedule(12, 9, 17) && InSchedule(16, 9, 17), "Schedule: inside same-day window");
+        Check(!InSchedule(8, 9, 17) && !InSchedule(17, 9, 17) && !InSchedule(23, 9, 17), "Schedule: outside same-day window");
+        Check(InSchedule(22, 22, 6) && InSchedule(23, 22, 6) && InSchedule(0, 22, 6) && InSchedule(5, 22, 6), "Schedule: inside overnight window");
+        Check(!InSchedule(6, 22, 6) && !InSchedule(12, 22, 6) && !InSchedule(21, 22, 6), "Schedule: outside overnight window");
     }
 }

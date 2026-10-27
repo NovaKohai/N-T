@@ -1,7 +1,25 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
+
+## [1.3.3] - 2026-10-28
+
+### Changed
+- التحقق من سلامة التنزيلات (Checksum): دعم فحص التجزئة SHA-256 و SHA-1 و MD5 أثناء التجميع لمنع التلف، مع شارة التحقق في نافذة الاكتمال.
+
+## [1.3.2] - 2026-10-28
+
+### Added
+- Engine: Checksum verification support (SHA-256, SHA-1, MD5) on download requests and queue items with streaming hash validation and automatic integrity failure reporting.
+- Engine: Safe ZIP extraction with Zip-Slip path traversal protection and optional automatic extraction upon completion.
+- UI: Floating mini speed widget with live aggregate bandwidth, active job count, and drag-and-drop link/torrent importing.
+- UI: Interactive completion toast balloon notification with direct "Open" and "Open folder" actions.
+- UI: Bandwidth scheduler supporting time-based speed throttling windows with overnight wrap-around.
+- Torrent: Telemetry tabs in TorrentDetailsWindow displaying live tracker status/announce intervals and connected peer metrics, plus manual tracker addition.
+- Extension: Subtitle stream sniffing for WebVTT (.vtt) and SubRip (.srt) media manifests.
+- Extension: Persistent domain blacklist configuration in popup to prevent interception on excluded sites.
+- Extension: Alt-click bypass allowing native browser download handling when holding Alt key.
 
 ## [1.3.1] - 2026-10-27
 
@@ -13,7 +31,7 @@ and the project uses [Semantic Versioning](https://semver.org/). The rule for ke
 ### Added
 - Reliability: Added pre-download, pre-assembly, and torrent volume capacity verification to prevent drive exhaustion and partial staging corruption.
 - Engine: Implemented smart resume disk space calculation that checks only remaining un-downloaded bytes instead of total file size, allowing partial downloads to resume safely.
-- UI: Added a direct "Refresh address…" action in DownloadProgressWindow and queue context menus to immediately update expired links and resume failed or paused downloads.
+- UI: Added a direct "Refresh addressâ€¦" action in DownloadProgressWindow and queue context menus to immediately update expired links and resume failed or paused downloads.
 - UI: Added live free disk space telemetry to the main window status bar alongside aggregate transfer rates.
 - Torrent: Added interactive context menu to TorrentDetailsWindow file list supporting live priority changes (High, Normal, Low, Skip) and one-click file and folder opening.
 

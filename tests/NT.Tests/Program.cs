@@ -62,7 +62,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("file names: pre-download probe (HEAD, ranged-GET fallback, redirects, size/type)", () => NameTests.Probe(Paths())),
     ("URL range pattern expansion and Cartesian product", () => { UrlPatternTests.Run(); return Task.CompletedTask; }),
     ("downloadable link classification and filtering", () => { DownloadableLinkDetectorTests.Run(); return Task.CompletedTask; }),
-    ("host link resolution (datanodes.to, fuckingfast.co, batch, error handling)", HostLinkResolverTests.RunAsync)
+    ("host link resolution (datanodes.to, fuckingfast.co, batch, error handling)", HostLinkResolverTests.RunAsync),
+    ("checksum verification: matching hash completes, mismatch fails with integrity error", () => ManageTests.ChecksumVerification(Paths))
 };
 var filter = args.FirstOrDefault(a => !a.StartsWith("--"));
 var activeTests = filter != null ? tests.Where(t => t.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToArray() : tests;

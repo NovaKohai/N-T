@@ -19,13 +19,15 @@
       <TextBlock x:Name="PercentText" HorizontalAlignment="Right"/>
       <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap"/>
       <CheckBox x:Name="SequentialCheck" Content="Download in se_quential order (stream / preview files while downloading)" Click="Sequential_Click" Margin="0,6,0,8"/>
-      <TextBlock Text="Files" FontWeight="SemiBold" Margin="0,4,0,8"/>
+
     </StackPanel>
     <StackPanel DockPanel.Dock="Bottom">
       <TextBlock x:Name="Notice" Text="Closing this window does not stop the torrent." Style="{StaticResource Muted}" Margin="0,10" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
       <WrapPanel HorizontalAlignment="Right"><Button x:Name="PauseButton" Content="Pause" Click="Pause_Click" Margin="0,0,6,0" MinWidth="80"/><Button Content="_Hide" Click="Hide_Click" MinWidth="80"/></WrapPanel>
     </StackPanel>
-    <ListView x:Name="FileList" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="Torrent files">
+    <TabControl x:Name="DetailsTabs" Margin="0,4,0,0" Background="Transparent" BorderThickness="0">
+      <TabItem x:Name="TabFiles" Header="Files">
+        <ListView x:Name="FileList" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="Torrent files">
       <ListView.Resources><Style TargetType="GridViewColumnHeader"><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style></ListView.Resources>
       <ListView.ContextMenu>
         <ContextMenu x:Name="FileContextMenu">
@@ -44,6 +46,37 @@
         <GridViewColumn Header="Progress" Width="110"><GridViewColumn.CellTemplate><DataTemplate><Grid Width="90"><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions><ProgressBar local:SmoothProgressBar.SmoothValue="{Binding Progress}" Maximum="100" Height="5"/><TextBlock Grid.Column="1" Text="{Binding Percent}" HorizontalAlignment="Right"/></Grid></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
         <GridViewColumn Header="Priority" Width="80" DisplayMemberBinding="{Binding Priority}"/>
       </GridView></ListView.View>
-    </ListView>
+        </ListView>
+      </TabItem>
+      <TabItem x:Name="TabTrackers" Header="Trackers">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,4,0,6">
+            <Button x:Name="AddTrackerButton" Content="Add tracker" Click="AddTracker_Click" Padding="8,3"/>
+          </StackPanel>
+          <ListView x:Name="TrackerList" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="Torrent trackers">
+            <ListView.Resources><Style TargetType="GridViewColumnHeader"><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style></ListView.Resources>
+            <ListView.View><GridView>
+              <GridViewColumn Header="Tier" Width="45" DisplayMemberBinding="{Binding Tier}"/>
+              <GridViewColumn Header="URL" Width="360"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Url}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Url}"/></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+              <GridViewColumn Header="Status" Width="130" DisplayMemberBinding="{Binding Status}"/>
+              <GridViewColumn Header="Update interval" Width="100" DisplayMemberBinding="{Binding UpdateInterval}"/>
+            </GridView></ListView.View>
+          </ListView>
+        </DockPanel>
+      </TabItem>
+      <TabItem x:Name="TabPeers" Header="Peers">
+        <ListView x:Name="PeerList" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="Torrent peers">
+          <ListView.Resources><Style TargetType="GridViewColumnHeader"><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style></ListView.Resources>
+          <ListView.View><GridView>
+            <GridViewColumn Header="Endpoint" Width="170" DisplayMemberBinding="{Binding Endpoint}"/>
+            <GridViewColumn Header="Client" Width="140" DisplayMemberBinding="{Binding Client}"/>
+            <GridViewColumn Header="Down speed" Width="95" DisplayMemberBinding="{Binding DownloadSpeed}"/>
+            <GridViewColumn Header="Up speed" Width="95" DisplayMemberBinding="{Binding UploadSpeed}"/>
+            <GridViewColumn Header="Progress" Width="90" DisplayMemberBinding="{Binding Percent}"/>
+            <GridViewColumn Header="Security" Width="80" DisplayMemberBinding="{Binding Encryption}"/>
+          </GridView></ListView.View>
+        </ListView>
+      </TabItem>
+    </TabControl>
   </DockPanel>
 </Window>

@@ -24,6 +24,47 @@ public sealed class TorrentFileRow : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 }
 
+public sealed class TrackerRow : INotifyPropertyChanged
+{
+    public string Url { get; private set; } = "";
+    public string Status { get; private set; } = "";
+    public string UpdateInterval { get; private set; } = "";
+    public int Tier { get; private set; }
+    public TrackerRow(TorrentTrackerInfo t) => Update(t);
+    public void Update(TorrentTrackerInfo t)
+    {
+        Url = t.Url;
+        Status = !string.IsNullOrEmpty(t.Failure) ? $"Error: {t.Failure}" : !string.IsNullOrEmpty(t.Warning) ? $"Warning: {t.Warning}" : t.Status;
+        UpdateInterval = t.UpdateInterval > TimeSpan.Zero ? $"{t.UpdateInterval.TotalMinutes:0}m" : "-";
+        Tier = t.Tier;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+    }
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
+
+public sealed class PeerRow : INotifyPropertyChanged
+{
+    public string Endpoint { get; private set; } = "";
+    public string Client { get; private set; } = "";
+    public string DownloadSpeed { get; private set; } = "";
+    public string UploadSpeed { get; private set; } = "";
+    public double Progress { get; private set; }
+    public string Percent => $"{Progress:0}%";
+    public string Encryption { get; private set; } = "";
+    public PeerRow(TorrentPeerInfo p) => Update(p);
+    public void Update(TorrentPeerInfo p)
+    {
+        Endpoint = p.Endpoint;
+        Client = p.Client;
+        DownloadSpeed = p.DownloadSpeed > 0 ? $"{DownloadRow.FormatBytes(p.DownloadSpeed)}/s" : "-";
+        UploadSpeed = p.UploadSpeed > 0 ? $"{DownloadRow.FormatBytes(p.UploadSpeed)}/s" : "-";
+        Progress = Math.Clamp(p.Progress, 0, 100);
+        Encryption = p.IsEncrypted ? "Encrypted" : "Plain";
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
+    }
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
+
 /// <summary>Modeless live view of one torrent: peers, seeds, speeds, ratio and per-file progress.</summary>
 public partial class TorrentDetailsWindow : Window
 {
@@ -31,11 +72,15 @@ public partial class TorrentDetailsWindow : Window
     private readonly string _id;
     private readonly DispatcherTimer _timer;
     private readonly ObservableCollection<TorrentFileRow> _files = new();
+    private readonly ObservableCollection<TrackerRow> _trackers = new();
+    private readonly ObservableCollection<PeerRow> _peers = new();
     public TorrentDetailsWindow(TorrentController torrents, string torrentId)
     {
         _torrents = torrents; _id = torrentId;
         InitializeComponent();
         FileList.ItemsSource = _files;
+        TrackerList.ItemsSource = _trackers;
+        PeerList.ItemsSource = _peers;
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Background, (_, _) => Refresh(), Dispatcher);
         Closed += (_, _) => _timer.Stop();
         PreviewKeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) { e.Handled = true; Close(); } };
@@ -62,6 +107,37 @@ public partial class TorrentDetailsWindow : Window
         SequentialCheck.IsChecked = job.IsSequential;
         if (_files.Count != job.Files.Count) { _files.Clear(); foreach (var f in job.Files) _files.Add(new TorrentFileRow(f)); }
         else for (int i = 0; i < _files.Count; i++) _files[i].Update(job.Files[i]);
+        var trackers = _torrents.GetTrackers(_id);
+        if (_trackers.Count != trackers.Count) { _trackers.Clear(); foreach (var t in trackers) _trackers.Add(new TrackerRow(t)); }
+        else for (int i = 0; i < _trackers.Count; i++) _trackers[i].Update(trackers[i]);
+        _ = UpdatePeersAsync();
+    }
+    private async Task UpdatePeersAsync()
+    {
+        try
+        {
+            var peers = await _torrents.GetPeersAsync(_id);
+            if (_peers.Count != peers.Count) { _peers.Clear(); foreach (var p in peers) _peers.Add(new PeerRow(p)); }
+            else for (int i = 0; i < _peers.Count; i++) _peers[i].Update(peers[i]);
+        }
+        catch { }
+    }
+    private async void AddTracker_Click(object sender, RoutedEventArgs e)
+    {
+        var prompt = new TextPromptWindow("Add tracker", "Enter the tracker announce URL (http, https, udp):", "",
+            url => Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme is "http" or "https" or "udp") ? null : "Please enter a valid HTTP, HTTPS, or UDP tracker URL.") { Owner = this };
+        if (prompt.ShowDialog() == true && Uri.TryCreate(prompt.Value, UriKind.Absolute, out var newUri))
+        {
+            try
+            {
+                await _torrents.AddTrackerAsync(_id, newUri);
+                Refresh();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Could not add tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
     }
     private async void Pause_Click(object sender, RoutedEventArgs e)
     {

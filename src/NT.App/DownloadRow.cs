@@ -28,6 +28,10 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
     public string DisplayStatus => IsAssembling ? "Assembling" : Status;
     public int ActiveConnectionCount { get; private set; }
     public int ConnectionLimit { get; private set; }
+    public long? SpeedLimit { get; private set; }
+    public bool? ChecksumVerified { get; private set; }
+    public string? ExpectedHash { get; private set; }
+    public string? HashAlgorithm { get; private set; }
     public IReadOnlyList<DownloadSegmentSnapshot> Segments { get; private set; } = Array.Empty<DownloadSegmentSnapshot>();
     /// <summary>One row per connection for the progress window; displays configured connections up to ConnectionLimit.</summary>
     public IReadOnlyList<DownloadSegmentRow> ConnectionRows
@@ -84,13 +88,14 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
         if (job.Id != Id) throw new ArgumentException("Snapshot belongs to another download.", nameof(job));
         var speed = double.IsFinite(job.SpeedBytesPerSecond) ? Math.Max(0, job.SpeedBytesPerSecond) : 0;
         var progress = double.IsFinite(job.Progress) ? Math.Clamp(job.Progress, 0, 100) : 0;
-        bool changed = Referer != job.Referer || AddedAt != job.AddedAt || Url != job.Url || FileName != job.FileName || FilePath != job.FilePath || Status != job.Status || Error != job.Error || ScheduledAt != job.ScheduledAt || TotalBytes != job.TotalBytes || DownloadedBytes != job.DownloadedBytes || Speed != speed || Progress != progress || RemainingTime != job.RemainingTime || ResumeSupported != job.ResumeSupported || ActiveConnectionCount != job.ActiveConnectionCount || ConnectionLimit != job.ConnectionLimit || IsAssembling != job.IsAssembling || Math.Abs(AssemblyProgress - job.AssemblyProgress) >= 1.0 || !Segments.SequenceEqual(job.Segments);
+        bool changed = Referer != job.Referer || AddedAt != job.AddedAt || Url != job.Url || FileName != job.FileName || FilePath != job.FilePath || Status != job.Status || Error != job.Error || ScheduledAt != job.ScheduledAt || TotalBytes != job.TotalBytes || DownloadedBytes != job.DownloadedBytes || Speed != speed || Progress != progress || RemainingTime != job.RemainingTime || ResumeSupported != job.ResumeSupported || ActiveConnectionCount != job.ActiveConnectionCount || ConnectionLimit != job.ConnectionLimit || IsAssembling != job.IsAssembling || Math.Abs(AssemblyProgress - job.AssemblyProgress) >= 1.0 || SpeedLimit != job.SpeedLimitBytesPerSecond || ChecksumVerified != job.ChecksumVerified || ExpectedHash != job.ExpectedHash || HashAlgorithm != job.HashAlgorithm || !Segments.SequenceEqual(job.Segments);
         if (!changed) return false;
         Url = job.Url; FileName = job.FileName; FilePath = job.FilePath; Status = job.Status; Referer = job.Referer; AddedAt = job.AddedAt;
         TotalBytes = job.TotalBytes; DownloadedBytes = job.DownloadedBytes; Speed = speed; Progress = progress;
         Error = job.Error; ScheduledAt = job.ScheduledAt; RemainingTime = job.RemainingTime; ResumeSupported = job.ResumeSupported;
         ActiveConnectionCount = job.ActiveConnectionCount; ConnectionLimit = job.ConnectionLimit; Segments = job.Segments.ToArray();
         IsAssembling = job.IsAssembling; AssemblyProgress = job.AssemblyProgress;
+        SpeedLimit = job.SpeedLimitBytesPerSecond; ChecksumVerified = job.ChecksumVerified; ExpectedHash = job.ExpectedHash; HashAlgorithm = job.HashAlgorithm;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
         return true;
     }

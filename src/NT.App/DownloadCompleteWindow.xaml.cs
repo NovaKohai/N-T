@@ -31,7 +31,19 @@ public partial class DownloadCompleteWindow : Window
     {
         bool present = stillPresent();
         bool exists = present && File.Exists(job.FilePath);
+        bool isZip = exists && ArchiveExtractor.IsZip(job.FilePath);
         OpenButton.IsEnabled = OpenWithButton.IsEnabled = ChecksumButton.IsEnabled = exists;
+        ExtractButton.Visibility = isZip ? Visibility.Visible : Visibility.Collapsed;
+        ExtractButton.IsEnabled = isZip;
+        if (job.ChecksumVerified == true)
+        {
+            ChecksumBadge.Text = $"✓ Checksum verified ({job.HashAlgorithm ?? "SHA-256"})";
+            ChecksumBadge.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            ChecksumBadge.Visibility = Visibility.Collapsed;
+        }
         FolderButton.IsEnabled = present && Directory.Exists(Path.GetDirectoryName(job.FilePath));
         if (!exists) Notice.Text = present ? "The saved file is missing. Opening is disabled." : "This download was removed from the queue. Opening is disabled.";
         else if (Notice.Text.StartsWith("The saved file") || Notice.Text.StartsWith("This download")) Notice.Text = "";
@@ -54,6 +66,16 @@ public partial class DownloadCompleteWindow : Window
     private void OpenWith_Click(object sender, RoutedEventArgs e) { if (GuardOpen()) Act(() => DownloadFileActions.OpenWith(this, job.FilePath)); }
     private void Folder_Click(object sender, RoutedEventArgs e) { RefreshAvailability(); if (FolderButton.IsEnabled) Act(() => DownloadFileActions.OpenFolder(job.FilePath)); }
     private void Copy_Click(object sender, RoutedEventArgs e) => Act(() => Clipboard.SetText(job.FilePath));
+    private void Extract_Click(object sender, RoutedEventArgs e)
+    {
+        if (!GuardOpen() || !ArchiveExtractor.IsZip(job.FilePath)) return;
+        Act(() =>
+        {
+            string dest = ArchiveExtractor.ExtractZip(job.FilePath);
+            Notice.Text = $"Extracted to: {dest}";
+            DownloadFileActions.OpenFolder(dest);
+        });
+    }
     private void Checksum_Click(object sender, RoutedEventArgs e)
     {
         var row = new DownloadRow(job);

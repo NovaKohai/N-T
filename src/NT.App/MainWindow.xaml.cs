@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, DownloadProgressWindow> _progressWindows = new();
     private readonly ConcurrentQueue<IReadOnlyList<DownloadJob>> _stateSnapshots = new();
     private DownloadCompleteWindow? _completionWindow;
+    private MiniWidgetWindow? _miniWidget;
     /// <summary>Per-download "Options on completion" choices; App swaps in the persisted store at startup.</summary>
     public JobCompletionStore JobCompletion { get; set; } = new();
     public bool HasProgressWindow(string id) => _progressWindows.ContainsKey(id);
@@ -126,7 +127,8 @@ public partial class MainWindow : Window
         UpdateQueueConcurrentButton();
         Refresh();
         _manager.Changed += ManagerChanged;
-        Closed += (_, _) => { _closed = true; _timer.Stop(); _manager.Changed -= ManagerChanged; _completion.Dispose(); _completionWindow?.Close(); _trayIcon?.Dispose(); _clipboardMonitor.Dispose(); };
+        Closed += (_, _) => { _closed = true; _timer.Stop(); _manager.Changed -= ManagerChanged; _completion.Dispose(); _completionWindow?.Close(); _trayIcon?.Dispose(); _clipboardMonitor.Dispose(); _miniWidget?.Close(); };
+        SyncMiniWidget();
         if (_enableTray)
         {
             _trayIcon = new TaskbarIcon
@@ -233,6 +235,21 @@ public partial class MainWindow : Window
         }
     }
 
+    public void ShowDownloadCompleteToast(DownloadJob job)
+    {
+        LastTrayNotification = ("Download complete", $"\"{job.FileName}\" has completed.");
+        if (_trayIcon is null || _closed) return;
+        EnsureTrayVisible();
+        try
+        {
+            _trayIcon.ShowCustomBalloon(new DownloadToastBalloon(job.FileName, job.FilePath, _trayIcon), System.Windows.Controls.Primitives.PopupAnimation.Slide, 8000);
+        }
+        catch
+        {
+            ShowTrayNotification("Download complete", $"\"{job.FileName}\" has completed.");
+        }
+    }
+
     public void MinimizeToTray()
     {
         Hide();
@@ -291,9 +308,21 @@ public partial class MainWindow : Window
     public void OnJobCompleted(DownloadJob job)
     {
         if (CompletionSound.ShouldPlay(_settings, JobCompletion.Get(job.Id))) PlayCompletionSound();
-        if (_progressWindows.TryGetValue(job.Id, out var pw) && !pw.IsVisible)
+        if ((_progressWindows.TryGetValue(job.Id, out var pw) && !pw.IsVisible) || !_progressWindows.ContainsKey(job.Id))
         {
-            ShowTrayNotification("Download complete", $"\"{job.FileName}\" has completed.");
+            ShowDownloadCompleteToast(job);
+        }
+        if (_settings.AutoExtractZip && ArchiveExtractor.IsZip(job.FilePath))
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    string dest = ArchiveExtractor.ExtractZip(job.FilePath);
+                    Dispatcher.BeginInvoke(() => Notice.Text = $"Extracted: {dest}");
+                }
+                catch (Exception) { }
+            });
         }
         ShowCompletionWindow(job);
         RunJobCompletion(job);
@@ -377,6 +406,25 @@ public partial class MainWindow : Window
             Summary.Text = Rows.Count == 0 ? "Ready for your first download" : $"{active} active" + (seeding > 0 ? $"  ·  {seeding} seeding" : "") + $"  ·  {Rows.Count(r => r.IsComplete)} completed  ·  {Rows.Count} total";
             var downSpeed = Rows.Sum(r => r.Speed); var upSpeed = Rows.Sum(r => r.UploadSpeed);
             RateLabel.Text = upSpeed > 0 ? $"↓ {DownloadRow.FormatBytes(downSpeed)}/s  ↑ {DownloadRow.FormatBytes(upSpeed)}/s" : $"{DownloadRow.FormatBytes(downSpeed)}/s";
+            _miniWidget?.UpdateTelemetry(downSpeed, active);
+            if (_settings.EnableBandwidthSchedule)
+            {
+                int hour = DateTime.Now.Hour;
+                bool inWindow = _settings.ScheduleStartHour <= _settings.ScheduleEndHour
+                    ? (hour >= _settings.ScheduleStartHour && hour < _settings.ScheduleEndHour)
+                    : (hour >= _settings.ScheduleStartHour || hour < _settings.ScheduleEndHour);
+                long? limit = inWindow ? (long)_settings.ScheduledSpeedLimitKiB * 1024 : _settings.GlobalSpeedLimitBytesPerSecond;
+                if (_manager.GlobalSpeedLimit != limit)
+                {
+                    _manager.SetGlobalSpeedLimit(limit);
+                    UpdateGlobalSpeedButton();
+                }
+            }
+            else if (_manager.GlobalSpeedLimit != _settings.GlobalSpeedLimitBytesPerSecond)
+            {
+                _manager.SetGlobalSpeedLimit(_settings.GlobalSpeedLimitBytesPerSecond);
+                UpdateGlobalSpeedButton();
+            }
             if (_diskCheckClock.ElapsedMilliseconds > 3000 || string.IsNullOrEmpty(DiskSpaceLabel.Text))
             {
                 _diskCheckClock.Restart();
@@ -853,6 +901,56 @@ public partial class MainWindow : Window
         Notice.Text = _settings.EnableClipboardMonitoring ? "Clipboard monitoring enabled." : "Clipboard monitoring disabled.";
     }
     private void MenuClipboardMonitor_Click(object sender, RoutedEventArgs e) => ToggleClipboardMonitoring();
+    private void ViewMiniWidget_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.ShowMiniWidget = !_settings.ShowMiniWidget;
+        _saveSettings();
+        SyncMiniWidget();
+    }
+    private void SyncMiniWidget()
+    {
+        if (_settings.ShowMiniWidget)
+        {
+            if (_miniWidget == null)
+            {
+                _miniWidget = new MiniWidgetWindow(
+                    () => Dispatcher.BeginInvoke(new Action(RestoreFromTray)),
+                    async text =>
+                    {
+                        await Dispatcher.InvokeAsync(async () =>
+                        {
+                            BringToFront();
+                            if (text.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase))
+                                await AddTorrentPathAsync(text);
+                            else
+                                await ShowAddAsync(text);
+                        });
+                    },
+                    (x, y) =>
+                    {
+                        _settings.MiniWidgetLeft = x;
+                        _settings.MiniWidgetTop = y;
+                        _saveSettings();
+                    },
+                    _settings.MiniWidgetLeft,
+                    _settings.MiniWidgetTop
+                );
+                _miniWidget.Show();
+            }
+        }
+        else
+        {
+            if (_miniWidget != null)
+            {
+                _settings.MiniWidgetLeft = _miniWidget.Left;
+                _settings.MiniWidgetTop = _miniWidget.Top;
+                _saveSettings();
+                _miniWidget.Close();
+                _miniWidget = null;
+            }
+        }
+        if (ViewMiniWidget != null) ViewMiniWidget.IsChecked = _settings.ShowMiniWidget;
+    }
     private async void OnClipboardLinkDetected(string url, bool isMagnet)
     {
         if (_adding) return;
@@ -917,6 +1015,7 @@ public partial class MainWindow : Window
         CtxOpen.IsEnabled = state.Open; CtxOpenWith.IsEnabled = state.OpenWith; CtxFolder.IsEnabled = state.OpenFolder;
         CtxCopyUrl.IsEnabled = state.CopyUrl; CtxCopyPath.IsEnabled = state.CopyPath; CtxMagnet.IsEnabled = state.CopyMagnet;
         CtxMove.IsEnabled = state.MoveRename; CtxProperties.IsEnabled = state.Properties; CtxDetails.IsEnabled = state.TorrentDetails;
+        CtxExtract.Visibility = Selected is { IsComplete: true } && ArchiveExtractor.IsZip(Selected.FilePath) ? Visibility.Visible : Visibility.Collapsed;
         CtxSequential.Visibility = Selected is { IsTorrent: true } ? Visibility.Visible : Visibility.Collapsed;
         CtxSequential.IsChecked = Selected is { IsTorrent: true, IsSequential: true };
         CtxResume.IsEnabled = state.Resume; CtxStop.IsEnabled = state.Stop; CtxRefreshUrl.IsEnabled = state.RefreshAddress; CtxRedownload.IsEnabled = state.Redownload;
@@ -945,6 +1044,20 @@ public partial class MainWindow : Window
     }
     private void ContextOpen_Click(object sender, RoutedEventArgs e) => Open_Click(sender, e);
     private void ContextFolder_Click(object sender, RoutedEventArgs e) => Folder_Click(sender, e);
+    private void ContextExtract_Click(object sender, RoutedEventArgs e)
+    {
+        if (Selected is not { IsComplete: true } row || !ArchiveExtractor.IsZip(row.FilePath)) return;
+        try
+        {
+            string dest = ArchiveExtractor.ExtractZip(row.FilePath);
+            Notice.Text = $"Extracted to: {dest}";
+            DownloadFileActions.OpenFolder(dest);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Could not extract archive:\n\n" + ex.Message, "Extract archive", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
     private void ContextOpenWith_Click(object sender, RoutedEventArgs e)
     {
         if (Selected is not { IsComplete: true, IsTorrent: false } row) return;

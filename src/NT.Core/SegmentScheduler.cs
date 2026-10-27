@@ -15,6 +15,9 @@ public sealed partial class DownloadManager
         job.Segments = Array.AsReadOnly(w.Segments.Select(s =>
             new DownloadSegmentSnapshot(s.Start, s.Length == long.MaxValue ? 0 : s.Length, s.Done, s.Active)).ToArray());
         job.RemainingTime = SnapshotTime.Remaining(job);
+        job.ExpectedHash = w.Request.ExpectedHash;
+        job.HashAlgorithm = w.Request.HashAlgorithm;
+        job.ChecksumVerified = w.ChecksumVerified;
         return job;
     }
 

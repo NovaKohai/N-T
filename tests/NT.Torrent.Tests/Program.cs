@@ -34,6 +34,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("HTTP tracker announce goes through the tracker proxy", ProxyTracker),
     ("remove reports deleted and locked files", RemoveReport),
     ("batch priority and sequential toggle", BatchPriorityAndSequential),
+    ("tracker and peer telemetry", TrackerAndPeerTelemetry),
 };
 var filter = args.FirstOrDefault();
 foreach (var test in tests.Where(t => filter == null || filter.Split('|').Any(f => t.Name.Contains(f, StringComparison.OrdinalIgnoreCase))))
@@ -561,6 +562,35 @@ async Task BatchPriorityAndSequential()
     var updated = d.Get(job.Id)!;
     Check(updated.Files[0].Priority == FilePriority.Skip && updated.Files[2].Priority == FilePriority.Skip, "batch skip applied");
     Check(updated.Files[1].Priority == FilePriority.Normal, "untouched file stays normal");
+}
+
+async Task TrackerAndPeerTelemetry()
+{
+    var p = MakePayload();
+    var (seeder, seedJob, seedEp) = await StartSeeder(p);
+    try
+    {
+        var dest = Dir("dst");
+        var client = await TorrentService.CreateAsync(Dir("clientstate"), Loopback());
+        try
+        {
+            var job = await client.AddTorrentFileAsync(p.Torrent, dest, start: true);
+            var initialTrackers = client.GetTrackers(job.Id);
+            Check(initialTrackers != null, "GetTrackers returns collection");
+            var testTracker = new Uri("http://127.0.0.1:65500/announce");
+            await client.AddTrackerAsync(job.Id, testTracker);
+            var updatedTrackers = client.GetTrackers(job.Id);
+            Check(updatedTrackers.Any(t => t.Url == testTracker.ToString()), "Added tracker appears in GetTrackers");
+
+            Check(await client.AddPeerAsync(job.Id, seedEp), "AddPeerAsync should return true");
+            await WaitDone(client, job.Id);
+
+            var peers = await client.GetPeersAsync(job.Id);
+            Check(peers != null, "GetPeersAsync returns list");
+        }
+        finally { await client.DisposeAsync(); }
+    }
+    finally { await seeder.DisposeAsync(); }
 }
 
 /// <summary>Minimal HTTP tracker (loopback only) that answers every announce with one compact peer.</summary>

@@ -96,11 +96,26 @@
           <CheckBox x:Name="DynamicSegmentation" Content="Enable d_ynamic segmentation" Margin="0,8,0,8"/>
           <TextBlock Text="Restart required: connection changes take effect the next time N&amp;T starts. Running downloads are not modified." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         </StackPanel></GroupBox>
+        <GroupBox Header="Bandwidth schedule" Padding="12,10" Margin="0,0,0,24" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}"><StackPanel>
+          <CheckBox x:Name="BandwidthScheduleEnabled" Content="Enable _bandwidth limit schedule" Margin="0,0,0,10" Checked="BandwidthSchedule_Toggled" Unchecked="BandwidthSchedule_Toggled"/>
+          <Grid x:Name="BandwidthScheduleGrid" IsEnabled="False">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="38"/><RowDefinition Height="38"/><RowDefinition Height="38"/></Grid.RowDefinitions>
+            <Label Content="Scheduled speed limit (KiB/s)" Target="{Binding ElementName=ScheduleSpeed}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/>
+            <TextBox x:Name="ScheduleSpeed" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Scheduled speed limit KiB"/>
+            <Label Grid.Row="1" Content="Start hour (0 to 23, e.g. 8 for 8:00 AM)" Target="{Binding ElementName=ScheduleStart}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/>
+            <TextBox x:Name="ScheduleStart" Grid.Row="1" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Schedule start hour"/>
+            <Label Grid.Row="2" Content="End hour (0 to 23, e.g. 23 for 11:00 PM)" Target="{Binding ElementName=ScheduleEnd}" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/>
+            <TextBox x:Name="ScheduleEnd" Grid.Row="2" Grid.Column="1" TextAlignment="Right" Margin="0,0,0,6" AutomationProperties.Name="Schedule end hour"/>
+          </Grid>
+          <TextBlock Text="Applies the scheduled speed limit during the specified hours every day. Automatically unthrottles outside the window." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        </StackPanel></GroupBox>
         <TextBlock Text="When a download finishes" Style="{StaticResource SectionTitle}"/>
         <CheckBox x:Name="CompletionDialog" Content="Show download _completion dialog"/>
         <CheckBox x:Name="CompletionSound" Content="Play completion _sound"/>
         <CheckBox x:Name="CapturedProgress" Content="Show _progress window for captured downloads"/>
         <CheckBox x:Name="ProgressOnCompletion" Content="_Open the download window when a download finishes"/>
+        <CheckBox x:Name="AutoExtractZip" Content="Auto-_extract ZIP archives after download"/>
         <TextBlock Text="These preferences apply to downloads that finish after you save." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <TextBlock Text="Completion" Style="{StaticResource SectionTitle}" Margin="0,24,0,10"/>
         <Label Content="When _all downloads finish" Target="{Binding ElementName=FinishAction}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>

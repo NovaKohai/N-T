@@ -31,6 +31,12 @@ public partial class SettingsWindow : Window
         CapturedProgress.IsChecked = settings.ShowProgressForCapturedDownloads;
         ProgressOnCompletion.IsChecked = settings.ShowProgressOnCompletion;
         CompletionSound.IsChecked = settings.PlayCompletionSound;
+        AutoExtractZip.IsChecked = settings.AutoExtractZip;
+        BandwidthScheduleEnabled.IsChecked = settings.EnableBandwidthSchedule;
+        BandwidthScheduleGrid.IsEnabled = settings.EnableBandwidthSchedule;
+        ScheduleSpeed.Text = settings.ScheduledSpeedLimitKiB.ToString(CultureInfo.InvariantCulture);
+        ScheduleStart.Text = settings.ScheduleStartHour.ToString(CultureInfo.InvariantCulture);
+        ScheduleEnd.Text = settings.ScheduleEndHour.ToString(CultureInfo.InvariantCulture);
         EnableCategoryFolders.IsChecked = settings.EnableCategoryFolders;
         ProgramsFolder.Text = settings.ProgramsFolder;
         CompressedFolder.Text = settings.CompressedFolder;
@@ -175,6 +181,7 @@ public partial class SettingsWindow : Window
         FinishDescription.Text = CompletionActionInfo.Description(SelectedFinish);
         FinishForce.IsEnabled = CompletionActionInfo.UsesForce(SelectedFinish);
     }
+    private void BandwidthSchedule_Toggled(object sender, RoutedEventArgs e) { if (BandwidthScheduleGrid is not null) BandwidthScheduleGrid.IsEnabled = BandwidthScheduleEnabled.IsChecked == true; }
     private void RunProgram_Changed(object sender, RoutedEventArgs e) { if (RunProgramGrid is not null) RunProgramGrid.IsEnabled = RunProgramEnabled.IsChecked == true; }
     private void BrowseProgram_Click(object sender, RoutedEventArgs e)
     {
@@ -254,6 +261,11 @@ public partial class SettingsWindow : Window
             updated.ShowProgressForCapturedDownloads = CapturedProgress.IsChecked == true;
             updated.ShowProgressOnCompletion = ProgressOnCompletion.IsChecked == true;
             updated.PlayCompletionSound = CompletionSound.IsChecked == true;
+            updated.AutoExtractZip = AutoExtractZip.IsChecked == true;
+            updated.EnableBandwidthSchedule = BandwidthScheduleEnabled.IsChecked == true;
+            if (int.TryParse(ScheduleSpeed.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var sSpeed) && sSpeed > 0) updated.ScheduledSpeedLimitKiB = sSpeed;
+            if (int.TryParse(ScheduleStart.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var sStart) && sStart >= 0 && sStart <= 23) updated.ScheduleStartHour = sStart;
+            if (int.TryParse(ScheduleEnd.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var sEnd) && sEnd >= 0 && sEnd <= 23) updated.ScheduleEndHour = sEnd;
             updated.EnableCategoryFolders = EnableCategoryFolders.IsChecked == true;
             updated.ProgramsFolder = ProgramsFolder.Text.Trim();
             updated.CompressedFolder = CompressedFolder.Text.Trim();

@@ -1,0 +1,33 @@
+<UserControl x:Class="NT.App.DownloadToastBalloon"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="340" Height="115">
+  <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Header -->
+      <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+        <TextBlock Text="N&amp;T • Download complete" FontWeight="SemiBold" Foreground="{DynamicResource AccentFillBrush}" FontSize="12"/>
+      </StackPanel>
+      <Button x:Name="CloseButton" Grid.Column="1" Content="✕" Click="Close_Click" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource MutedBrush}" Cursor="Hand" Padding="4,0" ToolTip="Dismiss"/>
+
+      <!-- Body -->
+      <TextBlock x:Name="FileNameText" Grid.Row="1" Grid.ColumnSpan="2" TextTrimming="CharacterEllipsis" FontWeight="Medium" Foreground="{DynamicResource InkBrush}" Margin="0,6,0,8" VerticalAlignment="Center"/>
+
+      <!-- Actions -->
+      <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button x:Name="FolderButton" Content="Open folder" Click="Folder_Click" Margin="0,0,8,0" Padding="10,3" MinWidth="80"/>
+        <Button x:Name="OpenButton" Content="Open" Click="Open_Click" Style="{StaticResource PrimaryButton}" Padding="12,3" MinWidth="70"/>
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

@@ -56,6 +56,7 @@ chrome.storage.local.get(['captureEnabled', 'cookiesEnabled', 'ribbonEnabled', '
   show(s.status || 'Ready');
   try { const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); host = NeoSniff.hostOf(tab?.url); if (Number.isInteger(tab?.id)) await renderMedia(tab); } catch {}
   await renderPause();
+  await renderBlacklist();
 });
 
 $('test').onclick = async () => {
@@ -93,5 +94,44 @@ for (const [id, key] of [['capture', 'captureEnabled'], ['cookies', 'cookiesEnab
     await chrome.storage.local.set({ [key]: enabled });
     if (!enabled && id === 'cookies') await chrome.permissions.remove({ permissions: ['cookies'] });
     show(enabled ? 'Enabled.' : 'Disabled.');
+  };
+}
+
+async function renderBlacklist() {
+  const r = await chrome.runtime.sendMessage({ action: 'blacklist-get' }).catch(() => null);
+  const list = $('blacklistList');
+  if (!list) return;
+  list.textContent = '';
+  const domains = Array.isArray(r?.domains) ? r.domains : [];
+  for (const d of domains) {
+    const li = document.createElement('li');
+    li.style.display = 'flex';
+    li.style.justifyContent = 'space-between';
+    li.style.alignItems = 'center';
+    li.style.padding = '2px 0';
+    const span = document.createElement('span');
+    span.textContent = d;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '✕';
+    btn.style.padding = '0 4px';
+    btn.style.fontSize = '10px';
+    btn.onclick = async () => {
+      await chrome.runtime.sendMessage({ action: 'blacklist-remove', domain: d });
+      await renderBlacklist();
+    };
+    li.append(span, btn);
+    list.append(li);
+  }
+}
+
+if ($('blacklistAdd')) {
+  $('blacklistAdd').onclick = async () => {
+    const val = $('blacklistInput').value.trim();
+    if (val) {
+      await chrome.runtime.sendMessage({ action: 'blacklist-add', domain: val });
+      $('blacklistInput').value = '';
+      await renderBlacklist();
+    }
   };
 }

@@ -6,7 +6,7 @@ public sealed class DiskSpaceException(string message) : IOException(message);
 /// <summary>TargetDirectory (optional): the exact folder to save into, chosen by the user; null = the engine's own folder (category rules). It is created if
 /// missing, must be writable, and is kept for the job's lifetime (also across restarts and name refinement).
 /// FileName null or AutoName true = NeoDM may still refine the name from the server (Content-Disposition, redirects, Content-Type, file signature); an explicit name is kept as is.</summary>
-public record DownloadRequest(string Url, string? FileName = null, string? Referer = null, string? Cookie = null, bool AutoName = false, string? TargetDirectory = null);
+public record DownloadRequest(string Url, string? FileName = null, string? Referer = null, string? Cookie = null, bool AutoName = false, string? TargetDirectory = null, string? ExpectedHash = null, string? HashAlgorithm = null);
 
 /// <summary>A detached snapshot. Poll Jobs again for fresh progress.</summary>
 public sealed class DownloadJob
@@ -33,6 +33,9 @@ public sealed class DownloadJob
     public int ConnectionLimit { get; internal set; }
     /// <summary>The per-download speed limit in bytes per second; null = unlimited.</summary>
     public long? SpeedLimitBytesPerSecond { get; internal set; }
+    public string? ExpectedHash { get; internal set; }
+    public string? HashAlgorithm { get; internal set; }
+    public bool? ChecksumVerified { get; internal set; }
     public IReadOnlyList<DownloadSegmentSnapshot> Segments { get; internal set; } = Array.Empty<DownloadSegmentSnapshot>();
     internal DownloadJob Snapshot() => (DownloadJob)MemberwiseClone();
 }

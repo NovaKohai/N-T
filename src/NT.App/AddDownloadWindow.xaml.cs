@@ -165,7 +165,9 @@ public partial class AddDownloadWindow : Window
                 throw new FormatException("Use a file name without folder paths or invalid characters.");
             ScheduledAt = ScheduleEnabled.IsChecked == true ? DownloadDialogValidation.ParseSchedule(ScheduleInput.Text) : null;
             SpeedLimit = DownloadDialogValidation.ParseSpeed(SpeedInput.Text);
-            Request = new DownloadRequest(url, name.Length == 0 ? null : name);
+            string? expectedHash = ChecksumInput is not null && !string.IsNullOrWhiteSpace(ChecksumInput.Text) ? ChecksumInput.Text.Trim() : null;
+            string? hashAlgo = ChecksumAlgo?.SelectedItem is ComboBoxItem algoItem && algoItem.Tag is string a ? a : "SHA256";
+            Request = new DownloadRequest(url, name.Length == 0 ? null : name, ExpectedHash: expectedHash, HashAlgorithm: hashAlgo);
             DialogResult = true;
         }
         catch (TorrentRejectedException ex) { ValidationError.Text = ex.Message; UpdateLayout(); ValidationError.BringIntoView(); }

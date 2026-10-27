@@ -1,9 +1,19 @@
 if (typeof importScripts === 'function') { importScripts('bridge.js', 'sniff.js'); }
 const { http, ack, transfer } = NDMBridge;
-const { ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, fromDom, suggestedName, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused } = NeoSniff;
+const { ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, fromDom, suggestedName, typeOfFile, typeOfItem, withDefaults, hostOf, isPaused, isBlacklisted } = NeoSniff;
 const PAUSE_KEY = 'neodm.pause', SCHEMA = 2;
 const methods = new Map();
 let observations = new Map();
+const bypassedUrls = new Map();
+function isBypassed(url, finalUrl) {
+  const now = Date.now();
+  for (const [k, time] of bypassedUrls.entries()) {
+    if (now - time > 60000) bypassedUrls.delete(k);
+  }
+  if (url && bypassedUrls.has(url)) { bypassedUrls.delete(url); return true; }
+  if (finalUrl && bypassedUrls.has(finalUrl)) { bypassedUrls.delete(finalUrl); return true; }
+  return false;
+}
 // The desktop app shows an options dialog and replies only after the user decides. The host sends {pending:true} every ~15 s while the app is
 // alive and the dialog is open; each one restarts a short idle timer, so the wait is unbounded while the app answers and ends (browser download
 // restarted) only when it goes silent. A host that does not send pending frames (older install) keeps the old 330 s limit.
@@ -18,9 +28,14 @@ async function ensureDefaults() {
   await chrome.storage.local.set(set);
 }
 async function prefs() {
-  const s = await chrome.storage.local.get(['captureEnabled', 'mediaTypes']);
+  const s = await chrome.storage.local.get(['captureEnabled', 'mediaTypes', 'blacklistDomains']);
   const pause = (await chrome.storage.session.get(PAUSE_KEY))[PAUSE_KEY];
-  return { capture: s.captureEnabled !== false, types: withDefaults(s.mediaTypes), pause: { all: pause?.all === true, hosts: Array.isArray(pause?.hosts) ? pause.hosts : [] } };
+  return {
+    capture: s.captureEnabled !== false,
+    types: withDefaults(s.mediaTypes),
+    pause: { all: pause?.all === true, hosts: Array.isArray(pause?.hosts) ? pause.hosts : [] },
+    blacklist: Array.isArray(s.blacklistDomains) ? s.blacklistDomains : []
+  };
 }
 ensureDefaults().catch(() => {});
 async function status(text) { await chrome.storage.local.set({ status: text }); }
@@ -90,13 +105,13 @@ async function badge(tabId, state) {
 /** Items the ribbon may show: honours the type filter and the session pause for this page. */
 async function visibleItems(state) {
   const p = await prefs();
-  if (isPaused(p.pause, state.page, state.host)) return [];
+  if (isPaused(p.pause, state.page, state.host) || isBlacklisted(p.blacklist, state.page, state.host)) return [];
   return listItems({ ...state, items: state.items.filter(i => p.types[typeOfItem(i)]) });
 }
 /** Same list plus the informational row for segmented streams (popup only, never the ribbon). */
 async function popupItems(state) {
   const p = await prefs();
-  if (isPaused(p.pause, state.page, state.host)) return [];
+  if (isPaused(p.pause, state.page, state.host) || isBlacklisted(p.blacklist, state.page, state.host)) return [];
   return withInfo(state, await visibleItems(state));
 }
 async function notifyTab(tabId, state) { try { const items = await visibleItems(state); chrome.tabs.sendMessage(tabId, { type: 'neodm-media', items }, () => void chrome.runtime.lastError); } catch {} }
@@ -158,8 +173,9 @@ chrome.downloads.onDeterminingFilename?.addListener(item => {
   if (suggested.size > 100) suggested.delete(suggested.keys().next().value);
 });
 chrome.downloads.onCreated.addListener(async item => {
+  if (isBypassed(item.url, item.finalUrl)) return;
   const p = await prefs();
-  if (!p.capture || isPaused(p.pause, item.referrer, item.finalUrl, item.url)) return;
+  if (!p.capture || isPaused(p.pause, item.referrer, item.finalUrl, item.url) || isBlacklisted(p.blacklist, item.referrer, item.finalUrl, item.url)) return;
   if (!p.types[typeOfFile(item.filename || item.finalUrl || item.url, item.mime)]) return; // type not ticked: the browser keeps it
   const observed = observations.get(item.url), final = observations.get(item.finalUrl || item.url);
   const fresh = o => o?.method === 'GET' && Date.now() - o.time < 60000;
@@ -205,6 +221,39 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (popup && message.action === 'popup-download' && Number.isInteger(message.tab?.id)) { downloadItem({ id: message.tab.id, url: String(message.tab.url || ''), title: String(message.tab.title || '') }, String(message.id)).then(respond); return true; }
   if (popup && message.action === 'pause-set') {
     setPause(message).then(respond, () => respond({ ok: false })); return true;
+  }
+  if (message.action === 'bypass-download' && typeof message.url === 'string') {
+    bypassedUrls.set(message.url, Date.now());
+    if (bypassedUrls.size > 200) bypassedUrls.delete(bypassedUrls.keys().next().value);
+    return false;
+  }
+  if (popup && message.action === 'blacklist-get') {
+    chrome.storage.local.get(['blacklistDomains']).then(s => respond({ domains: Array.isArray(s.blacklistDomains) ? s.blacklistDomains : [] }));
+    return true;
+  }
+  if (popup && message.action === 'blacklist-add') {
+    const domain = String(message.domain || '').trim().toLowerCase();
+    chrome.storage.local.get(['blacklistDomains']).then(async s => {
+      const list = Array.isArray(s.blacklistDomains) ? s.blacklistDomains : [];
+      if (domain && !list.includes(domain)) {
+        list.push(domain);
+        await chrome.storage.local.set({ blacklistDomains: list });
+        await refreshTabs();
+      }
+      respond({ ok: true, domains: list });
+    });
+    return true;
+  }
+  if (popup && message.action === 'blacklist-remove') {
+    const domain = String(message.domain || '').trim().toLowerCase();
+    chrome.storage.local.get(['blacklistDomains']).then(async s => {
+      let list = Array.isArray(s.blacklistDomains) ? s.blacklistDomains : [];
+      list = list.filter(d => d !== domain);
+      await chrome.storage.local.set({ blacklistDomains: list });
+      await refreshTabs();
+      respond({ ok: true, domains: list });
+    });
+    return true;
   }
   if (!popup || message.action !== 'test') return false;
   native({ action: 'ping' }).then(respond, () => respond({ ok: false, error: 'Native host unavailable. Check installation.' }));

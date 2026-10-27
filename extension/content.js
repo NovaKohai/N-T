@@ -535,6 +535,15 @@
       }
       if (url || isYt) sources.push(entry);
       else if (/^blob:/i.test(m.currentSrc || '')) sources.push(entry); // tells the worker this page streams through MediaSource
+
+      try {
+        for (const tr of m.querySelectorAll('track[src]')) {
+          const tSrc = tr.src || tr.getAttribute('src');
+          if (tSrc && /^https?:/i.test(tSrc)) {
+            sources.push({ url: tSrc, tag: 'track', title: tr.label || '' });
+          }
+        }
+      } catch {}
     }
     const sig = JSON.stringify(sources);
     if (sig === lastDom) return; lastDom = sig;
@@ -554,6 +563,14 @@
       window.addEventListener('resize', updatePositions, { passive: true });
       document.addEventListener('fullscreenchange', onFullscreenChange, { passive: true });
       document.addEventListener('webkitfullscreenchange', onFullscreenChange, { passive: true });
+      window.addEventListener('click', (e) => {
+        if (e.altKey) {
+          const link = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+          if (link && link.href) {
+            safeSendMessage({ action: 'bypass-download', url: link.href });
+          }
+        }
+      }, { capture: true, passive: true });
 
       chrome.runtime.onMessage.addListener(m => {
         if (!isAlive()) { dispose(); return; }

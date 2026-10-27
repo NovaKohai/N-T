@@ -66,7 +66,7 @@ internal static class CompletionActionTests
         _ = System.IO.Packaging.PackUriHelper.UriSchemePack; var app = new TestApp();
         try
         {
-            Triggers(); Settings(root); Commands(); Countdown(); Runner(root); Menus(root); SettingsDialog(root); EndToEnd(root);
+            Triggers(); Settings(root); Commands(); Countdown(); Runner(root); Menus(root); SettingsDialog(root); ArchiveTests(root); EndToEnd(root);
         }
         finally { try { Directory.Delete(root, true); } catch { } }
         Console.WriteLine($"All {passed} completion action checks passed.");
@@ -419,5 +419,55 @@ internal static class CompletionActionTests
             Check(cd.Shown.Count == 3 && power.Calls.Count == 2, "After cancel, later batches do nothing");
         }
         finally { window.Close(); http.Stop(); }
+    }
+
+    static void ArchiveTests(string root)
+    {
+        string archiveDir = Path.Combine(root, "archives");
+        Directory.CreateDirectory(archiveDir);
+        string zipPath = Path.Combine(archiveDir, "sample.zip");
+
+        Check(!ArchiveExtractor.IsZip(""), "IsZip: empty is false");
+        Check(!ArchiveExtractor.IsZip(Path.Combine(archiveDir, "nonexistent.zip")), "IsZip: nonexistent is false");
+        Check(!ArchiveExtractor.IsZip(Path.Combine(archiveDir, "test.txt")), "IsZip: non-zip is false");
+
+        using (var zipStream = new FileStream(zipPath, FileMode.Create))
+        using (var archive = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            var e1 = archive.CreateEntry("hello.txt");
+            using (var writer = new StreamWriter(e1.Open())) writer.Write("Hello World");
+
+            var e2 = archive.CreateEntry("subfolder/inner.txt");
+            using (var writer = new StreamWriter(e2.Open())) writer.Write("Inner Content");
+        }
+
+        Check(ArchiveExtractor.IsZip(zipPath), "IsZip: valid zip file is true");
+
+        string dest = ArchiveExtractor.ExtractZip(zipPath);
+        Check(Directory.Exists(dest), "Extract: destination folder created");
+        Check(File.Exists(Path.Combine(dest, "hello.txt")), "Extract: hello.txt extracted");
+        Check(File.ReadAllText(Path.Combine(dest, "hello.txt")) == "Hello World", "Extract: hello.txt content matches");
+        Check(File.Exists(Path.Combine(dest, "subfolder", "inner.txt")), "Extract: nested inner.txt extracted");
+        Check(File.ReadAllText(Path.Combine(dest, "subfolder", "inner.txt")) == "Inner Content", "Extract: nested content matches");
+
+        string badZipPath = Path.Combine(archiveDir, "malicious.zip");
+        using (var zipStream = new FileStream(badZipPath, FileMode.Create))
+        using (var archive = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            var bad = archive.CreateEntry("../escaped.txt");
+            using (var writer = new StreamWriter(bad.Open())) writer.Write("Attack!");
+        }
+
+        bool caughtZipSlip = false;
+        try
+        {
+            ArchiveExtractor.ExtractZip(badZipPath, Path.Combine(archiveDir, "safe-dest"));
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Malicious archive entry"))
+        {
+            caughtZipSlip = true;
+        }
+        Check(caughtZipSlip, "Extract: Zip-Slip path traversal was caught and rejected");
+        Check(!File.Exists(Path.Combine(archiveDir, "escaped.txt")), "Extract: escaped file was never written outside destination");
     }
 }

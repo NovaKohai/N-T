@@ -289,6 +289,44 @@ internal static class ManageTests
         Check(Job(m, failed.Id).DownloadedBytes == 0, "Restart begins from zero");
     }
 
+    public static async Task ChecksumVerification(Func<(string, string)> paths)
+    {
+        using var server = new FixtureServer();
+        var payloadHash = FixtureServer.Hash(server.Payload);
+
+        // 1. Matching SHA-256
+        using (var m = Manager(paths()))
+        {
+            var added = await m.AddAsync(new(server.BaseUrl + "/range", "hash-match.bin", ExpectedHash: payloadHash, HashAlgorithm: "SHA256"));
+            var job = await Complete(m, added.Id);
+            Check(job.ChecksumVerified == true, "Matching checksum should be marked ChecksumVerified == true");
+            Exact(job, server.Payload);
+        }
+
+        // 2. Mismatched SHA-256
+        using (var m = Manager(paths()))
+        {
+            var badHash = "0000000000000000000000000000000000000000000000000000000000000000";
+            var added = await m.AddAsync(new(server.BaseUrl + "/range", "hash-mismatch.bin", ExpectedHash: badHash, HashAlgorithm: "SHA256"));
+            await Wait(() => Job(m, added.Id).Status is "Completed" or "Failed", "Job did not finish");
+            var job = Job(m, added.Id);
+            Check(job.Status == "Failed", "Mismatched checksum must fail the job");
+            Check(job.ChecksumVerified == false, "Mismatched checksum must be marked ChecksumVerified == false");
+            Check((job.Error ?? "").Contains("Integrity check failed"), "Error message should mention integrity check failure");
+            Check(!File.Exists(job.FilePath), "Mismatched file should never be published to final destination");
+        }
+
+        // 3. Matching MD5
+        using (var m = Manager(paths()))
+        {
+            string md5Hash = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(server.Payload)).ToLowerInvariant();
+            var added = await m.AddAsync(new(server.BaseUrl + "/range", "hash-md5.bin", ExpectedHash: md5Hash, HashAlgorithm: "MD5"));
+            var job = await Complete(m, added.Id);
+            Check(job.ChecksumVerified == true, "Matching MD5 checksum should be marked ChecksumVerified == true");
+            Exact(job, server.Payload);
+        }
+    }
+
     private static class Assert
     {
         public static async Task<T> Throws<T>(Func<Task> action) where T : Exception

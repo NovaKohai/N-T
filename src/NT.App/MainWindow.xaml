@@ -115,6 +115,8 @@
         <Separator Tag="torrent"/>
         <MenuItem Header="_Find" Click="Find_Click" InputGestureText="Ctrl+F"/>
         <MenuItem Header="_Refresh" Click="Refresh_Click" InputGestureText="F5"/>
+        <Separator/>
+        <MenuItem x:Name="ViewMiniWidget" Header="Mini _speed widget" IsCheckable="True" Click="ViewMiniWidget_Click"/>
       </MenuItem>
       <MenuItem Header="_Help">
         <MenuItem Header="Keyboard _shortcuts" Click="Help_Click"/>
@@ -265,6 +267,7 @@
                 <MenuItem x:Name="CtxOpen" Header="_Open" Click="ContextOpen_Click"/>
                 <MenuItem x:Name="CtxOpenWith" Header="Open _with…" Click="ContextOpenWith_Click"/>
                 <MenuItem x:Name="CtxFolder" Header="Open _folder" Click="ContextFolder_Click"/>
+                <MenuItem x:Name="CtxExtract" Header="E_xtract archive…" Click="ContextExtract_Click"/>
                 <Separator/>
                 <MenuItem x:Name="CtxCopyUrl" Header="Copy _URL (address)" Click="ContextCopyUrl_Click"/>
                 <MenuItem x:Name="CtxCopyPath" Header="Copy file _path" Click="ContextCopyPath_Click"/>

@@ -12,6 +12,19 @@
       <TextBlock Text="Positive whole numbers; shared across this download's segments." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
     </StackPanel>
     <StackPanel Margin="0,16,0,0">
+      <Grid Margin="0,0,0,6">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Label Content="Expected checksum (optional)" Target="{Binding ElementName=ChecksumInput}" Foreground="{DynamicResource InkBrush}" Padding="0"/>
+        <ComboBox x:Name="ChecksumAlgo" Grid.Column="1" Width="100" AutomationProperties.Name="Checksum algorithm">
+          <ComboBoxItem Content="SHA-256" IsSelected="True" Tag="SHA256"/>
+          <ComboBoxItem Content="SHA-1" Tag="SHA1"/>
+          <ComboBoxItem Content="MD5" Tag="MD5"/>
+        </ComboBox>
+      </Grid>
+      <TextBox x:Name="ChecksumInput" AutomationProperties.Name="Expected checksum hash"/>
+      <TextBlock Text="Automatic verification upon completion. Verifies file integrity before moving to destination." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+    </StackPanel>
+    <StackPanel Margin="0,16,0,0">
       <Label Content="Queue _concurrency (download at the same time)" Target="{Binding ElementName=ConcurrentInput}" Foreground="{DynamicResource InkBrush}" Padding="0,0,0,6"/>
       <ComboBox x:Name="ConcurrentInput" AutomationProperties.Name="Queue concurrency">
         <ComboBoxItem Content="1 download at a time (Sequential queue)" Tag="1"/>

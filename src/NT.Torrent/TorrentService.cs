@@ -444,6 +444,67 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
         return await e.Manager.AddPeerAsync(new PeerInfo(new Uri($"ipv4://{peer}")));
     }
 
+    /// <summary>Returns the configured trackers and their current state for this torrent.</summary>
+    public IReadOnlyList<TorrentTrackerInfo> GetTrackers(string id)
+    {
+        ThrowIfDisposed();
+        var e = Require(id);
+        var result = new List<TorrentTrackerInfo>();
+        var tiers = e.Manager.TrackerManager?.Tiers;
+        if (tiers is null) return result;
+
+        for (int tierIndex = 0; tierIndex < tiers.Count; tierIndex++)
+        {
+            var tier = tiers[tierIndex];
+            foreach (var tracker in tier.Trackers)
+            {
+                result.Add(new TorrentTrackerInfo(
+                    tracker.Uri?.ToString() ?? "",
+                    tracker.Status.ToString(),
+                    tracker.WarningMessage ?? "",
+                    tracker.FailureMessage ?? "",
+                    tracker.UpdateInterval,
+                    tierIndex
+                ));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Returns active peer connections and their telemetry for this torrent.</summary>
+    public async Task<IReadOnlyList<TorrentPeerInfo>> GetPeersAsync(string id)
+    {
+        ThrowIfDisposed();
+        var e = Require(id);
+        var list = await e.Manager.GetPeersAsync();
+        var result = new List<TorrentPeerInfo>(list.Count);
+        foreach (var peer in list)
+        {
+            result.Add(new TorrentPeerInfo(
+                peer.Uri?.ToString() ?? "",
+                peer.ClientApp.ToString(),
+                peer.Monitor?.DownloadRate ?? 0,
+                peer.Monitor?.UploadRate ?? 0,
+                peer.BitField?.PercentComplete ?? 0,
+                peer.IsSeeder,
+                peer.EncryptionType != 0
+            ));
+        }
+        return result;
+    }
+
+    /// <summary>Adds a tracker to the torrent's tracker manager.</summary>
+    public async Task AddTrackerAsync(string id, Uri trackerUri)
+    {
+        ThrowIfDisposed();
+        var e = Require(id);
+        if (e.Manager.TrackerManager is { } tm)
+        {
+            await tm.AddTrackerAsync(trackerUri);
+            RaiseChanged();
+        }
+    }
+
     async Task Control(string id, Func<Entry, Task> action)
     {
         ThrowIfDisposed();

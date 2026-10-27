@@ -24,6 +24,14 @@ public sealed class AppSettings
     /// <summary>Re-open (or restore) a download's own window when it finishes, in the Complete state. A download can override this in its 'Options on completion' tab.</summary>
     public bool ShowProgressOnCompletion { get; set; } = true;
     public bool PlayCompletionSound { get; set; } = true;
+    public bool AutoExtractZip { get; set; } = false;
+    public bool ShowMiniWidget { get; set; } = false;
+    public double? MiniWidgetLeft { get; set; }
+    public double? MiniWidgetTop { get; set; }
+    public bool EnableBandwidthSchedule { get; set; } = false;
+    public int ScheduledSpeedLimitKiB { get; set; } = 512;
+    public int ScheduleStartHour { get; set; } = 8;
+    public int ScheduleEndHour { get; set; } = 23;
     // Updates: checked periodically via Cloudflare Worker CDN or GitHub release fallback.
     public bool CheckForUpdates { get; set; } = true;
     public string UpdateEndpoint { get; set; } = "";
@@ -130,7 +138,8 @@ public sealed class AppSettings
         MaxSegments = source.MaxSegments; MaxConcurrentDownloads = source.MaxConcurrentDownloads;
         RetryCount = source.RetryCount; RequestTimeoutSeconds = source.RequestTimeoutSeconds;
         EnableDynamicSegmentation = source.EnableDynamicSegmentation;
-        ShowCompletionDialog = source.ShowCompletionDialog; ShowProgressForCapturedDownloads = source.ShowProgressForCapturedDownloads; ShowProgressOnCompletion = source.ShowProgressOnCompletion; PlayCompletionSound = source.PlayCompletionSound;
+        ShowCompletionDialog = source.ShowCompletionDialog; ShowProgressForCapturedDownloads = source.ShowProgressForCapturedDownloads; ShowProgressOnCompletion = source.ShowProgressOnCompletion; PlayCompletionSound = source.PlayCompletionSound; AutoExtractZip = source.AutoExtractZip;
+        ShowMiniWidget = source.ShowMiniWidget; MiniWidgetLeft = source.MiniWidgetLeft; MiniWidgetTop = source.MiniWidgetTop; EnableBandwidthSchedule = source.EnableBandwidthSchedule; ScheduledSpeedLimitKiB = source.ScheduledSpeedLimitKiB; ScheduleStartHour = source.ScheduleStartHour; ScheduleEndHour = source.ScheduleEndHour;
         EnableCategoryFolders = source.EnableCategoryFolders; SettingsSchema = source.SettingsSchema;
         ProgramsFolder = source.ProgramsFolder; CompressedFolder = source.CompressedFolder;
         MusicFolder = source.MusicFolder; VideoFolder = source.VideoFolder; DocumentsFolder = source.DocumentsFolder;
