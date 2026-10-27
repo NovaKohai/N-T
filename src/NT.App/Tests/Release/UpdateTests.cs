@@ -214,12 +214,14 @@ internal static partial class ReleaseTests
         var s = new AppSettings();
         var now = new DateTimeOffset(2026, 10, 15, 12, 0, 0, TimeSpan.Zero);
         Check(s.CheckForUpdates && s.LastUpdateCheckUtc is null && s.SkippedUpdateVersion == "", "Settings: automatic update checks default to on, nothing skipped");
-        Check(UpdateSchedule.StartDelay == TimeSpan.FromSeconds(20) && UpdateSchedule.Period == TimeSpan.FromHours(24) && UpdateSchedule.MinimumGap == TimeSpan.FromHours(12), "Schedule: first check ~20 s after start, then every 24 h, never closer than 12 h");
+        Check(UpdateSchedule.StartDelay == TimeSpan.FromSeconds(2) && UpdateSchedule.Period == TimeSpan.FromHours(24) && UpdateSchedule.MinimumGap == TimeSpan.FromHours(12), "Schedule: first check ~2 s after start, then every 24 h, never closer than 12 h");
         Check(UpdateSchedule.ShouldAutoCheck(s, now), "Throttle: never checked -> check");
         s.LastUpdateCheckUtc = now - TimeSpan.FromHours(11) - TimeSpan.FromMinutes(59); Check(!UpdateSchedule.ShouldAutoCheck(s, now), "Throttle: 11 h 59 min ago -> no check");
+        Check(UpdateSchedule.ShouldAutoCheck(s, now, isStartup: true), "Startup check ignores 12 h gap on app launch");
         s.LastUpdateCheckUtc = now - TimeSpan.FromHours(12); Check(UpdateSchedule.ShouldAutoCheck(s, now), "Throttle: exactly 12 h ago -> check");
         s.LastUpdateCheckUtc = now + TimeSpan.FromDays(3); Check(UpdateSchedule.ShouldAutoCheck(s, now), "Throttle: a stored time in the far future (clock moved) does not block checks forever");
         s.LastUpdateCheckUtc = now - TimeSpan.FromDays(9); s.CheckForUpdates = false; Check(!UpdateSchedule.ShouldAutoCheck(s, now), "Throttle: automatic checks switched off -> never");
+        Check(!UpdateSchedule.ShouldAutoCheck(s, now, isStartup: true), "Startup check disabled in Options -> never");
         var release = ReleaseInfoFor("1.3.1");
         s.CheckForUpdates = true; s.SkippedUpdateVersion = "1.3.1"; Check(!UpdateSchedule.ShouldNotify(s, release) && UpdateSchedule.ShouldNotify(s, ReleaseInfoFor("1.3.2")), "Skip memory: the skipped version stays quiet, a newer one is announced again");
 

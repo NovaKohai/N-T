@@ -8,9 +8,9 @@ namespace NT.App;
 /// <summary>When automatic checks run. Pure functions so the throttle and the skip memory can be tested.</summary>
 public static class UpdateSchedule
 {
-    public static readonly TimeSpan StartDelay = TimeSpan.FromSeconds(20), Period = TimeSpan.FromHours(24), MinimumGap = TimeSpan.FromHours(12);
-    public static bool ShouldAutoCheck(AppSettings settings, DateTimeOffset now) =>
-        settings.CheckForUpdates && (settings.LastUpdateCheckUtc is not { } last || now - last >= MinimumGap || last > now + TimeSpan.FromMinutes(5)); // a clock set backwards never blocks checks
+    public static readonly TimeSpan StartDelay = TimeSpan.FromSeconds(2), Period = TimeSpan.FromHours(24), MinimumGap = TimeSpan.FromHours(12);
+    public static bool ShouldAutoCheck(AppSettings settings, DateTimeOffset now, bool isStartup = false) =>
+        settings.CheckForUpdates && (isStartup || settings.LastUpdateCheckUtc is not { } last || now - last >= MinimumGap || last > now + TimeSpan.FromMinutes(5)); // a clock set backwards never blocks checks
     public static bool ShouldNotify(AppSettings settings, ReleaseInfo release) =>
         !string.Equals(settings.SkippedUpdateVersion, release.VersionText, StringComparison.Ordinal);
 }
@@ -44,20 +44,27 @@ public sealed class UpdateController
         this.settings = settings; this.save = save; CurrentVersion = currentVersion; this.checkerFactory = checkerFactory; Installer = installer; this.clock = clock ?? (() => DateTimeOffset.UtcNow);
     }
 
-    /// <summary>~20 s after start, then every 24 h while running. Each tick still honours the 12 h gap stored in settings.</summary>
+    /// <summary>~2 s after start, then every 24 h while running. The startup check runs on every launch; subsequent ticks honour the 12 h gap.</summary>
     public void Start(TimeSpan? firstDelay = null)
     {
         Installer.CleanUp(); // leftovers of an earlier update
         timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = firstDelay ?? UpdateSchedule.StartDelay };
-        timer.Tick += async (_, _) => { timer.Interval = UpdateSchedule.Period; await RunAutomaticAsync(); };
+        bool isStartup = true;
+        timer.Tick += async (_, _) =>
+        {
+            timer.Interval = UpdateSchedule.Period;
+            bool startup = isStartup;
+            isStartup = false;
+            await RunAutomaticAsync(isStartup: startup);
+        };
         timer.Start();
     }
     public void Stop() => timer?.Stop();
 
     /// <summary>Background check: silent unless a new, not-skipped version exists.</summary>
-    public async Task<UpdateCheckResult?> RunAutomaticAsync()
+    public async Task<UpdateCheckResult?> RunAutomaticAsync(bool isStartup = false)
     {
-        if (checking || !UpdateSchedule.ShouldAutoCheck(settings, clock())) return null;
+        if (checking || !UpdateSchedule.ShouldAutoCheck(settings, clock(), isStartup)) return null;
         var result = await CheckAsync();
         if (result is { Outcome: UpdateOutcome.Available, Release: { } release } && UpdateSchedule.ShouldNotify(settings, release)) ShowAvailable(release);
         return result;

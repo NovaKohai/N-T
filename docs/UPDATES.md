@@ -4,8 +4,8 @@ NeoDM can tell you when a new release is on GitHub and install it for you. This 
 
 ## What happens
 
-1. Check. About 20 seconds after NeoDM starts, then every 24 hours while it runs, NeoDM sends one anonymous request:
-   `GET https://api.github.com/repos/unlimitedera/NeoDM/releases/latest` with the header `User-Agent: NeoDM/<version>`. There is a 10 second timeout, no login and no cookies. NeoDM uses the proxy from Options > Proxy. The time of the last check is stored, so NeoDM asks at most once per 12 hours even if you restart it often (this also keeps NeoDM under GitHub's anonymous rate limit).
+1. Check. About 2 seconds after NeoDM starts, then every 24 hours while it runs, NeoDM sends one anonymous request:
+   `GET https://api.github.com/repos/unlimitedera/NeoDM/releases/latest` with the header `User-Agent: NeoDM/<version>`. There is a 10 second timeout, no login and no cookies. NeoDM uses the proxy from Options > Proxy. Periodic checks while running enforce a 12-hour gap, while startup checks run on every launch.
 2. Compare. The release tag (`v1.2.3`) is compared with the running version as a semantic version (1.10.0 is newer than 1.9.0). Drafts, pre-releases and tags that are not plain `x.y.z` are ignored.
 3. Offer. If the release is newer and you have not skipped it, an update window opens in front of your other windows: "NeoDM x.y.z is available (you have a.b.c)", the release notes, links to the full changelog and the release page, and the buttons Update now, Remind me later and Skip this version. Offline, rate limited (HTTP 403/429), a missing release (404) or an unreadable answer: nothing is shown for automatic checks.
 4. Update now. NeoDM downloads `NeoDM-Setup-*.msi` and `SHA256SUMS.txt` from the release into `%LOCALAPPDATA%\NDM\updates`, with a progress bar, then:

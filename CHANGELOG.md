@@ -3,6 +3,11 @@
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.3.1] - 2026-10-27
+
+### Changed
+- Updates: Startup update checks now run 2 seconds after launch on every app start, removing the 12-hour launch cooldown so available updates prompt immediately while respecting the "Check for updates automatically" option.
+
 ## [1.3.0] - 2026-10-27
 
 ### Added
