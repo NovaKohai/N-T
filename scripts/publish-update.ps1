@@ -74,26 +74,42 @@ Write-Host ""
 $changelogPath = Join-Path $root 'CHANGELOG.md'
 $changelog = Get-Content -LiteralPath $changelogPath -Raw
 if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
-    Write-Host "CHANGELOG.md does not have release notes for [$targetVersion]." -ForegroundColor Yellow
-    Write-Host "Enter a short summary of changes for this release (or press Enter to open CHANGELOG.md):" -ForegroundColor Cyan
-    $notes = Read-Host "Release notes"
-    if ([string]::IsNullOrWhiteSpace($notes)) {
-        Write-Host "Opening CHANGELOG.md in editor... Save, close, and press Enter to continue." -ForegroundColor Yellow
-        Start-Process "notepad.exe" -ArgumentList "`"$changelogPath`"" -Wait
-        $changelog = Get-Content -LiteralPath $changelogPath -Raw
-        if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
-            throw "CHANGELOG.md still has no '## [$targetVersion]' section."
+    $prevMatch = [regex]::Match($changelog, "(?ms)## \[$([regex]::Escape($currentVersion))\].*?(?=(?:`r?`n## \[|\Z))")
+    if ($targetVersion -ne $currentVersion -and $prevMatch.Success -and $prevMatch.Value.Trim().Length -gt 0) {
+        Write-Host "Found existing changelog section for [$currentVersion]." -ForegroundColor Cyan
+        $usePrev = Read-Host "Carry over notes from [$currentVersion] to [$targetVersion]? [Y/n] (Default Y)"
+        if ([string]::IsNullOrWhiteSpace($usePrev) -or $usePrev -match '^[Yy]') {
+            $prevContent = $prevMatch.Value
+            $newSection = $prevContent -replace "## \[$([regex]::Escape($currentVersion))\]", "## [$targetVersion]"
+            $changelog = $changelog.Replace($prevContent, $newSection)
+            [IO.File]::WriteAllText($changelogPath, $changelog, [Text.Encoding]::UTF8)
+            Write-Host "--> Carried over release notes to [$targetVersion] in CHANGELOG.md" -ForegroundColor Green
         }
-    } else {
-        $today = (Get-Date).ToString("yyyy-MM-dd")
-        $newSection = "## [$targetVersion] - $today`r`n`r`n### Changed`r`n- $notes`r`n`r`n"
-        if ($changelog -match "(?ms)^(# Changelog\r?\n.*?\r?\n)(## \[)") {
-            $changelog = [regex]::Replace($changelog, "(?ms)^(# Changelog\r?\n.*?\r?\n)(## \[)", "`${1}$newSection`${2}", 1)
+    }
+
+    $changelog = Get-Content -LiteralPath $changelogPath -Raw
+    if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
+        Write-Host "CHANGELOG.md does not have release notes for [$targetVersion]." -ForegroundColor Yellow
+        Write-Host "Enter a short one-line summary, or press ENTER to open CHANGELOG.md in editor for multi-line notes:" -ForegroundColor Cyan
+        $notes = Read-Host "Release notes"
+        if ([string]::IsNullOrWhiteSpace($notes)) {
+            Write-Host "Opening CHANGELOG.md in editor... Save, close, and press Enter to continue." -ForegroundColor Yellow
+            Start-Process "notepad.exe" -ArgumentList "`"$changelogPath`"" -Wait
+            $changelog = Get-Content -LiteralPath $changelogPath -Raw
+            if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
+                throw "CHANGELOG.md still has no '## [$targetVersion]' section."
+            }
         } else {
-            $changelog = $newSection + $changelog
+            $today = (Get-Date).ToString("yyyy-MM-dd")
+            $newSection = "## [$targetVersion] - $today`r`n`r`n### Changed`r`n- $notes`r`n`r`n"
+            if ($changelog -match "(?ms)^(# Changelog\r?\n.*?\r?\n)(## \[)") {
+                $changelog = [regex]::Replace($changelog, "(?ms)^(# Changelog\r?\n.*?\r?\n)(## \[)", "`${1}$newSection`${2}", 1)
+            } else {
+                $changelog = $newSection + $changelog
+            }
+            [IO.File]::WriteAllText($changelogPath, $changelog, [Text.Encoding]::UTF8)
+            Write-Host "--> Added release section for $targetVersion to CHANGELOG.md" -ForegroundColor Green
         }
-        [IO.File]::WriteAllText($changelogPath, $changelog, [Text.Encoding]::UTF8)
-        Write-Host "--> Added release section for $targetVersion to CHANGELOG.md" -ForegroundColor Green
     }
 }
 
