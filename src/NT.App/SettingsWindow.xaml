@@ -52,7 +52,10 @@
         <TextBlock Text="Browser integration" Style="{StaticResource SectionTitle}"/>
         <TextBlock Text="Chrome extension and native host setup are separate. Live browser integration has not been verified on this machine." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
         <Button Content="Open Chrome extension _setup help" Click="BrowserSetup_Click" HorizontalAlignment="Left" Margin="0,14,0,12"/>
-        <TextBlock Text="File types and browser capture preferences are configured independently in the extension's Options. N&amp;T does not change those preferences here." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+        <TextBlock Text="File types and browser capture preferences are configured independently in the extension's Options. N&amp;T does not change those preferences here." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,20"/>
+        <TextBlock Text="Startup and window" Style="{StaticResource SectionTitle}"/>
+        <CheckBox x:Name="ShowSplashScreen" Content="Show _splash screen on startup" Margin="0,0,0,6"/>
+        <TextBlock Text="Displays a brief loading screen while the engine and queue are restoring." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
       </StackPanel></ScrollViewer></TabItem>
       <TabItem x:Name="AppearanceTab" Header="_Appearance"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,16,0">
         <TextBlock Text="Theme" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>

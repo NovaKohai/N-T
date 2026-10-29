@@ -37,13 +37,24 @@ public partial class App : Application
             new RoutedEventHandler((sender, args) =>
             {
                 if (sender is Window window && ReferenceEquals(args.OriginalSource, window))
+                {
                     ThemeManager.ApplyChrome(window);
+                    WindowTransitions.ApplyEntrance(window);
+                }
             }));
+        SplashScreenWindow? splash = null;
         try
         {
             Directory.CreateDirectory(StateDirectory);
             Settings = AppSettings.Load(StateDirectory);
             ApplyTheme(Settings.Theme, Settings.AccentOverride);
+
+            if (!startup.Tray && !startup.NoSplash && Settings.ShowSplashScreen)
+            {
+                splash = new SplashScreenWindow();
+                splash.Show();
+            }
+
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += (_, args) =>
             {
                 // Follow-Windows theme: re-resolve when the OS app-theme setting changes (and only then; an explicit theme ignores it).
@@ -51,6 +62,7 @@ public partial class App : Application
                     Dispatcher.BeginInvoke(() => { if (ThemeManager.CurrentId == ThemeCatalog.SystemId) ApplyTheme(ThemeCatalog.SystemId, ThemeManager.CurrentAccent); });
             };
             Directory.CreateDirectory(Settings.DownloadDirectory);
+            splash?.SetStatus("Restoring queue…");
             _manager = new DownloadManager(
                 Settings.DownloadDirectory, 
                 StateDirectory, 
@@ -66,7 +78,22 @@ public partial class App : Application
             SetUpUpdates(window);
             _bridge = new NativeBridge(HandleBrowserDownload, PipeName, HandleControl);
             _bridge.Start();
-            if (startup.Tray) window.StartInTray(); else window.Show();
+
+            if (startup.Tray)
+            {
+                splash?.Close();
+                window.StartInTray();
+            }
+            else
+            {
+                if (splash != null)
+                {
+                    splash.SetStatus("Ready");
+                    _ = splash.FadeOutAndCloseAsync(180);
+                }
+                window.Show();
+            }
+
             // The engine (and its listening socket) only exists once the user has torrents.
             if (TorrentController.HasSavedTorrents(Path.Combine(StateDirectory, "torrent"))) _ = _torrents.EnsureAsync().ContinueWith(_ => { }, TaskScheduler.Default);
             foreach (var magnet in startup.Magnets) Dispatcher.InvokeAsync(() => window.AddMagnetAsync(magnet));
@@ -74,6 +101,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
+            splash?.Close();
             MessageBox.Show("N&T could not start. Check that your destination and state folders are writable.\n\n" + ex.Message, "N&T", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }

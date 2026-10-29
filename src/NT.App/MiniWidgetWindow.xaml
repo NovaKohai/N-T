@@ -1,32 +1,49 @@
 <Window x:Class="NT.App.MiniWidgetWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="N&amp;T Widget" Width="200" Height="68"
+        Title="N&amp;T Widget" Width="220" Height="78"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
         WindowStartupLocation="Manual">
-  <Border x:Name="WidgetCard" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10,8" Margin="4">
+  <Border x:Name="WidgetCard" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10,7" Margin="6">
     <Border.Effect>
-      <DropShadowEffect BlurRadius="8" Opacity="0.25" ShadowDepth="2"/>
+      <DropShadowEffect x:Name="CardShadow" BlurRadius="12" Opacity="0.28" ShadowDepth="3"/>
     </Border.Effect>
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="Auto"/>
-      </Grid.ColumnDefinitions>
 
-      <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
-        <TextBlock Text="N&amp;T" FontWeight="Bold" Foreground="{DynamicResource AccentFillBrush}" FontSize="11" Margin="0,0,6,0"/>
-        <TextBlock x:Name="ActiveCountText" Text="0 active" Foreground="{DynamicResource MutedBrush}" FontSize="11"/>
-      </StackPanel>
+      <!-- Row 0: Brand, active count, percent & close -->
+      <Grid Grid.Row="0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
 
-      <Button x:Name="CloseButton" Grid.Column="1" Content="✕" Click="Close_Click" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource MutedBrush}" Cursor="Hand" Padding="4,0" FontSize="10" ToolTip="Hide widget"/>
+        <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+          <TextBlock Text="N&amp;T" FontWeight="Bold" Foreground="{DynamicResource AccentFillBrush}" FontSize="11" Margin="0,0,6,0"/>
+          <TextBlock x:Name="ActiveCountText" Text="0 active" Foreground="{DynamicResource MutedBrush}" FontSize="11"/>
+        </StackPanel>
 
-      <TextBlock x:Name="SpeedText" Grid.Row="1" Grid.ColumnSpan="2" Text="↓ 0.0 KB/s" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center" Margin="0,2,0,0"/>
+        <TextBlock x:Name="PercentText" Grid.Column="1" Text="" Foreground="{DynamicResource AccentFillBrush}" FontWeight="SemiBold" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+
+        <Button x:Name="CloseButton" Grid.Column="2" Content="✕" Click="Close_Click" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource MutedBrush}" Cursor="Hand" Width="18" Height="18" Padding="0" FontSize="10" ToolTip="Hide widget"/>
+      </Grid>
+
+      <!-- Row 1: Speed telemetry and drag overlay -->
+      <Grid Grid.Row="1" Margin="0,3,0,0" VerticalAlignment="Center">
+        <TextBlock x:Name="SpeedText" Text="↓ 0.0 KB/s" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/>
+        <Border x:Name="DropOverlay" Background="{DynamicResource AccentSoftBrush}" BorderBrush="{DynamicResource AccentFillBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Visibility="Collapsed">
+          <TextBlock Text="Drop URL or file" Foreground="{DynamicResource AccentFillBrush}" FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+      </Grid>
+
+      <!-- Row 2: Aggregate progress bar -->
+      <ProgressBar x:Name="OverallProgressBar" Grid.Row="2" Height="3" Margin="0,4,0,1" Minimum="0" Maximum="100" Value="0" Visibility="Collapsed"/>
     </Grid>
   </Border>
 </Window>

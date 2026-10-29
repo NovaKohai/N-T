@@ -25,6 +25,7 @@ public sealed class AppSettings
     public bool ShowProgressOnCompletion { get; set; } = true;
     public bool PlayCompletionSound { get; set; } = true;
     public bool AutoExtractZip { get; set; } = false;
+    public bool ShowSplashScreen { get; set; } = true;
     public bool ShowMiniWidget { get; set; } = false;
     public double? MiniWidgetLeft { get; set; }
     public double? MiniWidgetTop { get; set; }
@@ -139,6 +140,7 @@ public sealed class AppSettings
         RetryCount = source.RetryCount; RequestTimeoutSeconds = source.RequestTimeoutSeconds;
         EnableDynamicSegmentation = source.EnableDynamicSegmentation;
         ShowCompletionDialog = source.ShowCompletionDialog; ShowProgressForCapturedDownloads = source.ShowProgressForCapturedDownloads; ShowProgressOnCompletion = source.ShowProgressOnCompletion; PlayCompletionSound = source.PlayCompletionSound; AutoExtractZip = source.AutoExtractZip;
+        ShowSplashScreen = source.ShowSplashScreen;
         ShowMiniWidget = source.ShowMiniWidget; MiniWidgetLeft = source.MiniWidgetLeft; MiniWidgetTop = source.MiniWidgetTop; EnableBandwidthSchedule = source.EnableBandwidthSchedule; ScheduledSpeedLimitKiB = source.ScheduledSpeedLimitKiB; ScheduleStartHour = source.ScheduleStartHour; ScheduleEndHour = source.ScheduleEndHour;
         EnableCategoryFolders = source.EnableCategoryFolders; SettingsSchema = source.SettingsSchema;
         ProgramsFolder = source.ProgramsFolder; CompressedFolder = source.CompressedFolder;

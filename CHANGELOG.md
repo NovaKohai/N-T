@@ -3,10 +3,22 @@
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
-## [1.3.6] - 2026-10-29
+## [1.3.7] - 2026-10-29
 
 ### Changed
-- إصلاحات وتحسينات (Fixed)
+- Added
+
+## [1.3.6] - 2026-10-29
+
+### Added
+- Splash Screen: New native lightweight startup splash screen with high-DPI branding, live initialization status, progress bar, and user toggle in Settings.
+- Micro-Interactions: Native GPU-friendly 120-180ms cubic transitions for dialogs, button hover/press overlays, and empty-state list cross-fades, fully respecting Windows ClientAreaAnimation.
+- Mini Widget Enhancements: Added comprehensive desktop context menu (Open N&T, Add Download, Pause/Resume All, Hide Widget), drop hover feedback, and aggregate progress bar.
+
+### Fixed
+- Mini Widget: Fixed bidirectional visibility sync when closing via titlebar or context menu so settings and View menu stay in step.
+- Mini Widget: Clamped floating coordinates against virtual desktop bounds to prevent off-screen positioning on multi-monitor changes.
+- Mini Widget: Connected live aggregate percentage progress and upload speed telemetry.
 
 ## [1.3.5] - 2026-10-29
 

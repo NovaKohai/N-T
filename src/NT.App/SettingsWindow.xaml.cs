@@ -49,6 +49,7 @@ public partial class SettingsWindow : Window
         FinishForce.IsChecked = settings.CompletionForceClose;
         CheckForUpdates.IsChecked = settings.CheckForUpdates; _skipped = settings.SkippedUpdateVersion;
         ClipboardMonitoring.IsChecked = settings.EnableClipboardMonitoring;
+        ShowSplashScreen.IsChecked = settings.ShowSplashScreen;
         ShowSkipped();
         FinishIgnoreScheduled.IsChecked = settings.CompletionIgnoreScheduled;
         RunProgramEnabled.IsChecked = settings.RunProgramEnabled;
@@ -285,6 +286,7 @@ public partial class SettingsWindow : Window
             updated.CompletionAction = SelectedFinish;
             updated.CheckForUpdates = CheckForUpdates.IsChecked == true;
             updated.EnableClipboardMonitoring = ClipboardMonitoring.IsChecked == true;
+            updated.ShowSplashScreen = ShowSplashScreen.IsChecked == true;
             updated.SkippedUpdateVersion = _skipped;
             updated.Save(_stateDirectory);
             _settings.CopyFrom(updated);

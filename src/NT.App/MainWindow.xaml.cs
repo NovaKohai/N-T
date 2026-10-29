@@ -398,7 +398,24 @@ public partial class MainWindow : Window
             RestoreSelection(selectedIds);
             var visible = view.Cast<object>().Count();
             CountLabel.Text = $"{visible} {(visible == 1 ? "download" : "downloads")}";
-            EmptyState.Visibility = visible == 0 ? Visibility.Visible : Visibility.Collapsed;
+            bool shouldBeEmpty = visible == 0;
+            if (shouldBeEmpty && EmptyState.Visibility != Visibility.Visible)
+            {
+                EmptyState.Visibility = Visibility.Visible;
+                if (SystemParameters.ClientAreaAnimation)
+                {
+                    var fadeAnim = new System.Windows.Media.Animation.DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(180))
+                    {
+                        EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                    };
+                    EmptyState.BeginAnimation(UIElement.OpacityProperty, fadeAnim);
+                }
+            }
+            else if (!shouldBeEmpty && EmptyState.Visibility == Visibility.Visible)
+            {
+                EmptyState.BeginAnimation(UIElement.OpacityProperty, null);
+                EmptyState.Visibility = Visibility.Collapsed;
+            }
             EmptyHeading.Text = Rows.Count == 0 ? "No downloads" : "No matching downloads";
             EmptyBody.Text = Rows.Count == 0 ? "Add a URL, import a list, or send a download from your browser." : "Try a different filter or search term.";
             int active = Rows.Count(r => r.Status is "Downloading" or "Connecting" or "Checking");
@@ -406,7 +423,18 @@ public partial class MainWindow : Window
             Summary.Text = Rows.Count == 0 ? "Ready for your first download" : $"{active} active" + (seeding > 0 ? $"  ·  {seeding} seeding" : "") + $"  ·  {Rows.Count(r => r.IsComplete)} completed  ·  {Rows.Count} total";
             var downSpeed = Rows.Sum(r => r.Speed); var upSpeed = Rows.Sum(r => r.UploadSpeed);
             RateLabel.Text = upSpeed > 0 ? $"↓ {DownloadRow.FormatBytes(downSpeed)}/s  ↑ {DownloadRow.FormatBytes(upSpeed)}/s" : $"{DownloadRow.FormatBytes(downSpeed)}/s";
-            _miniWidget?.UpdateTelemetry(downSpeed, active);
+            double aggregateProgress = 0;
+            var activeRows = Rows.Where(r => r.Status is "Downloading" or "Connecting" or "Checking").ToList();
+            if (activeRows.Count > 0)
+            {
+                long totalActiveBytes = activeRows.Sum(r => r.TotalBytes > 0 ? r.TotalBytes : 0);
+                long downloadedActiveBytes = activeRows.Sum(r => r.DownloadedBytes > 0 ? r.DownloadedBytes : 0);
+                if (totalActiveBytes > 0)
+                    aggregateProgress = Math.Clamp((double)downloadedActiveBytes / totalActiveBytes * 100.0, 0, 100.0);
+                else
+                    aggregateProgress = activeRows.Average(r => r.Progress);
+            }
+            _miniWidget?.UpdateTelemetry(downSpeed, active, aggregateProgress, upSpeed);
             if (_settings.EnableBandwidthSchedule)
             {
                 int hour = DateTime.Now.Hour;
@@ -947,7 +975,17 @@ public partial class MainWindow : Window
                         _saveSettings();
                     },
                     _settings.MiniWidgetLeft,
-                    _settings.MiniWidgetTop
+                    _settings.MiniWidgetTop,
+                    onClose: () =>
+                    {
+                        _settings.ShowMiniWidget = false;
+                        _saveSettings();
+                        if (ViewMiniWidget != null) ViewMiniWidget.IsChecked = false;
+                        _miniWidget = null;
+                    },
+                    onAddUrl: () => Dispatcher.BeginInvoke(new Action(() => { BringToFront(); _ = ShowAddAsync(); })),
+                    onPauseAll: () => Dispatcher.BeginInvoke(new Action(async () => await ChangeAllAsync(false))),
+                    onResumeAll: () => Dispatcher.BeginInvoke(new Action(async () => await ChangeAllAsync(true)))
                 );
                 _miniWidget.Show();
             }
