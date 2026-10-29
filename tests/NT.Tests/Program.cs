@@ -386,6 +386,7 @@ async Task QueueControls()
 
     var stopped = manager.StopQueue();
     Check(stopped >= 0, "StopQueue executed");
+    Check(manager.Jobs.All(j => j.Status is "Paused" or "Completed"), "StopQueue paused all active and queued jobs");
 
     var started = manager.StartQueue();
     Check(started >= 0, "StartQueue executed");

@@ -178,6 +178,10 @@ public sealed partial class DownloadManager : IDisposable
                     w.Job.Status = w.Job.ScheduledAt > DateTimeOffset.UtcNow ? "Scheduled" : "Queued";
                     count++;
                 }
+                else if (w.Job.Status == "Queued")
+                {
+                    count++;
+                }
             }
             if (count > 0) SaveLocked();
         }
@@ -195,7 +199,7 @@ public sealed partial class DownloadManager : IDisposable
             ThrowIfDisposed();
             foreach (var w in jobs)
             {
-                if (w.Job.Status is "Downloading" or "Connecting")
+                if (w.Job.Status is "Downloading" or "Connecting" or "Queued")
                 {
                     w.Job.Status = "Paused";
                     w.Job.SpeedBytesPerSecond = 0;

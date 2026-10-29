@@ -387,7 +387,7 @@ public partial class MainWindow : Window
                     filterChanged |= row.Status != job.Status || row.FileName != job.FileName || row.Url != job.Url;
                     sortChanged |= row.Update(job);
                 }
-                else Rows.Insert(0, new DownloadRow(job));
+                else Rows.Add(new DownloadRow(job));
             }
             _torrents.SyncRows(Rows, lookup, ref filterChanged, ref sortChanged);
             if (_torrents.IsAvailable) _ = EnforceSeedLimitAsync();
@@ -799,17 +799,31 @@ public partial class MainWindow : Window
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
         menu.IsOpen = true;
     }
-    private void StartQueue_Click(object sender, RoutedEventArgs e)
+    private async void StartQueue_Click(object sender, RoutedEventArgs e)
     {
+        int torrentStarted = 0;
+        if (_torrents.IsAvailable)
+        {
+            var (tc, _, _) = await _torrents.ChangeAllAsync(true);
+            torrentStarted = tc;
+        }
         int started = _manager.StartQueue();
         Refresh();
-        Notice.Text = started > 0 ? $"Queue started ({_manager.MaxConcurrentDownloads} downloading at a time)." : "Queue started.";
+        int total = started + torrentStarted;
+        Notice.Text = total > 0 ? $"Queue started ({_manager.MaxConcurrentDownloads} downloading at a time)." : "Queue started.";
     }
-    private void StopQueue_Click(object sender, RoutedEventArgs e)
+    private async void StopQueue_Click(object sender, RoutedEventArgs e)
     {
+        int torrentStopped = 0;
+        if (_torrents.IsAvailable)
+        {
+            var (tc, _, _) = await _torrents.ChangeAllAsync(false);
+            torrentStopped = tc;
+        }
         int stopped = _manager.StopQueue();
         Refresh();
-        Notice.Text = stopped > 0 ? $"Queue stopped ({stopped} paused)." : "Queue stopped.";
+        int total = stopped + torrentStopped;
+        Notice.Text = total > 0 ? $"Queue stopped ({total} paused)." : "Queue stopped.";
     }
     private void MoveUp_Click(object sender, RoutedEventArgs e)
     {

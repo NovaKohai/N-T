@@ -38,7 +38,8 @@ public partial class DownloadOptionsDialog : Window
     /// <param name="mime">The browser's content type for the download (may be empty).</param>
     /// <param name="probe">Quick HEAD / ranged-GET look at the link; fills the name, size and type when it answers.</param>
     public DownloadOptionsDialog(string url, string? suggestedFileName, string? referer, string? cookie, string defaultDownloadDirectory,
-        string? mime = null, Func<CancellationToken, Task<NameProbeResult?>>? probe = null, Func<string, string>? autoFolder = null)
+        string? mime = null, Func<CancellationToken, Task<NameProbeResult?>>? probe = null, Func<string, string>? autoFolder = null,
+        int? currentConcurrency = null)
     {
         _autoFolder = autoFolder;
         _defaultDownloadDirectory = defaultDownloadDirectory;
@@ -49,6 +50,22 @@ public partial class DownloadOptionsDialog : Window
         InitializeComponent();
         
         UrlDisplay.Text = url;
+        
+        if (currentConcurrency.HasValue)
+        {
+            foreach (System.Windows.Controls.ComboBoxItem item in ConcurrentInput.Items)
+            {
+                if (item.Tag as string == currentConcurrency.Value.ToString())
+                {
+                    ConcurrentInput.SelectedItem = item;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            ConcurrentInput.SelectedIndex = 2;
+        }
         
         // Best name known before the server answers: the browser's, else the address.
         SetName(FileNameResolver.Resolve(_uri, _browserName, _browserMime, null).Name);

@@ -23,13 +23,17 @@ public partial class AddDownloadWindow : Window
         var results = new List<DownloadJob>();
         foreach (var req in requests)
         {
-            var job = await manager.AddScheduledAsync(req, SpeedLimit.HasValue ? DateTimeOffset.UtcNow.AddYears(1) : ScheduledAt, startPaused: startPaused);
+            var job = await manager.AddScheduledAsync(req, ScheduledAt, startPaused: startPaused || SpeedLimit.HasValue);
             if (SpeedLimit.HasValue)
             {
                 try
                 {
                     manager.SetSpeedLimit(job.Id, SpeedLimit);
-                    if (!startPaused) manager.Schedule(job.Id, ScheduledAt ?? DateTimeOffset.UtcNow);
+                    if (!startPaused)
+                    {
+                        if (ScheduledAt.HasValue) manager.Schedule(job.Id, ScheduledAt.Value);
+                        else manager.Resume(job.Id);
+                    }
                 }
                 catch
                 {

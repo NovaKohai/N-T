@@ -31,7 +31,7 @@
       <ComboBox x:Name="ConcurrentInput" AutomationProperties.Name="Queue concurrency">
         <ComboBoxItem Content="1 download at a time (Sequential queue)" Tag="1"/>
         <ComboBoxItem Content="2 downloads at a time" Tag="2"/>
-        <ComboBoxItem Content="3 downloads at a time (Default)" Tag="3" IsSelected="True"/>
+        <ComboBoxItem Content="3 downloads at a time (Default)" Tag="3"/>
         <ComboBoxItem Content="4 downloads at a time" Tag="4"/>
         <ComboBoxItem Content="5 downloads at a time" Tag="5"/>
         <ComboBoxItem Content="8 downloads at a time" Tag="8"/>

@@ -158,7 +158,8 @@ public partial class App : Application
                 var manager = _manager!;
                 var dialog = new DownloadOptionsDialog(request.Url, request.FileName, request.Referer, request.Cookie, Settings.DownloadDirectory, request.Mime,
                     ct => manager.ProbeNameAsync(new DownloadRequest(request.Url, null, request.Referer, request.Cookie), ct),
-                    fileName => CategoryHelper.GetDownloadPath(fileName, Settings));
+                    fileName => CategoryHelper.GetDownloadPath(fileName, Settings),
+                    Settings.MaxConcurrentDownloads);
                 // The wait for the user is unbounded; if the browser side goes away meanwhile the dialog says so and can no longer add a duplicate.
                 request.Gone.Register(() => Dispatcher.BeginInvoke(new Action(() => dialog.MarkExpired(
                     "The browser stopped waiting for N&T (the browser or its connection was closed), so it has restarted this download itself. " +
@@ -184,9 +185,10 @@ public partial class App : Application
                     request.Respond(new NativeBridge.BrowserDownloadResponse(false, null, "Download cancelled in N&T.", Cancelled: true));
                     return;
                 }
-                if (dialog.DesiredConcurrency.HasValue)
+                if (dialog.DesiredConcurrency.HasValue && dialog.DesiredConcurrency.Value != Settings.MaxConcurrentDownloads)
                 {
                     Settings.MaxConcurrentDownloads = dialog.DesiredConcurrency.Value;
+                    manager.MaxConcurrentDownloads = dialog.DesiredConcurrency.Value;
                     Settings.Save(StateDirectory);
                     if (MainWindow is MainWindow mw) mw.UpdateQueueConcurrentButton();
                 }

@@ -16,19 +16,21 @@ public static class CaptureCommit
         switch (dialog.UserAction)
         {
             case DownloadOptionsDialog.DialogAction.StartNow:
-                job = await manager.AddScheduledAsync(dialog.Request, limit.HasValue ? DateTimeOffset.UtcNow.AddYears(1) : null);
-                if (limit.HasValue) { manager.SetSpeedLimit(job.Id, limit); manager.Resume(job.Id); }
-                break;
             case DownloadOptionsDialog.DialogAction.Queue:
-                job = await manager.AddScheduledAsync(dialog.Request, limit.HasValue ? DateTimeOffset.UtcNow.AddYears(1) : null);
-                if (limit.HasValue) manager.SetSpeedLimit(job.Id, limit);
-                break;
-            case DownloadOptionsDialog.DialogAction.Schedule:
-                job = await manager.AddScheduledAsync(dialog.Request, limit.HasValue ? DateTimeOffset.UtcNow.AddYears(1) : dialog.ScheduledAt);
+                job = await manager.AddScheduledAsync(dialog.Request, null, startPaused: limit.HasValue);
                 if (limit.HasValue)
                 {
                     manager.SetSpeedLimit(job.Id, limit);
-                    manager.Schedule(job.Id, dialog.ScheduledAt ?? DateTimeOffset.UtcNow);
+                    manager.Resume(job.Id);
+                }
+                break;
+            case DownloadOptionsDialog.DialogAction.Schedule:
+                job = await manager.AddScheduledAsync(dialog.Request, dialog.ScheduledAt, startPaused: limit.HasValue);
+                if (limit.HasValue)
+                {
+                    manager.SetSpeedLimit(job.Id, limit);
+                    if (dialog.ScheduledAt.HasValue) manager.Schedule(job.Id, dialog.ScheduledAt.Value);
+                    else manager.Resume(job.Id);
                 }
                 else if (dialog.ScheduledAt.HasValue) manager.Schedule(job.Id, dialog.ScheduledAt.Value);
                 break;

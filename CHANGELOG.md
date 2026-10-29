@@ -3,6 +3,21 @@
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.3.6] - 2026-10-29
+
+### Changed
+- إصلاحات وتحسينات (Fixed)
+
+## [1.3.5] - 2026-10-29
+
+### Fixed
+- Queue Engine: Fixed StopQueue so pending downloads in Queued status are properly paused rather than launched immediately by the background scheduler.
+- Queue Engine: Fixed StartQueue to accurately account for both paused and queued jobs when resuming queue execution.
+- Queue Scheduling: Fixed an issue where downloads added with speed limits or "Download later" were scheduled one year in the future, preventing them from starting.
+- Queue Concurrency: Fixed browser capture dialog resetting MaxConcurrentDownloads to 3, preserving user-configured sequential queue concurrency limits.
+- UI: Fixed inverted download row ordering in the main window table where new downloads were prepended, causing reverse execution order and backwards queue reordering.
+- UI: Connected queue toolbar actions (Start Queue and Stop Queue) to pause and resume torrent transfers concurrently with standard downloads.
+
 ## [1.3.3] - 2026-10-28
 
 ### Added
