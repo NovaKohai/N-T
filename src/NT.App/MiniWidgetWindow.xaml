@@ -26,24 +26,24 @@
 
         <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
           <TextBlock Text="N&amp;T" FontWeight="Bold" Foreground="{DynamicResource AccentFillBrush}" FontSize="11" Margin="0,0,6,0"/>
-          <TextBlock x:Name="ActiveCountText" Text="0 active" Foreground="{DynamicResource MutedBrush}" FontSize="11"/>
+          <TextBlock x:Name="ActiveCountText" Text="0 active" Foreground="{DynamicResource MutedBrush}" FontSize="11" AutomationProperties.Name="Active downloads count"/>
         </StackPanel>
 
-        <TextBlock x:Name="PercentText" Grid.Column="1" Text="" Foreground="{DynamicResource AccentFillBrush}" FontWeight="SemiBold" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+        <TextBlock x:Name="PercentText" Grid.Column="1" Text="" Foreground="{DynamicResource AccentFillBrush}" FontWeight="SemiBold" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" Visibility="Collapsed" AutomationProperties.Name="Overall percent"/>
 
-        <Button x:Name="CloseButton" Grid.Column="2" Content="✕" Click="Close_Click" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource MutedBrush}" Cursor="Hand" Width="18" Height="18" Padding="0" FontSize="10" ToolTip="Hide widget"/>
+        <Button x:Name="CloseButton" Grid.Column="2" Content="✕" Click="Close_Click" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource MutedBrush}" Cursor="Hand" Width="18" Height="18" Padding="0" FontSize="10" ToolTip="Hide widget" AutomationProperties.Name="Hide widget"/>
       </Grid>
 
       <!-- Row 1: Speed telemetry and drag overlay -->
       <Grid Grid.Row="1" Margin="0,3,0,0" VerticalAlignment="Center">
-        <TextBlock x:Name="SpeedText" Text="↓ 0.0 KB/s" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center"/>
+        <TextBlock x:Name="SpeedText" Text="↓ 0.0 KB/s" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center" AutomationProperties.Name="Current download speed"/>
         <Border x:Name="DropOverlay" Background="{DynamicResource AccentSoftBrush}" BorderBrush="{DynamicResource AccentFillBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Visibility="Collapsed">
           <TextBlock Text="Drop URL or file" Foreground="{DynamicResource AccentFillBrush}" FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
       </Grid>
 
       <!-- Row 2: Aggregate progress bar -->
-      <ProgressBar x:Name="OverallProgressBar" Grid.Row="2" Height="3" Margin="0,4,0,1" Minimum="0" Maximum="100" Value="0" Visibility="Collapsed"/>
+      <ProgressBar x:Name="OverallProgressBar" Grid.Row="2" Height="3" Margin="0,4,0,1" Minimum="0" Maximum="100" Value="0" Visibility="Collapsed" AutomationProperties.Name="Overall download progress"/>
     </Grid>
   </Border>
 </Window>

@@ -32,10 +32,10 @@
       </StackPanel>
 
       <!-- Row 2: Status text -->
-      <TextBlock x:Name="StatusText" Grid.Row="2" Text="Initializing engine…" FontSize="11.5" Foreground="{DynamicResource MutedBrush}" Margin="0,18,0,6"/>
+      <TextBlock x:Name="StatusText" Grid.Row="2" Text="Initializing engine…" FontSize="11.5" Foreground="{DynamicResource MutedBrush}" Margin="0,18,0,6" AutomationProperties.Name="Startup status" AutomationProperties.LiveSetting="Polite"/>
 
       <!-- Row 3: Indeterminate progress track -->
-      <ProgressBar x:Name="LoadingBar" Grid.Row="3" Height="3" IsIndeterminate="True" Foreground="{DynamicResource AccentFillBrush}" Background="{DynamicResource BorderBrush}"/>
+      <ProgressBar x:Name="LoadingBar" Grid.Row="3" Height="3" IsIndeterminate="True" Foreground="{DynamicResource AccentFillBrush}" Background="{DynamicResource BorderBrush}" AutomationProperties.Name="Loading application"/>
     </Grid>
   </Border>
 </Window>

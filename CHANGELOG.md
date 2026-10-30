@@ -3,10 +3,20 @@
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
-## [1.3.7] - 2026-10-29
+## [1.3.8] - 2026-10-30
 
 ### Changed
-- Added
+- 🌟 المميزات والإضافات الجديدة (Added)
+
+## [1.3.7] - 2026-10-29
+
+### Added
+- **Toolbar Completion Action**: Added dedicated When done toolbar control right beside queue concurrency and speed limit buttons, allowing instant one-click selection and visibility of post-download actions.
+- **Mini Widget Shutdown Toggle**: Added Turn off computer when done toggle directly in the floating mini widget context menu.
+- **Accessibility (a11y) Full Audit & Remediation**: Audited all interactive surfaces, providing explicit AutomationProperties.Name and tooltips across the mini widget (close button, active count, telemetry speeds, aggregate progress), startup splash screen (AutomationProperties.LiveSetting='Polite' for screen readers), and main window action buttons (Import URLs, Resume all, Pause, Speed limit, Open file/folder, Empty state).
+
+### Fixed
+- **Sidebar Selection Color & Text Visibility**: Restructured NavItem control template so selection and hover overlays are placed behind text content with explicit theme ink foreground and semi-bold font weighting, eliminating invisible text on selected navigation filters.
 
 ## [1.3.6] - 2026-10-29
 

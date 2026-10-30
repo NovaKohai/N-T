@@ -125,6 +125,7 @@ public partial class MainWindow : Window
         MenuClipboardMonitor.IsChecked = _settings.EnableClipboardMonitoring;
         UpdateGlobalSpeedButton();
         UpdateQueueConcurrentButton();
+        UpdateWhenDoneButton();
         Refresh();
         _manager.Changed += ManagerChanged;
         Closed += (_, _) => { _closed = true; _timer.Stop(); _manager.Changed -= ManagerChanged; _completion.Dispose(); _completionWindow?.Close(); _trayIcon?.Dispose(); _clipboardMonitor.Dispose(); _miniWidget?.Close(); };
@@ -166,7 +167,11 @@ public partial class MainWindow : Window
         StateChanged += MainWindow_StateChanged;
     }
     private static QueueJob ToQueueJob(DownloadJob job) => new(job.Id, job.Status, job.ScheduledAt);
-    private void SyncFinishMenus() { foreach (var menu in _finishMenus) CompletionMenu.Sync(menu, FinishActions.Current); }
+    private void SyncFinishMenus()
+    {
+        foreach (var menu in _finishMenus) CompletionMenu.Sync(menu, FinishActions.Current);
+        UpdateWhenDoneButton();
+    }
     private void OpenDownloadsFolder()
     {
         if (!Directory.Exists(_settings.DownloadDirectory)) throw new DirectoryNotFoundException();
@@ -827,6 +832,50 @@ public partial class MainWindow : Window
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
         menu.IsOpen = true;
     }
+    public void UpdateWhenDoneButton()
+    {
+        if (WhenDoneButton is null || FinishActions is null) return;
+        var current = FinishActions.Current;
+        WhenDoneButton.Content = current switch
+        {
+            CompletionActionKind.None => "When done: Do nothing",
+            CompletionActionKind.Shutdown => "When done: Turn off PC",
+            CompletionActionKind.Sleep => "When done: Sleep",
+            CompletionActionKind.Hibernate => "When done: Hibernate",
+            CompletionActionKind.Lock => "When done: Lock",
+            CompletionActionKind.ExitApp => "When done: Exit N&T",
+            CompletionActionKind.PlaySound => "When done: Play sound",
+            CompletionActionKind.OpenFolder => "When done: Open folder",
+            CompletionActionKind.Restart => "When done: Restart",
+            _ => $"When done: {CompletionActionInfo.Label(current)}"
+        };
+    }
+    private void WhenDoneButton_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new System.Windows.Controls.ContextMenu();
+        foreach (var kind in CompletionActionInfo.All)
+        {
+            var item = new MenuItem
+            {
+                Header = CompletionActionInfo.Label(kind),
+                IsChecked = FinishActions.Current == kind,
+                ToolTip = CompletionActionInfo.Description(kind)
+            };
+            var chosen = kind;
+            item.Click += (_, _) =>
+            {
+                FinishActions.Choose(chosen);
+                UpdateWhenDoneButton();
+                Notice.Text = chosen == CompletionActionKind.None 
+                    ? "Action when finished: Do nothing." 
+                    : $"Action when finished: {CompletionActionInfo.Label(chosen)}.";
+            };
+            menu.Items.Add(item);
+        }
+        menu.PlacementTarget = WhenDoneButton;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
     private async void StartQueue_Click(object sender, RoutedEventArgs e)
     {
         int torrentStarted = 0;
@@ -955,9 +1004,9 @@ public partial class MainWindow : Window
         {
             if (_miniWidget == null)
             {
-                _miniWidget = new MiniWidgetWindow(
-                    () => Dispatcher.BeginInvoke(new Action(RestoreFromTray)),
-                    async text =>
+                _miniWidget = new MiniWidgetWindow(new MiniWidgetOptions(
+                    RestoreMainWindow: () => Dispatcher.BeginInvoke(new Action(RestoreFromTray)),
+                    HandleDrop: async text =>
                     {
                         await Dispatcher.InvokeAsync(async () =>
                         {
@@ -968,25 +1017,31 @@ public partial class MainWindow : Window
                                 await ShowAddAsync(text);
                         });
                     },
-                    (x, y) =>
+                    OnPositionChanged: (x, y) =>
                     {
                         _settings.MiniWidgetLeft = x;
                         _settings.MiniWidgetTop = y;
                         _saveSettings();
                     },
-                    _settings.MiniWidgetLeft,
-                    _settings.MiniWidgetTop,
-                    onClose: () =>
+                    InitialLeft: _settings.MiniWidgetLeft,
+                    InitialTop: _settings.MiniWidgetTop,
+                    OnClose: () =>
                     {
                         _settings.ShowMiniWidget = false;
                         _saveSettings();
                         if (ViewMiniWidget != null) ViewMiniWidget.IsChecked = false;
                         _miniWidget = null;
                     },
-                    onAddUrl: () => Dispatcher.BeginInvoke(new Action(() => { BringToFront(); _ = ShowAddAsync(); })),
-                    onPauseAll: () => Dispatcher.BeginInvoke(new Action(async () => await ChangeAllAsync(false))),
-                    onResumeAll: () => Dispatcher.BeginInvoke(new Action(async () => await ChangeAllAsync(true)))
-                );
+                    OnAddUrl: () => Dispatcher.BeginInvoke(new Action(() => { BringToFront(); _ = ShowAddAsync(); })),
+                    OnPauseAll: () => Dispatcher.BeginInvoke(new Action(async () => await ChangeAllAsync(false))),
+                    OnResumeAll: () => Dispatcher.BeginInvoke(new Action(async () => await ChangeAllAsync(true))),
+                    OnToggleShutdown: () => Dispatcher.BeginInvoke(new Action(() => {
+                        var next = FinishActions.Current == CompletionActionKind.Shutdown ? CompletionActionKind.None : CompletionActionKind.Shutdown;
+                        FinishActions.Choose(next);
+                        UpdateWhenDoneButton();
+                    })),
+                    IsShutdownArmed: () => FinishActions.Current == CompletionActionKind.Shutdown
+                ));
                 _miniWidget.Show();
             }
         }

@@ -144,6 +144,7 @@
         <Border Style="{StaticResource CommandSeparator}"/>
         <Button x:Name="QueueConcurrentButton" Content="Queue: 3 at a time" Click="QueueConcurrentButton_Click" Style="{StaticResource Command}" AutomationProperties.Name="Queue concurrency" ToolTip="How many downloads to run at the same time"/>
         <Button x:Name="SpeedLimitButton" Content="Speed: Unlimited" Click="SpeedLimitButton_Click" Style="{StaticResource Command}" AutomationProperties.Name="Global speed limit" ToolTip="Set global download speed limit"/>
+        <Button x:Name="WhenDoneButton" Content="When done: Do nothing" Click="WhenDoneButton_Click" Style="{StaticResource Command}" AutomationProperties.Name="Action when downloads finish" ToolTip="Action to take when all active downloads finish (Click to choose action)"/>
       </WrapPanel>
     </Border>
     <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="10,6">
@@ -169,8 +170,8 @@
         <DockPanel Margin="8,12">
           <TextBlock DockPanel.Dock="Top" Text="DOWNLOADS" FontSize="11" FontWeight="SemiBold" Style="{StaticResource Muted}" Margin="8,0,0,10"/>
           <StackPanel DockPanel.Dock="Bottom">
-            <Button x:Name="BulkButton" Content="Import URLs…" Click="Bulk_Click" Style="{StaticResource SidebarCommand}"/>
-            <Button x:Name="ResumeAllButton" Content="Resume all paused" Click="ResumeAll_Click" Style="{StaticResource SidebarCommand}"/>
+            <Button x:Name="BulkButton" Content="Import URLs…" Click="Bulk_Click" Style="{StaticResource SidebarCommand}" AutomationProperties.Name="Import URLs" ToolTip="Import multiple URLs to download"/>
+            <Button x:Name="ResumeAllButton" Content="Resume all paused" Click="ResumeAll_Click" Style="{StaticResource SidebarCommand}" AutomationProperties.Name="Resume all paused" ToolTip="Resume all paused downloads"/>
           </StackPanel>
           <ListBox x:Name="Navigation" SelectionChanged="FilterChanged" ItemContainerStyle="{StaticResource NavItem}" AutomationProperties.Name="Download status filters">
             <ListBoxItem Tag="All" IsSelected="True">
@@ -250,10 +251,10 @@
                 <TextBlock x:Name="DetailPath" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
               </StackPanel>
               <WrapPanel Grid.Column="1" Margin="10,0,0,0">
-                <Button x:Name="PauseButton" Content="Pause" Click="Pause_Click" Style="{StaticResource Command}"/>
-                <Button x:Name="SpeedButton" Content="Speed limit…" Click="Speed_Click" Style="{StaticResource Command}"/>
-                <Button x:Name="OpenButton" Content="Open file" Click="Open_Click" Style="{StaticResource Command}"/>
-                <Button x:Name="FolderButton" Content="Open folder" Click="Folder_Click" Style="{StaticResource Command}"/>
+                <Button x:Name="PauseButton" Content="Pause" Click="Pause_Click" Style="{StaticResource Command}" AutomationProperties.Name="Pause selected download" ToolTip="Pause the selected download"/>
+                <Button x:Name="SpeedButton" Content="Speed limit…" Click="Speed_Click" Style="{StaticResource Command}" AutomationProperties.Name="Set speed limit" ToolTip="Set speed limit for selected download"/>
+                <Button x:Name="OpenButton" Content="Open file" Click="Open_Click" Style="{StaticResource Command}" AutomationProperties.Name="Open file" ToolTip="Open the selected completed file"/>
+                <Button x:Name="FolderButton" Content="Open folder" Click="Folder_Click" Style="{StaticResource Command}" AutomationProperties.Name="Open folder" ToolTip="Open containing folder"/>
               </WrapPanel>
             </Grid>
             <TextBlock x:Name="DetailTorrent" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" Visibility="Collapsed"/>
@@ -345,7 +346,7 @@
               </GridView>
             </ListView.View>
           </ListView>
-          <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="30" IsHitTestVisible="False">
+          <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="30" IsHitTestVisible="False" AutomationProperties.Name="Queue is empty">
             <TextBlock x:Name="EmptyHeading" Text="No downloads" FontSize="16" FontWeight="SemiBold" TextAlignment="Center"/>
             <TextBlock x:Name="EmptyBody" Text="Add a URL or import a list to begin." Style="{StaticResource Muted}" Margin="0,6,0,0" TextAlignment="Center" TextWrapping="Wrap"/>
           </StackPanel>

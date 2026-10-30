@@ -7,38 +7,31 @@ using System.Windows.Media.Animation;
 
 namespace NT.App;
 
+public record MiniWidgetOptions(
+    Action RestoreMainWindow,
+    Func<string, Task> HandleDrop,
+    Action<double, double> OnPositionChanged,
+    double? InitialLeft = null,
+    double? InitialTop = null,
+    Action? OnClose = null,
+    Action? OnAddUrl = null,
+    Action? OnPauseAll = null,
+    Action? OnResumeAll = null,
+    Action? OnToggleShutdown = null,
+    Func<bool>? IsShutdownArmed = null);
+
 public partial class MiniWidgetWindow : Window
 {
-    private readonly Action restoreMainWindow;
-    private readonly Func<string, Task> handleDrop;
-    private readonly Action<double, double> onPositionChanged;
-    private readonly Action? onClose;
-    private readonly Action? onAddUrl;
-    private readonly Action? onPauseAll;
-    private readonly Action? onResumeAll;
+    private readonly MiniWidgetOptions _options;
     private bool _isClosing;
 
-    public MiniWidgetWindow(
-        Action restoreMainWindow,
-        Func<string, Task> handleDrop,
-        Action<double, double> onPositionChanged,
-        double? initialLeft = null,
-        double? initialTop = null,
-        Action? onClose = null,
-        Action? onAddUrl = null,
-        Action? onPauseAll = null,
-        Action? onResumeAll = null)
+    public MiniWidgetWindow(MiniWidgetOptions options)
     {
-        this.restoreMainWindow = restoreMainWindow;
-        this.handleDrop = handleDrop;
-        this.onPositionChanged = onPositionChanged;
-        this.onClose = onClose;
-        this.onAddUrl = onAddUrl;
-        this.onPauseAll = onPauseAll;
-        this.onResumeAll = onResumeAll;
+        _options = options ?? throw new ArgumentNullException(nameof(options));
 
         InitializeComponent();
 
+        ContextMenuOpening += (_, _) => ContextMenu = BuildContextMenu();
         ContextMenu = BuildContextMenu();
 
         // Screen placement and safety bounds
@@ -47,14 +40,14 @@ public partial class MiniWidgetWindow : Window
         double vWidth = SystemParameters.VirtualScreenWidth;
         double vHeight = SystemParameters.VirtualScreenHeight;
 
-        if (initialLeft.HasValue && initialTop.HasValue &&
-            initialLeft.Value >= vLeft - 40 &&
-            initialLeft.Value < vLeft + vWidth - 40 &&
-            initialTop.Value >= vTop &&
-            initialTop.Value < vTop + vHeight - 40)
+        if (_options.InitialLeft.HasValue && _options.InitialTop.HasValue &&
+            _options.InitialLeft.Value >= vLeft - 40 &&
+            _options.InitialLeft.Value < vLeft + vWidth - 40 &&
+            _options.InitialTop.Value >= vTop &&
+            _options.InitialTop.Value < vTop + vHeight - 40)
         {
-            Left = initialLeft.Value;
-            Top = initialTop.Value;
+            Left = _options.InitialLeft.Value;
+            Top = _options.InitialTop.Value;
         }
         else
         {
@@ -82,16 +75,16 @@ public partial class MiniWidgetWindow : Window
 
             if (e.ButtonState == MouseButtonState.Pressed)
             {
-                try { DragMove(); } catch { }
+                try { DragMove(); } catch (InvalidOperationException) { }
                 ClampPosition();
-                onPositionChanged(Left, Top);
+                _options.OnPositionChanged(Left, Top);
             }
         };
 
         MouseDoubleClick += (_, e) =>
         {
             if (e.ChangedButton == MouseButton.Left)
-                restoreMainWindow();
+                _options.RestoreMainWindow();
         };
 
         KeyDown += (_, e) =>
@@ -135,17 +128,27 @@ public partial class MiniWidgetWindow : Window
             {
                 if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
                 {
-                    foreach (var f in files) await handleDrop(f);
+                    foreach (var f in files) await _options.HandleDrop(f);
                 }
             }
             else if (e.Data.GetDataPresent(DataFormats.Text))
             {
                 if (e.Data.GetData(DataFormats.Text) is string text && !string.IsNullOrWhiteSpace(text))
                 {
-                    await handleDrop(text.Trim());
+                    await _options.HandleDrop(text.Trim());
                 }
             }
         };
+    }
+
+    public MiniWidgetWindow(
+        Action restoreMainWindow,
+        Func<string, Task> handleDrop,
+        Action<double, double> onPositionChanged,
+        double? initialLeft = null,
+        double? initialTop = null)
+        : this(new MiniWidgetOptions(restoreMainWindow, handleDrop, onPositionChanged, initialLeft, initialTop))
+    {
     }
 
     private void ClampPosition()
@@ -169,33 +172,46 @@ public partial class MiniWidgetWindow : Window
         var menu = new ContextMenu();
 
         var openItem = new MenuItem { Header = "Open N&T" };
-        openItem.Click += (_, _) => restoreMainWindow();
+        openItem.Click += (_, _) => _options.RestoreMainWindow();
         menu.Items.Add(openItem);
 
-        if (onAddUrl != null)
+        if (_options.OnAddUrl != null)
         {
             var addItem = new MenuItem { Header = "Add download…" };
-            addItem.Click += (_, _) => onAddUrl();
+            addItem.Click += (_, _) => _options.OnAddUrl();
             menu.Items.Add(addItem);
         }
 
         menu.Items.Add(new Separator());
 
-        if (onPauseAll != null)
+        if (_options.OnPauseAll != null)
         {
             var pauseItem = new MenuItem { Header = "Pause all" };
-            pauseItem.Click += (_, _) => onPauseAll();
+            pauseItem.Click += (_, _) => _options.OnPauseAll();
             menu.Items.Add(pauseItem);
         }
 
-        if (onResumeAll != null)
+        if (_options.OnResumeAll != null)
         {
             var resumeItem = new MenuItem { Header = "Resume all" };
-            resumeItem.Click += (_, _) => onResumeAll();
+            resumeItem.Click += (_, _) => _options.OnResumeAll();
             menu.Items.Add(resumeItem);
         }
 
         menu.Items.Add(new Separator());
+
+        if (_options.OnToggleShutdown != null)
+        {
+            var shutdownItem = new MenuItem
+            {
+                Header = "Turn off computer when done",
+                IsCheckable = true,
+                IsChecked = _options.IsShutdownArmed?.Invoke() ?? false
+            };
+            shutdownItem.Click += (_, _) => _options.OnToggleShutdown();
+            menu.Items.Add(shutdownItem);
+            menu.Items.Add(new Separator());
+        }
 
         var hideItem = new MenuItem { Header = "Hide widget" };
         hideItem.Click += (_, _) => AnimateClose();
@@ -211,15 +227,15 @@ public partial class MiniWidgetWindow : Window
     {
         ActiveCountText.Text = activeCount == 1 ? "1 active" : $"{activeCount} active";
         string downText = speedBytesPerSec > 0 ? $"↓ {DownloadRow.FormatBytes(speedBytesPerSec)}/s" : "↓ 0.0 B/s";
-        if (uploadSpeedBytesPerSec > 0)
-        {
-            SpeedText.Text = $"{downText}  ↑ {DownloadRow.FormatBytes(uploadSpeedBytesPerSec)}/s";
-        }
-        else
-        {
-            SpeedText.Text = downText;
-        }
+        SpeedText.Text = uploadSpeedBytesPerSec > 0
+            ? $"{downText}  ↑ {DownloadRow.FormatBytes(uploadSpeedBytesPerSec)}/s"
+            : downText;
 
+        UpdateProgressBar(progress, activeCount);
+    }
+
+    private void UpdateProgressBar(double progress, int activeCount)
+    {
         if (activeCount > 0 && progress > 0)
         {
             OverallProgressBar.Visibility = Visibility.Visible;
@@ -264,14 +280,14 @@ public partial class MiniWidgetWindow : Window
             anim.Completed += (_, _) =>
             {
                 Hide();
-                onClose?.Invoke();
+                _options.OnClose?.Invoke();
             };
             BeginAnimation(OpacityProperty, anim);
         }
         else
         {
             Hide();
-            onClose?.Invoke();
+            _options.OnClose?.Invoke();
         }
     }
 

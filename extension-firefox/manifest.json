@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "N&T Integration",
-  "version": "1.3.7",
+  "version": "1.3.8",
   "description": "Send downloads and detected media to the N&T desktop download manager.",
   "icons": {
     "16": "icons/16.png",
