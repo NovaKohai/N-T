@@ -3,10 +3,34 @@
 All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
 
+## [1.3.10] - 2026-11-01
+
+### Changed
+- الملخص العام: يركز هذا التحديث الضخم على هوية بصرية جديدة كلياً وتصميم أيقونة هندسية راقية، شاشة بدء تشغيل انسيابية تفاعلية، تحسينات جذرية في الأداء واستهلاك موارد الذاكرة والقرص (Zero-Copy Assembly & ArrayPool)، وإصلاح مشكلة رفض تنزيل روابط البث المباشر الموقّعة (403 Forbidden).
+
+## [1.3.9] - 2026-10-31
+
+### Added
+- **Bespoke Desktop Icon Craft**: Replaced the previous icon with a bespoke, razor-sharp geometric monogram: an electric mint-teal speed 'N' seamlessly fused with a downward download velocity arrow against an obsidian squircle tile with subtle neon aura. Packed a true multi-tier 32-bit `NT.ico` with 7 full resolutions (16px to 256px), delivering pin-sharp clarity across Windows 10/11 taskbars, Alt+Tab, Start Menu, and High-DPI displays.
+- **Asynchronous Startup Splash Screen**: Restructured the startup sequence to yield dispatcher frames immediately, enabling smooth card animations, live progressive status updates ("Restoring download queueâ€¦", "Connecting torrent clientâ€¦", "Ready"), and an intentional ~750ms minimum display threshold with seamless cross-fade into the main window.
+
+### Changed
+- **Smooth Pixel Scrolling**: Enabled `VirtualizingPanel.ScrollUnit="Pixel"` with 2-page lookahead caching on the downloads queue, delivering fluid 60/120 Hz scrolling through large download lists.
+- **Adaptive Telemetry Throttling**: Implemented intelligent idle backoff on the main window refresh loop: telemetry updates run at 500ms during active transfers and gracefully relax to 1500ms when idle, saving background CPU cycles and laptop battery life while keeping instant 0-latency reaction to user actions.
+- **Instant Zero-Copy Single-Stream Assembly**: Single-part and single-stream downloads now assemble via instant atomic filesystem renames instead of full disk re-reads, completing in sub-millisecond O(1) time and eliminating disk thrashing and duplicate SSD writes.
+- **Large Object Heap (LOH) Elimination with `ArrayPool`**: Multi-part assembly buffers (4 MB) and streaming buffers now use `ArrayPool<byte>.Shared`, eliminating LOH memory fragmentation and expensive Gen 2 garbage collections.
+- **High-Throughput Network `ReadAsync`**: Replaced per-read `CancellationTokenSource.CreateLinkedTokenSource` allocations with zero-allocation `WaitAsync` timeouts, removing thousands of CTS and timer allocations per second on gigabit downloads.
+- **Single-Pass UI Queue Telemetry**: Collapsed multi-pass LINQ iterations over the downloads queue into a single allocation-free loop for active counts, download/upload speeds, and aggregate progress calculations.
+
+### Fixed
+- **HLS Stream Capture & Signed URLs**: Fixed an issue where stream manifest URLs (.m3u8) failed with HTTP 403 Forbidden because signature and timestamp query parameters were stripped by cache-busting filters. Manifests and URLs containing authentication signatures (`sig`, `sig2`, `token`, `hash`, etc.) now preserve all parameters intact.
+- **Direct HLS & YouTube Pipeline**: Streamlined the download pipeline so HLS playlists and YouTube URLs bypass premature `Range: bytes=0-0` byte-range probes, routing directly to the dedicated HLS and yt-dlp handlers.
+- **Range-Hostile Server Fallback**: Enhanced the download engine's pre-flight probe so servers and CDNs that reject `Range` headers with 400, 403, 405, or 501 gracefully fall back to single-stream GET instead of failing immediately.
+
 ## [1.3.8] - 2026-10-30
 
 ### Changed
-- 🌟 المميزات والإضافات الجديدة (Added)
+- ðŸŒŸ Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª ÙˆØ§Ù„Ø¥Ø¶Ø§ÙØ§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© (Added)
 
 ## [1.3.7] - 2026-10-29
 
@@ -43,15 +67,15 @@ and the project uses [Semantic Versioning](https://semver.org/). The rule for ke
 ## [1.3.3] - 2026-10-28
 
 ### Added
-- التحقق من سلامة التنزيلات (Checksum): دعم فحص التجزئة SHA-256 و SHA-1 و MD5 أثناء التجميع لمنع التلف، مع شارة التحقق في نافذة الاكتمال.
-- فك الضغط الآمن (Safe ZIP Extraction): فك ضغط آمن ومحمي ضد هجمات مسار المجلدات Zip-Slip مع خيار الاستخراج التلقائي.
-- نافذة السرعة المصغرة العائمة (Mini Speed Widget): نافذة عائمة فوق التطبيقات لعرض السرعة الإجمالية وعدد التنزيلات، وتدعم السحب والإفلات للروابط وملفات التورنت.
-- إشعارات تفاعلية مخصصة (Interactive Toast Balloon): إشعار اكتمال التنزيل يحتوي على أزرار سريعة لفتح الملف أو فتح المجلد مباشرة أو إغلاق الإشعار.
-- جدولة النطاق الترددي التلقائية (Bandwidth Scheduling): تحديد أوقات ذروة لتقييد السرعة نهاراً وفتح السرعة الكاملة ليلاً تلقائياً.
-- شاشة متقدمة لبيانات التورنت (Torrent Telemetry): تبويبات لمراقبة المتتبعات Trackers والأقران Peers وسرعاتهم مع إمكانية إضافة Trackers جديدة أثناء التحميل.
-- تخطي الاعتراض في المتصفح (Alt-Click Bypass): النقر مع الضغط على زر Alt لتنزيل الملف عبر المتصفح مباشرة دون اعتراضه.
-- قائمة المواقع المستثناة (Domain Blacklist): استثناء نطاقات محددة من اعتراض التنزيلات والوسائط عبر نافذة الإضافة.
-- التقاط ملفات الترجمة (Subtitle Sniffing): اكتشاف وتنزيل تدفقات الترجمة WebVTT (.vtt) و SubRip (.srt).
+- Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø³Ù„Ø§Ù…Ø© Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª (Checksum): Ø¯Ø¹Ù… ÙØ­Øµ Ø§Ù„ØªØ¬Ø²Ø¦Ø© SHA-256 Ùˆ SHA-1 Ùˆ MD5 Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„ØªØ¬Ù…ÙŠØ¹ Ù„Ù…Ù†Ø¹ Ø§Ù„ØªÙ„ÙØŒ Ù…Ø¹ Ø´Ø§Ø±Ø© Ø§Ù„ØªØ­Ù‚Ù‚ ÙÙŠ Ù†Ø§ÙØ°Ø© Ø§Ù„Ø§ÙƒØªÙ…Ø§Ù„.
+- ÙÙƒ Ø§Ù„Ø¶ØºØ· Ø§Ù„Ø¢Ù…Ù† (Safe ZIP Extraction): ÙÙƒ Ø¶ØºØ· Ø¢Ù…Ù† ÙˆÙ…Ø­Ù…ÙŠ Ø¶Ø¯ Ù‡Ø¬Ù…Ø§Øª Ù…Ø³Ø§Ø± Ø§Ù„Ù…Ø¬Ù„Ø¯Ø§Øª Zip-Slip Ù…Ø¹ Ø®ÙŠØ§Ø± Ø§Ù„Ø§Ø³ØªØ®Ø±Ø§Ø¬ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ.
+- Ù†Ø§ÙØ°Ø© Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„Ù…ØµØºØ±Ø© Ø§Ù„Ø¹Ø§Ø¦Ù…Ø© (Mini Speed Widget): Ù†Ø§ÙØ°Ø© Ø¹Ø§Ø¦Ù…Ø© ÙÙˆÙ‚ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚Ø§Øª Ù„Ø¹Ø±Ø¶ Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠØ© ÙˆØ¹Ø¯Ø¯ Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§ØªØŒ ÙˆØªØ¯Ø¹Ù… Ø§Ù„Ø³Ø­Ø¨ ÙˆØ§Ù„Ø¥ÙÙ„Ø§Øª Ù„Ù„Ø±ÙˆØ§Ø¨Ø· ÙˆÙ…Ù„ÙØ§Øª Ø§Ù„ØªÙˆØ±Ù†Øª.
+- Ø¥Ø´Ø¹Ø§Ø±Ø§Øª ØªÙØ§Ø¹Ù„ÙŠØ© Ù…Ø®ØµØµØ© (Interactive Toast Balloon): Ø¥Ø´Ø¹Ø§Ø± Ø§ÙƒØªÙ…Ø§Ù„ Ø§Ù„ØªÙ†Ø²ÙŠÙ„ ÙŠØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ Ø£Ø²Ø±Ø§Ø± Ø³Ø±ÙŠØ¹Ø© Ù„ÙØªØ­ Ø§Ù„Ù…Ù„Ù Ø£Ùˆ ÙØªØ­ Ø§Ù„Ù…Ø¬Ù„Ø¯ Ù…Ø¨Ø§Ø´Ø±Ø© Ø£Ùˆ Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±.
+- Ø¬Ø¯ÙˆÙ„Ø© Ø§Ù„Ù†Ø·Ø§Ù‚ Ø§Ù„ØªØ±Ø¯Ø¯ÙŠ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠØ© (Bandwidth Scheduling): ØªØ­Ø¯ÙŠØ¯ Ø£ÙˆÙ‚Ø§Øª Ø°Ø±ÙˆØ© Ù„ØªÙ‚ÙŠÙŠØ¯ Ø§Ù„Ø³Ø±Ø¹Ø© Ù†Ù‡Ø§Ø±Ø§Ù‹ ÙˆÙØªØ­ Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„ÙƒØ§Ù…Ù„Ø© Ù„ÙŠÙ„Ø§Ù‹ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹.
+- Ø´Ø§Ø´Ø© Ù…ØªÙ‚Ø¯Ù…Ø© Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªÙˆØ±Ù†Øª (Torrent Telemetry): ØªØ¨ÙˆÙŠØ¨Ø§Øª Ù„Ù…Ø±Ø§Ù‚Ø¨Ø© Ø§Ù„Ù…ØªØªØ¨Ø¹Ø§Øª Trackers ÙˆØ§Ù„Ø£Ù‚Ø±Ø§Ù† Peers ÙˆØ³Ø±Ø¹Ø§ØªÙ‡Ù… Ù…Ø¹ Ø¥Ù…ÙƒØ§Ù†ÙŠØ© Ø¥Ø¶Ø§ÙØ© Trackers Ø¬Ø¯ÙŠØ¯Ø© Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„ØªØ­Ù…ÙŠÙ„.
+- ØªØ®Ø·ÙŠ Ø§Ù„Ø§Ø¹ØªØ±Ø§Ø¶ ÙÙŠ Ø§Ù„Ù…ØªØµÙØ­ (Alt-Click Bypass): Ø§Ù„Ù†Ù‚Ø± Ù…Ø¹ Ø§Ù„Ø¶ØºØ· Ø¹Ù„Ù‰ Ø²Ø± Alt Ù„ØªÙ†Ø²ÙŠÙ„ Ø§Ù„Ù…Ù„Ù Ø¹Ø¨Ø± Ø§Ù„Ù…ØªØµÙØ­ Ù…Ø¨Ø§Ø´Ø±Ø© Ø¯ÙˆÙ† Ø§Ø¹ØªØ±Ø§Ø¶Ù‡.
+- Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ù…ÙˆØ§Ù‚Ø¹ Ø§Ù„Ù…Ø³ØªØ«Ù†Ø§Ø© (Domain Blacklist): Ø§Ø³ØªØ«Ù†Ø§Ø¡ Ù†Ø·Ø§Ù‚Ø§Øª Ù…Ø­Ø¯Ø¯Ø© Ù…Ù† Ø§Ø¹ØªØ±Ø§Ø¶ Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª ÙˆØ§Ù„ÙˆØ³Ø§Ø¦Ø· Ø¹Ø¨Ø± Ù†Ø§ÙØ°Ø© Ø§Ù„Ø¥Ø¶Ø§ÙØ©.
+- Ø§Ù„ØªÙ‚Ø§Ø· Ù…Ù„ÙØ§Øª Ø§Ù„ØªØ±Ø¬Ù…Ø© (Subtitle Sniffing): Ø§ÙƒØªØ´Ø§Ù ÙˆØªÙ†Ø²ÙŠÙ„ ØªØ¯ÙÙ‚Ø§Øª Ø§Ù„ØªØ±Ø¬Ù…Ø© WebVTT (.vtt) Ùˆ SubRip (.srt).
 
 ## [1.3.2] - 2026-10-28
 
@@ -76,7 +100,7 @@ and the project uses [Semantic Versioning](https://semver.org/). The rule for ke
 ### Added
 - Reliability: Added pre-download, pre-assembly, and torrent volume capacity verification to prevent drive exhaustion and partial staging corruption.
 - Engine: Implemented smart resume disk space calculation that checks only remaining un-downloaded bytes instead of total file size, allowing partial downloads to resume safely.
-- UI: Added a direct "Refresh addressâ€¦" action in DownloadProgressWindow and queue context menus to immediately update expired links and resume failed or paused downloads.
+- UI: Added a direct "Refresh addressÃ¢â‚¬Â¦" action in DownloadProgressWindow and queue context menus to immediately update expired links and resume failed or paused downloads.
 - UI: Added live free disk space telemetry to the main window status bar alongside aggregate transfer rates.
 - Torrent: Added interactive context menu to TorrentDetailsWindow file list supporting live priority changes (High, Normal, Low, Skip) and one-click file and folder opening.
 

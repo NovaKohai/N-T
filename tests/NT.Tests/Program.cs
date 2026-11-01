@@ -63,7 +63,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("URL range pattern expansion and Cartesian product", () => { UrlPatternTests.Run(); return Task.CompletedTask; }),
     ("downloadable link classification and filtering", () => { DownloadableLinkDetectorTests.Run(); return Task.CompletedTask; }),
     ("host link resolution (datanodes.to, fuckingfast.co, batch, error handling)", HostLinkResolverTests.RunAsync),
-    ("checksum verification: matching hash completes, mismatch fails with integrity error", () => ManageTests.ChecksumVerification(Paths))
+    ("checksum verification: matching hash completes, mismatch fails with integrity error", () => ManageTests.ChecksumVerification(Paths)),
+    ("range-hostile 403 falls back to single-stream GET", RangeForbiddenFallback)
 };
 var filter = args.FirstOrDefault(a => !a.StartsWith("--"));
 var activeTests = filter != null ? tests.Where(t => t.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToArray() : tests;
@@ -120,6 +121,12 @@ async Task Streaming()
     Exact(await Complete(manager, job.Id), server.Payload);
     Check(server.Ranges.Count == 0 && server.Requests("/no-range") == 2, "Expected probe then full stream");
     Check(server.Headers.Where(h => h.Path == "/no-range").All(h => h.Cookie == "session=fixture" && h.Referer == server.BaseUrl + "/page"), "Header forwarding failed");
+}
+async Task RangeForbiddenFallback()
+{
+    using var server = new FixtureServer(); using var manager = Manager(Paths());
+    var job = await manager.AddAsync(new(server.BaseUrl + "/range-forbidden"));
+    Exact(await Complete(manager, job.Id), server.Payload);
 }
 async Task UnknownAndEmpty()
 {

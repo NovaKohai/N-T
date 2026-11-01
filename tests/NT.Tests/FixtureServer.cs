@@ -103,6 +103,11 @@ internal sealed class FixtureServer : IDisposable
                     if (ranged) Ranges.Enqueue((path, start, end));
                 }
             }
+            if (path == "/range-forbidden" && headers.ContainsKey("Range"))
+            {
+                await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"), stop.Token);
+                return;
+            }
             if (path == "/changed-segment" && !probe) { payload = Replacement; ranged = false; }
             if (headers.TryGetValue("If-Range", out var validator) && validator.StartsWith('"') && validator != '"' + "v" + Volatile.Read(ref Version) + '"') ranged = false;
             if (!ranged) { start = 0; end = payload.Length - 1; }

@@ -26,7 +26,7 @@ public partial class App : Application
     /// <summary>Release checks and the update dialog (null until the main window exists).</summary>
     public UpdateController? Updates { get; private set; }
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         var startup = StartupArguments.Parse(e.Args);
         _singleton = new Mutex(true, @"Local\NT.App" + InstanceSuffix, out _ownsMutex);
@@ -43,6 +43,7 @@ public partial class App : Application
                 }
             }));
         SplashScreenWindow? splash = null;
+        long splashStart = System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
             Directory.CreateDirectory(StateDirectory);
@@ -53,6 +54,7 @@ public partial class App : Application
             {
                 splash = new SplashScreenWindow();
                 splash.Show();
+                await Task.Yield();
             }
 
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += (_, args) =>
@@ -62,14 +64,25 @@ public partial class App : Application
                     Dispatcher.BeginInvoke(() => { if (ThemeManager.CurrentId == ThemeCatalog.SystemId) ApplyTheme(ThemeCatalog.SystemId, ThemeManager.CurrentAccent); });
             };
             Directory.CreateDirectory(Settings.DownloadDirectory);
-            splash?.SetStatus("Restoring queue…");
+
+            splash?.SetStatus("Restoring download queue…");
+            if (splash != null) await Task.Yield();
+
             _manager = new DownloadManager(
                 Settings.DownloadDirectory, 
                 StateDirectory, 
                 OptionsHelper.CreateDownloadOptions(Settings),
                 fileName => CategoryHelper.GetDownloadPath(fileName, Settings));
+
+            splash?.SetStatus("Connecting torrent client…");
+            if (splash != null) await Task.Yield();
+
             _torrents = new TorrentController(Path.Combine(StateDirectory, "torrent"), Settings);
             _torrentFeature = new TorrentFeature(_torrents, Settings);
+
+            splash?.SetStatus("Preparing user interface…");
+            if (splash != null) await Task.Yield();
+
             var window = new MainWindow(_manager, Settings, () => Settings.Save(StateDirectory), enableTray: true, power: null, torrents: _torrentFeature);
             window.JobCompletion = new JobCompletionStore(Path.Combine(StateDirectory, "job-completion.json"));
             window.JobCompletion.Prune(_manager.Jobs.Select(j => j.Id));
@@ -89,15 +102,23 @@ public partial class App : Application
                 if (splash != null)
                 {
                     splash.SetStatus("Ready");
-                    _ = splash.FadeOutAndCloseAsync(180);
+                    var elapsedMs = System.Diagnostics.Stopwatch.GetElapsedTime(splashStart).TotalMilliseconds;
+                    var remainingMs = Math.Max(0, 750 - elapsedMs);
+                    if (remainingMs > 0) await Task.Delay((int)remainingMs);
+                    var closeTask = splash.FadeOutAndCloseAsync(200);
+                    window.Show();
+                    await closeTask;
                 }
-                window.Show();
+                else
+                {
+                    window.Show();
+                }
             }
 
             // The engine (and its listening socket) only exists once the user has torrents.
             if (TorrentController.HasSavedTorrents(Path.Combine(StateDirectory, "torrent"))) _ = _torrents.EnsureAsync().ContinueWith(_ => { }, TaskScheduler.Default);
-            foreach (var magnet in startup.Magnets) Dispatcher.InvokeAsync(() => window.AddMagnetAsync(magnet));
-            foreach (var file in startup.TorrentFiles) Dispatcher.InvokeAsync(() => window.AddTorrentPathAsync(Path.GetFullPath(file)));
+            foreach (var magnet in startup.Magnets) _ = Dispatcher.InvokeAsync(() => window.AddMagnetAsync(magnet));
+            foreach (var file in startup.TorrentFiles) _ = Dispatcher.InvokeAsync(() => window.AddTorrentPathAsync(Path.GetFullPath(file)));
         }
         catch (Exception ex)
         {

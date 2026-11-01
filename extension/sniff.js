@@ -80,7 +80,8 @@
   }
   /* ---- grouping: every piece of one resource maps to one canonical URL ---- */
   const RANGE_PARAMS = new Set('range bytestart byteend start end begin offset rn rbuf bytes from to sq seg segment fragment chunk part frag'.split(' '));
-  const CACHE_PARAMS = new Set('_ _t ts cb nocache rnd random cachebust cachebuster timestamp time'.split(' '));
+  const CACHE_PARAMS = new Set('_ _t ts cb nocache rnd random cachebust cachebuster'.split(' '));
+  const SIG_PARAMS = new Set('sig sig2 signature token tok hash hmac auth key st md5 expires exp wsauth sign sign2'.split(' '));
   const GOOGLE_PARAMS = new Set(['range', 'rn', 'rbuf', 'sq', 'ump', 'alr']); // per-request only; itag, id, expire, sig, lsig, mime, clen, dur stay
   const PATH_RANGE = /\/(?:range\/\d+-\d*|bytes[=_]\d+-\d*)(?=\/|$)/gi;
   const SEG_MAX = 16 * 1024 * 1024; // a fragment of an adaptive stream is never larger than this
@@ -98,7 +99,9 @@
     let u; try { u = new URL(url); } catch { return String(url || ''); }
     const c = new URL(u.href); c.hash = '';
     if (isGoogleVideo(u)) { c.search = stripQuery(u, GOOGLE_PARAMS); return c.href; }
-    c.search = stripQuery(u, new Set([...RANGE_PARAMS, ...CACHE_PARAMS]));
+    const hasSig = queryKeys(u).some(k => SIG_PARAMS.has(k)) || isHlsUrl(u.href);
+    const drop = hasSig ? RANGE_PARAMS : new Set([...RANGE_PARAMS, ...CACHE_PARAMS]);
+    c.search = stripQuery(u, drop);
     const path = u.pathname.replace(PATH_RANGE, ''); if (path !== u.pathname) c.pathname = path || '/';
     return c.href;
   }
@@ -212,7 +215,9 @@
     // HLS stream manifest (.m3u8): offered as a complete MP4 video download via FFmpeg
     if (isHlsUrl(details.url) || isHlsMime(type)) {
       const url = canonicalUrl(u.href);
-      out.item = { id: url, url, rawUrl: u.href, groupKey: url, kind: 'video', track: 'stream', isHls: true, complete: true, size: 0, quality: extractQuality(u.href), mime: 'application/vnd.apple.mpegurl', source: 'net' };
+      const initiator = details.initiator || '';
+      const documentUrl = details.documentUrl || '';
+      out.item = { id: url, url: u.href, rawUrl: u.href, groupKey: url, kind: 'video', track: 'stream', isHls: true, complete: true, size: 0, quality: extractQuality(u.href), mime: 'application/vnd.apple.mpegurl', source: 'net', initiator, documentUrl };
       return out;
     }
 
@@ -301,7 +306,7 @@
     let quality = tag === 'audio' ? '' : extractQuality(u.href);
     if (!quality && height > 0) quality = qualityFromHeight(height);
     const estimatedSize = duration > 0 ? estimateBytes(duration, height || (quality ? parseInt(quality, 10) : 0) || 720, tag === 'audio') : 0;
-    const item = { id: key, url: key, rawUrl: u.href, groupKey: key, kind: tag === 'audio' ? 'audio' : 'video', track: isHls ? 'stream' : 'file', isHls, complete: true, size: 0, quality, mime: isHls ? 'application/vnd.apple.mpegurl' : (isYt ? 'video/mp4' : ''), source: 'dom', primary: true };
+    const item = { id: key, url: isHls ? u.href : key, rawUrl: u.href, groupKey: key, kind: tag === 'audio' ? 'audio' : 'video', track: isHls ? 'stream' : 'file', isHls, complete: true, size: 0, quality, mime: isHls ? 'application/vnd.apple.mpegurl' : (isYt ? 'video/mp4' : ''), source: 'dom', primary: true };
     if (title) item.title = title;
     if (estimatedSize > 0) item.estimatedSize = estimatedSize;
     if (duration > 0) item.duration = duration;

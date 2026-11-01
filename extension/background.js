@@ -193,11 +193,14 @@ async function downloadItem(tab, id) {
   if (!title && Number.isInteger(tab?.id)) {
     try { const t = await chrome.tabs.get(tab.id); if (t?.title) title = t.title; } catch {}
   }
-  const request = url => ({ url, fileName: suggestedName(item, title), referer: http(tab.url) ? tab.url : '', method: 'GET' });
-  try { return await send(request(item.url), tab); }
+  const targetUrl = (item.isHls && item.rawUrl) ? item.rawUrl : item.url;
+  const referer = (item.documentUrl && http(item.documentUrl)) ? item.documentUrl
+    : (http(tab?.url) ? tab.url : (item.initiator && http(item.initiator) ? item.initiator : ''));
+  const request = url => ({ url, fileName: suggestedName(item, title), referer, method: 'GET' });
+  try { return await send(request(targetUrl), tab); }
   catch (e) {
     // The URL without range parameters failed to start: try the URL exactly as the page requested it, once.
-    if (!e?.cancelled && item.rawUrl && item.rawUrl !== item.url && http(item.rawUrl)) {
+    if (!e?.cancelled && item.rawUrl && item.rawUrl !== targetUrl && http(item.rawUrl)) {
       try { return await send(request(item.rawUrl), tab); } catch (e2) { e = e2; }
     }
     return { ok: false, error: e?.message || 'N&T did not acknowledge this URL.' };

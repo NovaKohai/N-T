@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
@@ -480,6 +481,20 @@ public sealed partial class DownloadManager : IDisposable
                 try
                 {
                     token.ThrowIfCancellationRequested();
+                    if (IsYoutube(w))
+                    {
+                        await DownloadYoutubeAsync(w, token).ConfigureAwait(false);
+                        token.ThrowIfCancellationRequested();
+                        await PublishAsync(w, token).ConfigureAwait(false);
+                        break;
+                    }
+                    if (IsHls(w, null))
+                    {
+                        await DownloadHlsAsync(w, token).ConfigureAwait(false);
+                        token.ThrowIfCancellationRequested();
+                        await PublishAsync(w, token).ConfigureAwait(false);
+                        break;
+                    }
                     Probe probe;
                     lock (gate) { w.Probing = true; w.Job.ResumeSupported = null; }
                     try { probe = await ProbeAsync(w, token).ConfigureAwait(false); }
@@ -528,7 +543,7 @@ public sealed partial class DownloadManager : IDisposable
         {
             lock (gate)
             {
-                if (!w.Removed && w.Job.Status == "Downloading") { w.Job.Status = "Failed"; w.Job.Error = ex.Message; }
+                if (!w.Removed && w.Job.Status == "Downloading") { w.Job.Status = "Failed"; w.Job.Error = FormatDownloadError(ex); }
             }
         }
         finally
@@ -546,6 +561,53 @@ public sealed partial class DownloadManager : IDisposable
         }
     }
 
+    private static string FormatDownloadError(Exception ex)
+    {
+        var msg = ex.Message;
+        if (ex is HttpRequestException hre)
+        {
+            if (hre.StatusCode == HttpStatusCode.Forbidden || msg.Contains("403"))
+                return "Access forbidden (403 Forbidden). The download link or security signature has expired, or requires the webpage's Referer/session cookies. Refresh the page in your browser or click 'Refresh address'.";
+            if (hre.StatusCode == HttpStatusCode.Unauthorized || msg.Contains("401"))
+                return "Authentication required (401 Unauthorized). The download requires browser login credentials or session cookies.";
+            if (hre.StatusCode == HttpStatusCode.NotFound || msg.Contains("404"))
+                return "File not found on server (404 Not Found). The download link is invalid or has been removed.";
+        }
+        else if (msg.Contains("403") && msg.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Access forbidden (403 Forbidden). The download link or security signature has expired, or requires the webpage's Referer/session cookies. Refresh the page in your browser or click 'Refresh address'.";
+        }
+        return msg;
+    }
+
+    internal static Uri MergeHlsUri(Uri baseUri, string relativeOrAbsolute)
+    {
+        var target = new Uri(baseUri, relativeOrAbsolute);
+        if (string.IsNullOrEmpty(baseUri.Query)) return target;
+        if (string.IsNullOrEmpty(target.Query))
+            return new UriBuilder(target) { Query = baseUri.Query.TrimStart('?') }.Uri;
+
+        var targetKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var part in target.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = part.IndexOf('=');
+            targetKeys.Add(eq >= 0 ? part[..eq] : part);
+        }
+
+        var sb = new StringBuilder(target.Query.TrimStart('?'));
+        foreach (var part in baseUri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = part.IndexOf('=');
+            var key = eq >= 0 ? part[..eq] : part;
+            if (!targetKeys.Contains(key))
+            {
+                if (sb.Length > 0) sb.Append('&');
+                sb.Append(part);
+            }
+        }
+        return new UriBuilder(target) { Query = sb.ToString() }.Uri;
+    }
+
     private const string DefaultBrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
     private static bool IsRetryable(Exception ex) => ex is not DiskSpaceException && (ex is IOException or HttpRequestException or OperationCanceledException);
 
@@ -554,7 +616,17 @@ public sealed partial class DownloadManager : IDisposable
     private HttpRequestMessage Request(Work w, string url)
     {
         var message = new HttpRequestMessage(HttpMethod.Get, url);
-        message.Headers.AcceptEncoding.ParseAdd("identity");
+        if (!IsHlsUrl(url))
+        {
+            message.Headers.AcceptEncoding.ParseAdd("identity");
+        }
+        else
+        {
+            message.Headers.TryAddWithoutValidation("Accept", "*/*");
+            message.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
+            message.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
+            message.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "cross-site");
+        }
         message.Headers.TryAddWithoutValidation("User-Agent", DefaultBrowserUserAgent);
         if (w.Request.Referer != null)
         {
@@ -563,6 +635,11 @@ public sealed partial class DownloadManager : IDisposable
                 message.Headers.Referrer = refUri;
                 message.Headers.TryAddWithoutValidation("Origin", refUri.GetLeftPart(UriPartial.Authority));
             }
+        }
+        else if (IsHlsUrl(url) && Uri.TryCreate(url, UriKind.Absolute, out var itemUri))
+        {
+            message.Headers.Referrer = new Uri(itemUri.GetLeftPart(UriPartial.Authority) + "/");
+            message.Headers.TryAddWithoutValidation("Origin", itemUri.GetLeftPart(UriPartial.Authority));
         }
         if (w.Request.Cookie != null) message.Headers.Add("Cookie", w.Request.Cookie);
         return message;
@@ -604,6 +681,16 @@ public sealed partial class DownloadManager : IDisposable
         request.Headers.Range = new RangeHeaderValue(0, 0);
         using var response = await SendAsync(request, token).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable) return new Probe(false, 0, null, null, response.RequestMessage?.RequestUri?.AbsoluteUri ?? w.Request.Url, Describe(response, Array.Empty<byte>()));
+        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden or HttpStatusCode.MethodNotAllowed or HttpStatusCode.NotImplemented)
+        {
+            using var fallbackReq = Request(w);
+            using var fallbackResp = await SendAsync(fallbackReq, token).ConfigureAwait(false);
+            if (fallbackResp.IsSuccessStatusCode)
+            {
+                var fbLength = fallbackResp.Content.Headers.ContentLength ?? 0;
+                return new Probe(false, fbLength, null, null, fallbackResp.RequestMessage?.RequestUri?.AbsoluteUri ?? w.Request.Url, Describe(fallbackResp, Array.Empty<byte>()));
+            }
+        }
         response.EnsureSuccessStatusCode();
         var range = response.Content.Headers.ContentRange;
         var etag = response.Headers.ETag is { IsWeak: false } tag ? tag.ToString() : null;
@@ -690,17 +777,24 @@ public sealed partial class DownloadManager : IDisposable
         using var input = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
         await using var output = new FileStream(PartFile(w, segment.PartId!.Value), FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read, 1, FileOptions.Asynchronous);
         output.SetLength(segment.Done); output.Position = segment.Done;
-        var buffer = new byte[65536];
-        while (segment.Done < segment.Length)
+        var buffer = ArrayPool<byte>.Shared.Rent(65536);
+        try
         {
-            var read = await ReadAsync(input, buffer.AsMemory(0, (int)Math.Min(buffer.Length, segment.Length - segment.Done)), token).ConfigureAwait(false);
-            if (read == 0) throw new IOException("The server truncated a range response.");
-            await ThrottleAsync(w, read, token).ConfigureAwait(false);
-            await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-            lock (gate) { segment.Done += read; UpdateProgressLocked(w); }
+            while (segment.Done < segment.Length)
+            {
+                var read = await ReadAsync(input, buffer.AsMemory(0, (int)Math.Min(65536, segment.Length - segment.Done)), token).ConfigureAwait(false);
+                if (read == 0) throw new IOException("The server truncated a range response.");
+                await ThrottleAsync(w, read, token).ConfigureAwait(false);
+                await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                lock (gate) { segment.Done += read; UpdateProgressLocked(w); }
+            }
+            if (await ReadAsync(input, buffer.AsMemory(0, 1), token).ConfigureAwait(false) != 0) throw new RangeRejectedException();
+            await output.FlushAsync(token).ConfigureAwait(false);
         }
-        if (await ReadAsync(input, buffer.AsMemory(0, 1), token).ConfigureAwait(false) != 0) throw new RangeRejectedException();
-        await output.FlushAsync(token).ConfigureAwait(false);
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     private async Task DownloadStreamingAsync(Work w, CancellationToken token)
@@ -731,39 +825,42 @@ public sealed partial class DownloadManager : IDisposable
         }
         using var input = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
         await using var output = new FileStream(PartFile(w, 0), FileMode.Create, FileAccess.Write, FileShare.Read, 1, FileOptions.Asynchronous);
-        var buffer = new byte[65536];
-        while (true)
+        var buffer = ArrayPool<byte>.Shared.Rent(65536);
+        try
         {
-            var read = await ReadAsync(input, buffer, token).ConfigureAwait(false);
-            if (read == 0) break;
-            if (length != null && read > length.Value - segment.Done) throw new IOException("Server exceeded declared content length.");
-            await ThrottleAsync(w, read, token).ConfigureAwait(false);
-            await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-            lock (gate) { segment.Done += read; UpdateProgressLocked(w); }
+            while (true)
+            {
+                var read = await ReadAsync(input, buffer.AsMemory(0, 65536), token).ConfigureAwait(false);
+                if (read == 0) break;
+                if (length != null && read > length.Value - segment.Done) throw new IOException("Server exceeded declared content length.");
+                await ThrottleAsync(w, read, token).ConfigureAwait(false);
+                await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                lock (gate) { segment.Done += read; UpdateProgressLocked(w); }
+            }
+            if (length != null && segment.Done != length) throw new IOException("The server truncated the download.");
+            await output.FlushAsync(token).ConfigureAwait(false);
+            lock (gate) { w.Total = segment.Length = segment.Done; UpdateProgressLocked(w); }
         }
-        if (length != null && segment.Done != length) throw new IOException("The server truncated the download.");
-        await output.FlushAsync(token).ConfigureAwait(false);
-        lock (gate) { w.Total = segment.Length = segment.Done; UpdateProgressLocked(w); }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
-    private static bool IsHls(Work w, Probe probe)
+    private static bool IsHlsUrl(string? url)
     {
-        if (Uri.TryCreate(w.Request.Url, UriKind.Absolute, out var reqUri))
-        {
-            if (reqUri.AbsolutePath.Contains(".m3u8", StringComparison.OrdinalIgnoreCase) ||
-                reqUri.Query.Contains(".m3u8", StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        return uri.AbsolutePath.Contains(".m3u8", StringComparison.OrdinalIgnoreCase) ||
+               uri.Query.Contains(".m3u8", StringComparison.OrdinalIgnoreCase);
+    }
 
-        if (probe.Description?.ContentType is { } ct && ct.Contains("mpegurl", StringComparison.OrdinalIgnoreCase))
+    private static bool IsHls(Work w, Probe? probe)
+    {
+        if (IsHlsUrl(w.Request.Url) || IsHlsUrl(w.ResolvedUrl)) return true;
+        if (probe?.Description?.ContentType is { } ct && ct.Contains("mpegurl", StringComparison.OrdinalIgnoreCase))
             return true;
-
-        var url = probe.ResolvedUrl ?? w.ResolvedUrl;
-        if (url != null && Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            return uri.AbsolutePath.Contains(".m3u8", StringComparison.OrdinalIgnoreCase) ||
-                   uri.Query.Contains(".m3u8", StringComparison.OrdinalIgnoreCase);
-        }
+        if (IsHlsUrl(probe?.ResolvedUrl)) return true;
         return false;
     }
 
@@ -1123,7 +1220,9 @@ public sealed partial class DownloadManager : IDisposable
 
     private async Task<bool> DownloadHlsParallelAsync(Work w, string outputFile, string ffmpeg, CancellationToken token)
     {
-        var url = w.ResolvedUrl ?? w.Request.Url;
+        try
+        {
+            var url = w.ResolvedUrl ?? w.Request.Url;
 
         // 1. Fetch playlist
         using var m3u8Req = Request(w, url);
@@ -1131,7 +1230,7 @@ public sealed partial class DownloadManager : IDisposable
         if (!m3u8Resp.IsSuccessStatusCode) return false;
         var m3u8Content = await m3u8Resp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
         if (!m3u8Content.TrimStart().StartsWith("#EXTM3U", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("The stream playlist could not be loaded (the server returned an HTML webpage instead of an HLS playlist). The download link may have expired or requires browser session cookies.");
+            return false;
         var playlistUri = m3u8Resp.RequestMessage?.RequestUri ?? new Uri(url);
         if (string.IsNullOrEmpty(playlistUri.Query) && Uri.TryCreate(url, UriKind.Absolute, out var origUri) && !string.IsNullOrEmpty(origUri.Query))
             playlistUri = new UriBuilder(playlistUri) { Query = origUri.Query.TrimStart('?') }.Uri;
@@ -1166,16 +1265,13 @@ public sealed partial class DownloadManager : IDisposable
 
             if (bestVariantUri != null)
             {
-                var variantFullUri = new Uri(playlistUri, bestVariantUri);
-                if (string.IsNullOrEmpty(variantFullUri.Query) && !string.IsNullOrEmpty(playlistUri.Query))
-                    variantFullUri = new UriBuilder(variantFullUri) { Query = playlistUri.Query.TrimStart('?') }.Uri;
+                var variantFullUri = MergeHlsUri(playlistUri, bestVariantUri);
                 using var variantReq = Request(w, variantFullUri.AbsoluteUri);
                 using var variantResp = await SendAsync(variantReq, token).ConfigureAwait(false);
                 if (!variantResp.IsSuccessStatusCode) return false;
                 m3u8Content = await variantResp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
                 var resolvedUri = variantResp.RequestMessage?.RequestUri ?? variantFullUri;
-                if (string.IsNullOrEmpty(resolvedUri.Query) && !string.IsNullOrEmpty(playlistUri.Query))
-                    resolvedUri = new UriBuilder(resolvedUri) { Query = playlistUri.Query.TrimStart('?') }.Uri;
+                resolvedUri = MergeHlsUri(playlistUri, resolvedUri.AbsoluteUri);
                 playlistUri = resolvedUri;
             }
         }
@@ -1200,10 +1296,7 @@ public sealed partial class DownloadManager : IDisposable
                 var mapMatch = Regex.Match(line, @"URI=""([^""]+)""", RegexOptions.IgnoreCase);
                 if (mapMatch.Success)
                 {
-                    var resolvedMap = new Uri(playlistUri, mapMatch.Groups[1].Value);
-                    if (string.IsNullOrEmpty(resolvedMap.Query) && !string.IsNullOrEmpty(playlistUri.Query))
-                        resolvedMap = new UriBuilder(resolvedMap) { Query = playlistUri.Query.TrimStart('?') }.Uri;
-                    currentMapUri = resolvedMap.AbsoluteUri;
+                    currentMapUri = MergeHlsUri(playlistUri, mapMatch.Groups[1].Value).AbsoluteUri;
                 }
             }
             else if (line.StartsWith("#EXTINF:", StringComparison.OrdinalIgnoreCase))
@@ -1215,9 +1308,7 @@ public sealed partial class DownloadManager : IDisposable
                 {
                     var next = pLines[j].Trim();
                     if (string.IsNullOrEmpty(next) || next.StartsWith("#")) continue;
-                    var segUri = new Uri(playlistUri, next);
-                    if (string.IsNullOrEmpty(segUri.Query) && !string.IsNullOrEmpty(playlistUri.Query))
-                        segUri = new UriBuilder(segUri) { Query = playlistUri.Query.TrimStart('?') }.Uri;
+                    var segUri = MergeHlsUri(playlistUri, next);
                     segmentList.Add((segUri.AbsoluteUri, dur, currentMapUri));
                     break;
                 }
@@ -1261,7 +1352,7 @@ public sealed partial class DownloadManager : IDisposable
             var initFile = Path.Combine(partDir, "init.mp4");
             using var initReq = Request(w, currentMapUri);
             using var initResp = await SendAsync(initReq, token).ConfigureAwait(false);
-            initResp.EnsureSuccessStatusCode();
+            if (!initResp.IsSuccessStatusCode) return false;
             await using (var initOut = new FileStream(initFile, FileMode.Create, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous))
             {
                 await initResp.Content.CopyToAsync(initOut, token).ConfigureAwait(false);
@@ -1535,6 +1626,15 @@ public sealed partial class DownloadManager : IDisposable
         Notify();
 
         return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     private async Task DownloadHlsFfmpegDirectAsync(Work w, string outputFile, string ffmpeg, CancellationToken token)
@@ -1553,12 +1653,16 @@ public sealed partial class DownloadManager : IDisposable
         Notify();
 
         var headerBuilder = new StringBuilder();
-        headerBuilder.Append($"User-Agent: {DefaultBrowserUserAgent}\r\n");
         if (!string.IsNullOrEmpty(w.Request.Referer))
         {
             headerBuilder.Append($"Referer: {w.Request.Referer}\r\n");
             if (Uri.TryCreate(w.Request.Referer, UriKind.Absolute, out var refUri))
                 headerBuilder.Append($"Origin: {refUri.GetLeftPart(UriPartial.Authority)}\r\n");
+        }
+        else if (Uri.TryCreate(w.Request.Url, UriKind.Absolute, out var rootUri))
+        {
+            headerBuilder.Append($"Referer: {rootUri.GetLeftPart(UriPartial.Authority)}/\r\n");
+            headerBuilder.Append($"Origin: {rootUri.GetLeftPart(UriPartial.Authority)}\r\n");
         }
         if (!string.IsNullOrEmpty(w.Request.Cookie)) headerBuilder.Append($"Cookie: {w.Request.Cookie}\r\n");
 
@@ -1582,6 +1686,12 @@ public sealed partial class DownloadManager : IDisposable
         }
         startInfo.ArgumentList.Add("-protocol_whitelist");
         startInfo.ArgumentList.Add("file,http,https,tcp,tls,crypto,hls");
+        startInfo.ArgumentList.Add("-reconnect");
+        startInfo.ArgumentList.Add("1");
+        startInfo.ArgumentList.Add("-reconnect_streamed");
+        startInfo.ArgumentList.Add("1");
+        startInfo.ArgumentList.Add("-reconnect_delay_max");
+        startInfo.ArgumentList.Add("5");
         startInfo.ArgumentList.Add("-i");
         startInfo.ArgumentList.Add(url);
         startInfo.ArgumentList.Add("-c");
@@ -1733,15 +1843,25 @@ public sealed partial class DownloadManager : IDisposable
             return "The stream could not be loaded (the server returned invalid data or an HTML webpage instead of video). The download link may have expired or requires browser session cookies.";
         }
 
+        if (cleanLines.Any(l => l.Contains("403 Forbidden", StringComparison.OrdinalIgnoreCase) || l.Contains("HTTP error 403", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "Access forbidden (403 Forbidden). The video stream link or security signature has expired, or requires the webpage's Referer/session cookies. Refresh the page in your browser or click 'Refresh address'.";
+        }
+
         return $"{toolName} failed (exit code {exitCode}){(string.IsNullOrEmpty(details) ? "" : ": " + details)}";
     }
 
 
     private async Task<int> ReadAsync(Stream stream, Memory<byte> buffer, CancellationToken token)
     {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-        timeout.CancelAfter(options.RequestTimeout);
-        return await stream.ReadAsync(buffer, timeout.Token).ConfigureAwait(false);
+        try
+        {
+            return await stream.ReadAsync(buffer, token).AsTask().WaitAsync(options.RequestTimeout, token).ConfigureAwait(false);
+        }
+        catch (TimeoutException ex)
+        {
+            throw new IOException("The network read operation timed out.", ex);
+        }
     }
 
     private async Task ThrottleAsync(Work w, int bytes, CancellationToken token)
@@ -1807,45 +1927,68 @@ public sealed partial class DownloadManager : IDisposable
             Notify();
 
             const int BufferSize = 4 * 1024 * 1024;
-            var buffer = new byte[BufferSize];
             long totalWritten = 0;
             long totalExpected = w.Total > 0 ? w.Total : w.Segments.Sum(s => s.Done);
             EnsureDiskSpace(staging, totalExpected);
             var lastAssemblyNotify = Stopwatch.GetTimestamp();
 
-            await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous))
+            var parts = w.Segments.Where(s => s.PartId != null).Select(s => PartFile(w, s.PartId!.Value)).Distinct().ToArray();
+            bool singlePartSource = (parts.Length == 1 && File.Exists(parts[0])) ||
+                                   (parts.Length > 1 && File.Exists(parts[0]) && !File.Exists(parts[1]));
+
+            if (singlePartSource && new FileInfo(parts[0]).Length == totalExpected)
             {
-                var parts = w.Segments.Where(s => s.PartId != null).Select(s => PartFile(w, s.PartId!.Value)).Distinct().ToArray();
-                if (parts.Length > 1 && !File.Exists(parts[1]) && File.Exists(parts[0]))
+                if (w.Segments.Count == 1 && w.Segments[0].Done != w.Segments[0].Length)
+                    throw new IOException("Incomplete segment cannot be published.");
+
+                if (File.Exists(staging)) File.Delete(staging);
+                File.Move(parts[0], staging, true);
+                totalWritten = totalExpected;
+                lock (gate) { w.Job.AssemblyProgress = 100; }
+            }
+            else
+            {
+                var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
+                try
                 {
-                    await using var input = new FileStream(parts[0], FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    int read;
-                    while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
+                    await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous))
                     {
-                        await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-                        totalWritten += read;
-                        UpdateAssemblyProgress(w, totalWritten, totalExpected, ref lastAssemblyNotify);
-                    }
-                }
-                else
-                {
-                    for (var i = 0; i < w.Segments.Count; i++)
-                    {
-                        var s = w.Segments[i];
-                        if (s.Done != s.Length) throw new IOException("Incomplete segment cannot be published.");
-                        await using var input = new FileStream(PartFile(w, s.PartId!.Value), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                        if (input.Length != s.Length) throw new IOException("Partial file length changed.");
-                        int read;
-                        while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
+                        if (parts.Length > 1 && !File.Exists(parts[1]) && File.Exists(parts[0]))
                         {
-                            await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-                            totalWritten += read;
-                            UpdateAssemblyProgress(w, totalWritten, totalExpected, ref lastAssemblyNotify);
+                            await using var input = new FileStream(parts[0], FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                            int read;
+                            while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
+                            {
+                                await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                                totalWritten += read;
+                                UpdateAssemblyProgress(w, totalWritten, totalExpected, ref lastAssemblyNotify);
+                            }
                         }
+                        else
+                        {
+                            for (var i = 0; i < w.Segments.Count; i++)
+                            {
+                                var s = w.Segments[i];
+                                if (s.Done != s.Length) throw new IOException("Incomplete segment cannot be published.");
+                                await using var input = new FileStream(PartFile(w, s.PartId!.Value), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                                if (input.Length != s.Length) throw new IOException("Partial file length changed.");
+                                int read;
+                                while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
+                                {
+                                    await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                                    totalWritten += read;
+                                    UpdateAssemblyProgress(w, totalWritten, totalExpected, ref lastAssemblyNotify);
+                                }
+                            }
+                        }
+                        await output.FlushAsync(token).ConfigureAwait(false);
+                        output.Flush(true);
                     }
                 }
-                await output.FlushAsync(token).ConfigureAwait(false);
-                output.Flush(true);
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
             }
             if (w.Request.AutoName) SettleName(w, null, ReadHead(staging));
             if (!string.IsNullOrWhiteSpace(w.Request.ExpectedHash))

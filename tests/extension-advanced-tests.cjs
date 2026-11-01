@@ -267,3 +267,24 @@ test('blacklist: persistent domains bypass interception and media detection', ()
   assert.equal(S.isBlacklisted([], 'https://adserver.com/download.zip'), false);
   assert.equal(S.isBlacklisted(null, 'https://adserver.com/download.zip'), false);
 });
+
+test('sniff: signed URLs and HLS manifests preserve time and signature parameters', () => {
+  const signedHls = 'https://xzeroprice.com/m3u8/19544.m3u8?sig=abc&sig2=def&time=1730000000';
+  const inspected = S.inspect(response(signedHls, 'application/vnd.apple.mpegurl', 1000));
+  assert.ok(inspected.item, 'HLS item inspected');
+  assert.equal(inspected.item.isHls, true);
+  assert.equal(inspected.item.url, signedHls, 'HLS item.url preserves exact query parameters');
+  assert.equal(inspected.item.rawUrl, signedHls);
+  assert.equal(S.canonicalUrl(signedHls), signedHls, 'canonicalUrl preserves time on signed URLs');
+
+  const iframeDetails = { ...response(signedHls, 'application/vnd.apple.mpegurl', 1000), initiator: 'https://xzeroprice.com', documentUrl: 'https://xzeroprice.com/embed/19544' };
+  const iframeInspected = S.inspect(iframeDetails);
+  assert.equal(iframeInspected.item.initiator, 'https://xzeroprice.com');
+  assert.equal(iframeInspected.item.documentUrl, 'https://xzeroprice.com/embed/19544');
+
+  const signedVideo = 'https://cdn.example/video.mp4?sig=123&time=9999&range=0-100';
+  assert.equal(S.canonicalUrl(signedVideo), 'https://cdn.example/video.mp4?sig=123&time=9999', 'range stripped but signature and time kept');
+
+  const unsignedVideo = 'https://cdn.example/video.mp4?_=12345&cb=abc&range=0-100';
+  assert.equal(S.canonicalUrl(unsignedVideo), 'https://cdn.example/video.mp4', 'cachebusters stripped when no signature is present');
+});

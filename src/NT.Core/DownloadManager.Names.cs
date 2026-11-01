@@ -134,13 +134,13 @@ public sealed partial class DownloadManager
 
                 if (bestVariantUri != null)
                 {
-                    var variantFullUri = new Uri(playlistUri, bestVariantUri);
+                    var variantFullUri = MergeHlsUri(playlistUri, bestVariantUri);
                     using var variantReq = ProbeMessage(HttpMethod.Get, request with { Url = variantFullUri.AbsoluteUri });
                     using var variantResp = await SendAsync(variantReq, token).ConfigureAwait(false);
                     if (variantResp.IsSuccessStatusCode)
                     {
                         m3u8Content = await variantResp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-                        playlistUri = variantResp.RequestMessage?.RequestUri ?? variantFullUri;
+                        playlistUri = variantResp.RequestMessage?.RequestUri != null ? MergeHlsUri(playlistUri, variantResp.RequestMessage.RequestUri.AbsoluteUri) : variantFullUri;
                     }
                 }
             }
@@ -166,9 +166,7 @@ public sealed partial class DownloadManager
                             {
                                 var next = pLines[j].Trim();
                                 if (string.IsNullOrEmpty(next) || next.StartsWith("#")) continue;
-                                var segUri = new Uri(playlistUri, next);
-                                if (string.IsNullOrEmpty(segUri.Query) && !string.IsNullOrEmpty(playlistUri.Query))
-                                    segUri = new UriBuilder(segUri) { Query = playlistUri.Query.TrimStart('?') }.Uri;
+                                var segUri = MergeHlsUri(playlistUri, next);
                                 firstSegmentUrl = segUri.AbsoluteUri;
                                 break;
                             }
@@ -223,9 +221,28 @@ public sealed partial class DownloadManager
     private static HttpRequestMessage ProbeMessage(HttpMethod method, DownloadRequest request)
     {
         var message = new HttpRequestMessage(method, request.Url);
-        message.Headers.AcceptEncoding.ParseAdd("identity");
-        message.Headers.UserAgent.ParseAdd("N&T/1.0");
-        if (request.Referer != null) message.Headers.Referrer = new Uri(request.Referer);
+        if (!IsHls(null, request.Url))
+        {
+            message.Headers.AcceptEncoding.ParseAdd("identity");
+        }
+        else
+        {
+            message.Headers.TryAddWithoutValidation("Accept", "*/*");
+            message.Headers.TryAddWithoutValidation("Sec-Fetch-Dest", "empty");
+            message.Headers.TryAddWithoutValidation("Sec-Fetch-Mode", "cors");
+            message.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "cross-site");
+        }
+        message.Headers.TryAddWithoutValidation("User-Agent", DefaultBrowserUserAgent);
+        if (request.Referer != null && Uri.TryCreate(request.Referer, UriKind.Absolute, out var refUri))
+        {
+            message.Headers.Referrer = refUri;
+            message.Headers.TryAddWithoutValidation("Origin", refUri.GetLeftPart(UriPartial.Authority));
+        }
+        else if (IsHls(null, request.Url) && Uri.TryCreate(request.Url, UriKind.Absolute, out var rootUri))
+        {
+            message.Headers.Referrer = new Uri(rootUri.GetLeftPart(UriPartial.Authority) + "/");
+            message.Headers.TryAddWithoutValidation("Origin", rootUri.GetLeftPart(UriPartial.Authority));
+        }
         if (request.Cookie != null) message.Headers.Add("Cookie", request.Cookie);
         return message;
     }

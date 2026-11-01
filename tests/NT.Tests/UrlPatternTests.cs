@@ -69,5 +69,19 @@ public static class UrlPatternTests
         {
             // Expected
         }
+
+        // 8. HLS URI query parameter merging & inheritance
+        var baseHls = new Uri("https://xzeroprice.com/m3u8/19544.m3u8?sig=63dceed&sig2=45P");
+        var childNoQuery = DownloadManager.MergeHlsUri(baseHls, "19544_720p.m3u8");
+        if (childNoQuery.AbsoluteUri != "https://xzeroprice.com/m3u8/19544_720p.m3u8?sig=63dceed&sig2=45P")
+            throw new Exception($"HLS merge failed for child without query: {childNoQuery.AbsoluteUri}");
+
+        var childWithQuery = DownloadManager.MergeHlsUri(baseHls, "segment_001.ts?h=abc");
+        if (childWithQuery.AbsoluteUri != "https://xzeroprice.com/m3u8/segment_001.ts?h=abc&sig=63dceed&sig2=45P")
+            throw new Exception($"HLS merge failed for child with query: {childWithQuery.AbsoluteUri}");
+
+        var childOverridden = DownloadManager.MergeHlsUri(baseHls, "segment_001.ts?sig=new_sig");
+        if (childOverridden.AbsoluteUri != "https://xzeroprice.com/m3u8/segment_001.ts?sig=new_sig&sig2=45P")
+            throw new Exception($"HLS merge failed for child with overridden param: {childOverridden.AbsoluteUri}");
     }
 }
