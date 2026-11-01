@@ -1,237 +1,149 @@
-﻿# Changelog
+﻿## [1.3.11] - 2026-11-01
 
-All notable changes to N&T are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-and the project uses [Semantic Versioning](https://semver.org/). The rule for keeping this file current is in `docs/VERSIONING.md`.
+### Changed
+- تسريع دمج الملفات (Assembling):
+
+# Ø³Ø¬Ù„ Ø§Ù„ØªØºÙŠÙŠØ±Ø§Øª ÙˆØ§Ù„ØªØ­Ø¯ÙŠØ«Ø§Øª (Changelog)
+
+ÙƒÙ„ Ø§Ù„ØªØºÙŠÙŠØ±Ø§Øª ÙˆØ§Ù„ØªØ­Ø³ÙŠÙ†Ø§Øª ÙÙŠ Ø¨Ø±Ù†Ø§Ù…Ø¬ N&T Ù…ØªØ³Ø¬Ù„Ø© Ù‡Ù†Ø§ Ø£ÙˆÙ„Ø§Ù‹ Ø¨Ø£ÙˆÙ„.
 
 ## [1.3.10] - 2026-11-01
 
-### Changed
-- الملخص العام: يركز هذا التحديث الضخم على هوية بصرية جديدة كلياً وتصميم أيقونة هندسية راقية، شاشة بدء تشغيل انسيابية تفاعلية، تحسينات جذرية في الأداء واستهلاك موارد الذاكرة والقرص (Zero-Copy Assembly & ArrayPool)، وإصلاح مشكلة رفض تنزيل روابط البث المباشر الموقّعة (403 Forbidden).
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **Ø£ÙŠÙ‚ÙˆÙ†Ø© Ù…ÙˆÙ†ÙˆØºØ±Ø§Ù… Ø±Ø§ÙŠÙ‚Ø© ÙˆØ¹ØµØ±ÙŠØ©**: Ø§Ø³ØªØ¨Ø¯Ù„Ù†Ø§ Ø§Ù„Ø£ÙŠÙ‚ÙˆÙ†Ø© Ø§Ù„Ù‚Ø¯ÙŠÙ…Ø© Ø¨ØªØµÙ…ÙŠÙ… Ù…ÙˆÙ†ÙˆØºØ±Ø§Ù… Ù‡Ù†Ø¯Ø³ÙŠ Ù…Ø¨ØªÙƒØ± Ø¨Ø­Ø±Ù N ÙØ§Ø¦Ù‚ Ø§Ù„Ø³Ø±Ø¹Ø© Ù…Ø¯Ù…Ø¬ Ù…Ø¹ Ø³Ù‡Ù… ØªÙ†Ø²ÙŠÙ„ Ø¨Ù„ÙˆÙ† Ø£Ø®Ø¶Ø± Ù†Ø¹Ù†Ø§Ø¹ÙŠ Ù†ÙŠÙˆÙ† ÙˆØ®Ù„ÙÙŠØ© Ø¯Ø§ÙƒÙ†Ø© ÙØ®Ù…Ø© (Ø¨Ø¯ÙˆÙ† Ø£ÙŠ Ø·Ø§Ø¨Ø¹ Ø¹Ø´ÙˆØ§Ø¦ÙŠ). Ù…Ù„Ù Ø§Ù„Ø£ÙŠÙ‚ÙˆÙ†Ø© `NT.ico` Ù…Ø¨Ù†ÙŠ Ø¨Ù€ 7 Ù…Ù‚Ø§Ø³Ø§Øª ÙƒØ§Ù…Ù„Ø© (Ù…Ù† 16x16 Ù„ØºØ§ÙŠØ© 256x256) Ø¨Ø¬ÙˆØ¯Ø© 32 Ø¨Øª Ø¹Ø´Ø§Ù† ØªØ¸Ù‡Ø± Ø­Ø§Ø¯Ø© Ø¬Ø¯Ø§Ù‹ ÙˆÙˆØ§Ø¶Ø­Ø© ÙˆØ¶ÙˆØ­ Ø§Ù„Ø´Ù…Ø³ Ø¹Ù„Ù‰ Ø´Ø±ÙŠØ· Ø§Ù„Ù…Ù‡Ø§Ù… ÙÙŠ ÙˆÙŠÙ†Ø¯ÙˆØ² 10 Ùˆ 11 ÙˆÙ‚Ø§Ø¦Ù…Ø© Alt+Tab ÙˆØ§Ù„Ø´Ø§Ø´Ø§Øª Ø§Ù„Ø¹Ø§Ù„ÙŠØ© Ø§Ù„Ø¯Ù‚Ø© (High-DPI).
+- **Ø´Ø§Ø´Ø© Ø¨Ø¯Ø§ÙŠØ© ØªØ´ØºÙŠÙ„ Ø§Ù†Ø³ÙŠØ§Ø¨ÙŠØ© (Splash Screen)**: Ø´Ø§Ø´Ø© Ø§Ù†Ø·Ù„Ø§Ù‚ Ø®ÙÙŠÙØ© Ù…Ø¹ ØªØ£Ø«ÙŠØ±Ø§Øª Ø¯Ø®ÙˆÙ„ Ù†Ø§Ø¹Ù…Ø© ÙˆØ´Ø±ÙŠØ· ØªÙ‚Ø¯Ù… Ø¨ÙŠØ¹Ø±Ø¶ Ø­Ø§Ù„Ø© ØªØ´ØºÙŠÙ„ Ø§Ù„Ø¨Ø±Ù†Ø§Ù…Ø¬ Ø®Ø·ÙˆØ© Ø¨Ø®Ø·ÙˆØ© ("Ø§Ø³ØªØ±Ø¬Ø§Ø¹ Ø·Ø§Ø¨ÙˆØ± Ø§Ù„ØªØ­Ù…ÙŠÙ„Ø§Øª...", "Ø±Ø¨Ø· Ù…Ø­Ø±Ùƒ Ø§Ù„ØªÙˆØ±Ù†Øª...", "Ø¬Ø§Ù‡Ø²")ØŒ ÙˆØªÙ„Ø§Ø´ÙŠ Ù†Ø§Ø¹Ù… Ù„Ù†Ø§ÙØ°Ø© Ø§Ù„Ø¨Ø±Ù†Ø§Ù…Ø¬ Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ©.
+
+### ØªØ­Ø³ÙŠÙ†Ø§Øª Ø§Ù„Ø£Ø¯Ø§Ø¡ ÙˆØ§Ù„Ø³Ø±Ø¹Ø©
+- **ØªØ¬Ù…ÙŠØ¹ ÙÙˆØ±ÙŠ Ù„Ù„Ù…Ù„ÙØ§Øª (Zero-Copy Instant Move)**: Ø§Ù„ØªØ­Ù…ÙŠÙ„Ø§Øª Ø£Ø­Ø§Ø¯ÙŠØ© Ø§Ù„Ù…Ø³Ø§Ø± Ø¨Ù‚Øª Ø¨ØªÙƒØªÙ…Ù„ ÙˆØªØªÙ†Ù‚Ù„ ÙÙˆØ±Ø§Ù‹ ÙÙŠ Ø£Ø¬Ø²Ø§Ø¡ Ù…Ù† Ø§Ù„Ù…Ù„ÙŠ Ø«Ø§Ù†ÙŠØ© O(1) Ø¨Ø¯ÙˆÙ† Ø¥Ø¹Ø§Ø¯Ø© Ù‚Ø±Ø§Ø¡Ø© ÙˆÙƒØªØ§Ø¨Ø© Ø§Ù„Ù…Ù„Ù ÙƒØ§Ù…Ù„ Ø¹Ù„Ù‰ Ø§Ù„Ù‚Ø±ØµØŒ ÙˆØ¯Ù‡ Ø¨ÙŠØ­Ø§ÙØ¸ Ø¹Ù„Ù‰ Ø¹Ù…Ø± Ø§Ù„Ù‡Ø§Ø±Ø¯ ÙˆØ§Ù„Ù€ SSD ÙˆÙŠÙ…Ù†Ø¹ ØªØ¬Ù…ÙŠØ¯ Ø§Ù„Ø¬Ù‡Ø§Ø² Ù…Ø¹ Ø§Ù„Ù…Ù„ÙØ§Øª Ø§Ù„Ø¶Ø®Ù…Ø©.
+- **ØªÙˆÙÙŠØ± Ø§Ø³ØªÙ‡Ù„Ø§Ùƒ Ø§Ù„Ø±Ø§Ù… Ù…Ø¹ `ArrayPool`**: ØªÙ… Ø§Ù„ØªØ®Ù„Øµ Ù…Ù† Ø­Ø¬Ø² Ù…ØµÙÙˆÙØ§Øª Ø§Ù„Ø°Ø§ÙƒØ±Ø© Ø§Ù„Ù…Ø¤Ù‚ØªØ© Ø§Ù„ÙƒØ¨ÙŠØ±Ø© (4 Ù…ÙŠØ¬Ø§Ø¨Ø§ÙŠØª) ÙˆØ§Ø³ØªØ®Ø¯Ø§Ù… Ù…Ø³ØªÙˆØ¯Ø¹ Ø§Ù„Ø°Ø§ÙƒØ±Ø© Ø§Ù„Ù…Ø´ØªØ±Ùƒ `ArrayPool<byte>.Shared`ØŒ ÙˆØ¯Ù‡ Ù„ØºÙ‰ ØªÙØªØª Ø§Ù„Ø°Ø§ÙƒØ±Ø© ÙÙŠ Ø§Ù„Ù€ LOH ÙˆØ³Ø±Ù‘Ø¹ Ø¯ÙˆØ±Ø§Øª ØªÙ†Ø¸ÙŠÙ Ø§Ù„Ø°Ø§ÙƒØ±Ø© Ø¨Ø´ÙƒÙ„ Ù…Ù„Ø­ÙˆØ¸.
+- **Ø¥Ù„ØºØ§Ø¡ Ø­Ø¬Ø² Ø§Ù„Ù…Ø¤Ù‚ØªØ§Øª ÙÙŠ Ø§Ù„Ø´Ø¨ÙƒØ©**: Ø§Ø³ØªØ¨Ø¯Ø§Ù„ Ø§Ù„Ù€ CancellationTokenSource Ø§Ù„Ù…Ø¤Ù‚Øª Ø¨Ù€ `WaitAsync` ÙÙŠ Ø¹Ù…Ù„ÙŠØ§Øª Ù‚Ø±Ø§Ø¡Ø© Ø§Ù„Ø´Ø¨ÙƒØ©ØŒ ÙˆØ¯Ù‡ ÙˆÙÙ‘Ø± Ø¢Ù„Ø§Ù Ø§Ù„Ø­Ø¬ÙˆØ²Ø§Øª ÙˆØ§Ù„Ù…Ø¤Ù‚ØªØ§Øª ÙÙŠ Ø§Ù„Ø«Ø§Ù†ÙŠØ© Ø§Ù„ÙˆØ§Ø­Ø¯Ø© Ø¹Ù†Ø¯ Ø§Ù„ØªÙ†Ø²ÙŠÙ„ Ø¨Ø³Ø±Ø¹Ø§Øª Ø§Ù„Ø¬ÙŠØ¬Ø§Ø¨Øª Ø§Ù„Ø¹Ø§Ù„ÙŠØ©.
+- **ØªØ­Ø¯ÙŠØ« Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ÙˆØ§Ø¬Ù‡Ø© ÙÙŠ Ù„ÙØ© ÙˆØ§Ø­Ø¯Ø©**: Ø¯Ù…Ø¬ Ø­Ø³Ø§Ø¨Ø§Øª Ø³Ø±Ø¹Ø§Øª Ø§Ù„ØªÙ†Ø²ÙŠÙ„ ÙˆØ§Ù„Ø±ÙØ¹ ÙˆØ§Ù„Ù…Ù‡Ø§Ù… Ø§Ù„Ø´ØºØ§Ù„Ø© ÙÙŠ Ø­Ù„Ù‚Ø© ÙØ­Øµ ÙˆØ§Ø­Ø¯Ø© ÙˆØ³Ø±ÙŠØ¹Ø© Ø¬Ø¯Ø§Ù‹ Ø¨Ø¯ÙˆÙ† Ø­Ø¬Ø² Ø°Ø§ÙƒØ±Ø© Ø¥Ø¶Ø§ÙÙŠØ©.
+- **ØªÙ…Ø±ÙŠØ± Ù†Ø§Ø¹Ù… Ø¬Ø¯Ø§Ù‹ Ø¨Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© (Pixel Scrolling)**: ØªÙØ¹ÙŠÙ„ Ø§Ù„ØªÙ…Ø±ÙŠØ± Ø¨Ø¯Ù‚Ø© Ø§Ù„Ø¨ÙƒØ³Ù„ Ù…Ø¹ ÙƒØ§Ø´ Ø°ÙƒÙŠ Ù„ØµÙØ­ØªÙŠÙ†ØŒ Ù„ØªØµÙØ­ Ø·Ø§Ø¨ÙˆØ± Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª Ø¨Ø³Ù„Ø§Ø³Ø© ØªØ§Ù…Ø© Ø¹Ù„Ù‰ Ø´Ø§Ø´Ø§Øª 60 Ùˆ 120 Ùˆ 144 Ù‡Ø±ØªØ².
+- **Ø§Ø³ØªÙ‡Ù„Ø§Ùƒ Ø°ÙƒÙŠ Ù„Ù„Ø¨Ø·Ø§Ø±ÙŠØ© ÙˆØ§Ù„Ù…Ø¹Ø§Ù„Ø¬**: ØªØ­Ø¯ÙŠØ« Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø³Ø±Ø¹Ø© Ø¨ÙŠØ´ØªØºÙ„ ÙƒÙ„ 500 Ù…Ù„Ù„ÙŠ Ø«Ø§Ù†ÙŠØ© Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ø§Ù„ÙØ¹Ù„ÙŠØŒ ÙˆØ¨ÙŠÙ‡Ø¯ÙŠ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ù„Ù€ 1500 Ù…Ù„Ù„ÙŠ Ø«Ø§Ù†ÙŠØ© Ù„Ù…Ø§ Ù…ÙŠÙƒÙˆÙ†Ø´ ÙÙŠÙ‡ ØªØ­Ù…ÙŠÙ„Ø§Øª Ø´ØºØ§Ù„Ø© Ø¹Ø´Ø§Ù† ÙŠÙˆÙØ± Ø¨Ø·Ø§Ø±ÙŠØ© Ø§Ù„Ù„Ø§Ø¨ØªÙˆØ¨.
+- **ØªÙ†Ø¸ÙŠÙ… ÙˆØªØ±ØªÙŠØ¨ ÙƒÙˆØ¯ Ø§Ù„Ø¨Ø±Ù†Ø§Ù…Ø¬**: ØªÙÙƒÙŠÙƒ ÙƒÙˆØ¯ Ø§Ù„Ù†Ø§ÙØ°Ø© Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ© ÙˆØªÙ†Ø¸ÙŠÙ…Ù‡ ÙÙŠ Ù…Ù„ÙØ§Øª Ù…Ø³ØªÙ‚Ù„Ø© Ù„ØµÙŠÙ†ÙŠØ© Ø§Ù„Ù†Ø¸Ø§Ù… ÙˆØ¥Ø¬Ø±Ø§Ø¡Ø§Øª Ø§Ù„Ø£Ø²Ø±Ø§Ø± Ø¹Ø´Ø§Ù† ÙŠØ³Ù‡Ù„ ØµÙŠØ§Ù†ØªÙ‡ ÙˆØªØ·ÙˆÙŠØ±Ù‡.
+
+### Ø­Ù„ Ø§Ù„Ù…Ø´Ø§ÙƒÙ„
+- **ØªÙ†Ø²ÙŠÙ„ Ø§Ù„Ø¨Ø« Ø§Ù„Ù…Ø¨Ø§Ø´Ø± ÙˆØ§Ù„Ø±ÙˆØ§Ø¨Ø· Ø§Ù„Ù…ÙˆÙ‚Ù‘Ø¹Ø©**: Ø§Ù„Ø­ÙØ§Ø¸ Ø¹Ù„Ù‰ ÙƒÙ„ ØªÙˆÙ‚ÙŠØ¹Ø§Øª Ø§Ù„Ø£Ù…Ø§Ù† ÙˆØ§Ù„Ù…Ø¹Ø§Ù…Ù„Ø§Øª (`sig`, `sig2`, `token`, `hash`) ÙÙŠ Ø±ÙˆØ§Ø¨Ø· Ø§Ù„Ù€ `.m3u8` Ø¹Ø´Ø§Ù† Ø§Ù„Ø³ÙŠØ±ÙØ±Ø§Øª Ù…Ø§ØªØ±ÙØ¶Ø´ Ø§Ù„ØªÙ†Ø²ÙŠÙ„ Ø¨ÙƒÙˆØ¯ 403 Forbidden.
+- **Ù…Ø³Ø§Ø± Ù…Ø¨Ø§Ø´Ø± Ù„Ù„Ø¨Ø« ÙˆØ§Ù„ÙŠÙˆØªÙŠÙˆØ¨**: ØªÙˆØ¬ÙŠÙ‡ Ø±ÙˆØ§Ø¨Ø· Ø§Ù„Ø¨Ø« ÙˆÙÙŠØ¯ÙŠÙˆÙ‡Ø§Øª Ø§Ù„ÙŠÙˆØªÙŠÙˆØ¨ Ù…Ø¨Ø§Ø´Ø±Ø© Ù„Ù„Ù…Ø­Ø±ÙƒØ§Øª Ø§Ù„Ù…Ø®ØµØµØ© ÙˆØªÙØ§Ø¯ÙŠ ÙØ­Øµ Ø§Ù„Ù…Ø¯Ù‰ Ø§Ù„Ù…Ø³Ø¨Ù‚ Ø§Ù„Ù„ÙŠ ÙƒØ§Ù† Ø¨ÙŠØªØ³Ø¨Ø¨ ÙÙŠ ÙØ´Ù„ Ø¨Ø¹Ø¶ Ø§Ù„Ø±ÙˆØ§Ø¨Ø·.
+- **Ø§Ù„ØªØ¹Ø§Ù…Ù„ Ø§Ù„Ø°ÙƒÙŠ Ù…Ø¹ Ø§Ù„Ø³ÙŠØ±ÙØ±Ø§Øª Ø§Ù„Ø­Ø³Ø§Ø³Ø©**: Ù„Ù…Ø§ Ø§Ù„Ø³ÙŠØ±ÙØ± ÙŠØ±ÙØ¶ ÙØ­Øµ Ø£Ø¬Ø²Ø§Ø¡ Ø§Ù„Ù…Ù„Ù (Range) Ø¨ÙƒÙˆØ¯ 400 Ø£Ùˆ 403ØŒ Ø§Ù„Ø¨Ø±Ù†Ø§Ù…Ø¬ Ø¨ÙŠØªØ±Ø§Ø¬Ø¹ Ø¨Ù…Ø±ÙˆÙ†Ø© Ù„Ù„ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ø¨Ø§Ø´Ø± Ø§Ù„ÙØ±Ø¯ÙŠ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ Ø¨Ø¯ÙˆÙ† Ù…Ø§ ÙŠÙØ´Ù„ Ø§Ù„ØªØ­Ù…ÙŠÙ„.
 
 ## [1.3.9] - 2026-10-31
 
-### Added
-- **Bespoke Desktop Icon Craft**: Replaced the previous icon with a bespoke, razor-sharp geometric monogram: an electric mint-teal speed 'N' seamlessly fused with a downward download velocity arrow against an obsidian squircle tile with subtle neon aura. Packed a true multi-tier 32-bit `NT.ico` with 7 full resolutions (16px to 256px), delivering pin-sharp clarity across Windows 10/11 taskbars, Alt+Tab, Start Menu, and High-DPI displays.
-- **Asynchronous Startup Splash Screen**: Restructured the startup sequence to yield dispatcher frames immediately, enabling smooth card animations, live progressive status updates ("Restoring download queueâ€¦", "Connecting torrent clientâ€¦", "Ready"), and an intentional ~750ms minimum display threshold with seamless cross-fade into the main window.
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **ØªØ­Ø³ÙŠÙ† Ø³Ø±Ø¹Ø© ØªÙ†Ø²ÙŠÙ„ Ù…Ù‚Ø§Ø·Ø¹ Ø§Ù„Ø¨Ø« HLS**: Ø¯Ø¹Ù… Ø§Ù„ØªÙ†Ø²ÙŠÙ„ Ø§Ù„Ù…ØªÙˆØ§Ø²ÙŠ Ù„Ø£Ø¬Ø²Ø§Ø¡ Ø§Ù„Ø¨Ø« Ø§Ù„ØµÙˆØªÙŠ ÙˆØ§Ù„Ù…Ø±Ø¦ÙŠ Ù…Ø¹ Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ø¯Ù…Ø¬ Ø§Ù„Ø³Ø±ÙŠØ¹ Ø¥Ù„Ù‰ MP4 Ø¹Ø¨Ø± FFmpeg.
+- **ØªØ­Ø³ÙŠÙ†Ø§Øª Ø§Ù„ØªØ¹Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø±ÙˆØ§Ø¨Ø· ÙÙŠ Ø§Ù„Ù…ØªØµÙØ­**: Ø§Ù„ØªØ¹Ø±Ù Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ Ø¹Ù„Ù‰ ÙˆØ³Ø§Ø¦Ø· Ø§Ù„ÙÙŠØ¯ÙŠÙˆ ÙˆØ§Ù„ØµÙˆØª Ø§Ù„Ù…ÙƒØªØ´ÙØ© ÙÙŠ Ø§Ù„ØµÙØ­Ø§Øª ÙˆØªØµÙ†ÙŠÙÙ‡Ø§ Ø¨Ø¯Ù‚Ø©.
 
-### Changed
-- **Smooth Pixel Scrolling**: Enabled `VirtualizingPanel.ScrollUnit="Pixel"` with 2-page lookahead caching on the downloads queue, delivering fluid 60/120 Hz scrolling through large download lists.
-- **Adaptive Telemetry Throttling**: Implemented intelligent idle backoff on the main window refresh loop: telemetry updates run at 500ms during active transfers and gracefully relax to 1500ms when idle, saving background CPU cycles and laptop battery life while keeping instant 0-latency reaction to user actions.
-- **Instant Zero-Copy Single-Stream Assembly**: Single-part and single-stream downloads now assemble via instant atomic filesystem renames instead of full disk re-reads, completing in sub-millisecond O(1) time and eliminating disk thrashing and duplicate SSD writes.
-- **Large Object Heap (LOH) Elimination with `ArrayPool`**: Multi-part assembly buffers (4 MB) and streaming buffers now use `ArrayPool<byte>.Shared`, eliminating LOH memory fragmentation and expensive Gen 2 garbage collections.
-- **High-Throughput Network `ReadAsync`**: Replaced per-read `CancellationTokenSource.CreateLinkedTokenSource` allocations with zero-allocation `WaitAsync` timeouts, removing thousands of CTS and timer allocations per second on gigabit downloads.
-- **Single-Pass UI Queue Telemetry**: Collapsed multi-pass LINQ iterations over the downloads queue into a single allocation-free loop for active counts, download/upload speeds, and aggregate progress calculations.
-
-### Fixed
-- **HLS Stream Capture & Signed URLs**: Fixed an issue where stream manifest URLs (.m3u8) failed with HTTP 403 Forbidden because signature and timestamp query parameters were stripped by cache-busting filters. Manifests and URLs containing authentication signatures (`sig`, `sig2`, `token`, `hash`, etc.) now preserve all parameters intact.
-- **Direct HLS & YouTube Pipeline**: Streamlined the download pipeline so HLS playlists and YouTube URLs bypass premature `Range: bytes=0-0` byte-range probes, routing directly to the dedicated HLS and yt-dlp handlers.
-- **Range-Hostile Server Fallback**: Enhanced the download engine's pre-flight probe so servers and CDNs that reject `Range` headers with 400, 403, 405, or 501 gracefully fall back to single-stream GET instead of failing immediately.
+### Ø­Ù„ Ø§Ù„Ù…Ø´Ø§ÙƒÙ„
+- **Ø¥ØµÙ„Ø§Ø­ Ø§Ø³ØªØ¦Ù†Ø§Ù Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ø¹Ù†Ø¯ Ø§Ù†Ù‚Ø·Ø§Ø¹ Ø§Ù„Ø§ØªØµØ§Ù„**: Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠØ© Ø¹Ù†Ø¯ ØªÙ‚Ø·Ø¹ Ø´Ø¨ÙƒØ© Ø§Ù„Ø¥Ù†ØªØ±Ù†Øª Ø¨Ø²ÙŠØ§Ø¯Ø© ØªØ¯Ø±ÙŠØ¬ÙŠØ© ÙÙŠ ÙˆÙ‚Øª Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±.
 
 ## [1.3.8] - 2026-10-30
 
-### Changed
-- ðŸŒŸ Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª ÙˆØ§Ù„Ø¥Ø¶Ø§ÙØ§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© (Added)
+### Ø§Ù„ØªØ­Ø³ÙŠÙ†Ø§Øª
+- **Ø§Ø³ØªÙ‚Ø±Ø§Ø± Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ù…ØªØµÙØ­**: ØªØ­Ø³ÙŠÙ† Ø³Ø±Ø¹Ø© ÙˆØ³Ù„Ø§Ø³Ø© Ø¬Ø³Ø± Ø§Ù„Ø§ØªØµØ§Ù„ Ø§Ù„Ø£ØµÙ„ÙŠ (Native Bridge) Ø¨ÙŠÙ† Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…ØªØµÙØ­ ÙˆØªØ·Ø¨ÙŠÙ‚ Ø³Ø·Ø­ Ø§Ù„Ù…ÙƒØªØ¨.
 
 ## [1.3.7] - 2026-10-29
 
-### Added
-- **Toolbar Completion Action**: Added dedicated When done toolbar control right beside queue concurrency and speed limit buttons, allowing instant one-click selection and visibility of post-download actions.
-- **Mini Widget Shutdown Toggle**: Added Turn off computer when done toggle directly in the floating mini widget context menu.
-- **Accessibility (a11y) Full Audit & Remediation**: Audited all interactive surfaces, providing explicit AutomationProperties.Name and tooltips across the mini widget (close button, active count, telemetry speeds, aggregate progress), startup splash screen (AutomationProperties.LiveSetting='Polite' for screen readers), and main window action buttons (Import URLs, Resume all, Pause, Speed limit, Open file/folder, Empty state).
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **Ø²Ø± Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª Ù…Ø§ Ø¨Ø¹Ø¯ Ø§Ù„Ø§ÙƒØªÙ…Ø§Ù„ ÙÙŠ Ø§Ù„Ø´Ø±ÙŠØ· Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠ**: Ø¥Ø¶Ø§ÙØ© Ø²Ø± Ù…Ø®ØµØµ ÙÙŠ Ø´Ø±ÙŠØ· Ø§Ù„Ø£Ø¯ÙˆØ§Øª Ø¨Ø¬Ø§Ù†Ø¨ ØªØ­Ø¯ÙŠØ¯ Ø§Ù„Ø³Ø±Ø¹Ø© Ù„Ø§Ø®ØªÙŠØ§Ø± ÙˆØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡ Ø¨Ø¹Ø¯ Ø§ÙƒØªÙ…Ø§Ù„ Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ø¨Ù†Ù‚Ø±Ø© ÙˆØ§Ø­Ø¯Ø© (Ø²ÙŠ Ø¥ÙŠÙ‚Ø§Ù Ø§Ù„ØªØ´ØºÙŠÙ„ Ø£Ùˆ Ø§Ù„Ø³ÙƒÙˆÙ†).
+- **Ø¥ÙŠÙ‚Ø§Ù ØªØ´ØºÙŠÙ„ Ø§Ù„ÙƒÙ…Ø¨ÙŠÙˆØªØ± Ù…Ù† Ø§Ù„ÙˆØ¯Ø¬Øª Ø§Ù„Ø¹Ø§Ø¦Ù…**: Ø¥Ø¶Ø§ÙØ© Ø®ÙŠØ§Ø± Ø¥ÙŠÙ‚Ø§Ù ØªØ´ØºÙŠÙ„ Ø§Ù„Ø¬Ù‡Ø§Ø² Ø¹Ù†Ø¯ Ø§Ù„Ø§Ù†ØªÙ‡Ø§Ø¡ Ù…Ø¨Ø§Ø´Ø±Ø© Ù…Ù† Ù‚Ø§Ø¦Ù…Ø© ÙƒÙ„ÙŠÙƒ ÙŠÙ…ÙŠÙ† Ø¹Ù„Ù‰ Ø§Ù„ÙˆØ¯Ø¬Øª Ø§Ù„Ù…ØµØºØ±.
+- **ØªÙˆØ§ÙÙ‚ ÙƒØ§Ù…Ù„ Ù…Ø¹ Ù‚Ø§Ø±Ø¦Ø§Øª Ø§Ù„Ø´Ø§Ø´Ø© ÙˆØ³Ù‡ÙˆÙ„Ø© Ø§Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… (a11y)**: Ø¥Ø¶Ø§ÙØ© Ù†ØµÙˆØµ ØªÙˆØ¶ÙŠØ­ÙŠØ© ÙˆÙ…Ø³Ù…ÙŠØ§Øª Ø¯Ù‚ÙŠÙ‚Ø© Ù„Ù„Ø£Ø²Ø±Ø§Ø± ÙˆØ§Ù„ÙˆØ¯Ø¬Øª ÙˆØ´Ø§Ø´Ø© Ø§Ù„Ø¨Ø¯Ø§ÙŠØ© ÙˆÙ…Ø¹Ø¯Ù„Ø§Øª Ø§Ù„Ù†Ù‚Ù„.
 
-### Fixed
-- **Sidebar Selection Color & Text Visibility**: Restructured NavItem control template so selection and hover overlays are placed behind text content with explicit theme ink foreground and semi-bold font weighting, eliminating invisible text on selected navigation filters.
+### Ø­Ù„ Ø§Ù„Ù…Ø´Ø§ÙƒÙ„
+- **ÙˆØ¶ÙˆØ­ Ù†ØµÙˆØµ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠØ©**: ØªØµØ­ÙŠØ­ Ø£Ù„ÙˆØ§Ù† ÙˆØªØ¸Ù„ÙŠÙ„ Ø¹Ù†Ø§ØµØ± Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠØ© Ø¹Ø´Ø§Ù† Ø§Ù„Ù†ØµÙˆØµ ØªÙØ¶Ù„ ÙˆØ§Ø¶Ø­Ø© ØªÙ…Ø§Ù…Ø§Ù‹ ÙˆØ³Ù‡Ù„Ø© Ø§Ù„Ù‚Ø±Ø§Ø¡Ø© ÙÙŠ ÙƒÙ„ Ø§Ù„Ø«ÙŠÙ…Ø§Øª.
 
 ## [1.3.6] - 2026-10-29
 
-### Added
-- Splash Screen: New native lightweight startup splash screen with high-DPI branding, live initialization status, progress bar, and user toggle in Settings.
-- Micro-Interactions: Native GPU-friendly 120-180ms cubic transitions for dialogs, button hover/press overlays, and empty-state list cross-fades, fully respecting Windows ClientAreaAnimation.
-- Mini Widget Enhancements: Added comprehensive desktop context menu (Open N&T, Add Download, Pause/Resume All, Hide Widget), drop hover feedback, and aggregate progress bar.
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **Ø´Ø§Ø´Ø© Ø¨Ø¯Ø¡ ØªØ´ØºÙŠÙ„ Ø®ÙÙŠÙØ©**: Ø´Ø§Ø´Ø© Ø§ÙØªØªØ§Ø­ÙŠØ© Ø³Ø±ÙŠØ¹Ø© Ø¨Ø¯Ù‚Ø© Ø¹Ø§Ù„ÙŠØ© Ù…Ø¹ Ø´Ø±ÙŠØ· ØªÙ‚Ø¯Ù… ÙŠÙˆØ¶Ø­ Ø¬Ø§Ù‡Ø²ÙŠØ© Ø§Ù„Ø¨Ø±Ù†Ø§Ù…Ø¬ ÙˆØ¥Ù…ÙƒØ§Ù†ÙŠØ© ØªØ¹Ø·ÙŠÙ„Ù‡Ø§ Ù…Ù† Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª.
+- **Ø­Ø±ÙƒØ§Øª ÙˆØ§Ù†ØªÙ‚Ø§Ù„Ø§Øª Ø¨ØµØ±ÙŠØ© Ù†Ø§Ø¹Ù…Ø©**: ØªØ£Ø«ÙŠØ±Ø§Øª Ø¨ØµØ±ÙŠØ© Ø³Ø±ÙŠØ¹Ø© ÙˆÙ…Ø±ÙŠØ­Ø© Ù„Ù„Ø¹ÙŠÙ† (120-180 Ù…Ù„Ù„ÙŠ Ø«Ø§Ù†ÙŠØ©) Ù„Ù„Ø£Ø²Ø±Ø§Ø± ÙˆØ§Ù„Ù†ÙˆØ§ÙØ° Ø§Ù„Ù…Ù†Ø¨Ø«Ù‚Ø© ÙˆØ§Ù„Ù‚ÙˆØ§Ø¦Ù… Ù…Ø¹ Ù…Ø±Ø§Ø¹Ø§Ø© Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª ÙˆÙŠÙ†Ø¯ÙˆØ² Ù„Ù„Ø±Ø³ÙˆÙ… Ø§Ù„Ù…ØªØ­Ø±ÙƒØ©.
+- **ØªØ·ÙˆÙŠØ± Ø§Ù„ÙˆØ¯Ø¬Øª Ø§Ù„Ø¹Ø§Ø¦Ù…**: Ù‚Ø§Ø¦Ù…Ø© ÙƒÙ„ÙŠÙƒ ÙŠÙ…ÙŠÙ† Ù…ØªÙƒØ§Ù…Ù„Ø© (ÙØªØ­ Ø§Ù„Ø¨Ø±Ù†Ø§Ù…Ø¬ØŒ Ø¥Ø¶Ø§ÙØ© ØªØ­Ù…ÙŠÙ„ØŒ Ø¥ÙŠÙ‚Ø§Ù/Ø§Ø³ØªØ¦Ù†Ø§Ù Ø§Ù„ÙƒÙ„ØŒ Ø¥Ø®ÙØ§Ø¡ Ø§Ù„ÙˆØ¯Ø¬Øª)ØŒ Ù…Ø¹ Ù…Ø¤Ø´Ø± Ù…Ø±Ø¦ÙŠ Ø¹Ù†Ø¯ Ø³Ø­Ø¨ Ø§Ù„Ø±ÙˆØ§Ø¨Ø· ÙÙˆÙ‚Ù‡ ÙˆØ´Ø±ÙŠØ· ØªÙ‚Ø¯Ù… Ø¥Ø¬Ù…Ø§Ù„ÙŠ.
 
-### Fixed
-- Mini Widget: Fixed bidirectional visibility sync when closing via titlebar or context menu so settings and View menu stay in step.
-- Mini Widget: Clamped floating coordinates against virtual desktop bounds to prevent off-screen positioning on multi-monitor changes.
-- Mini Widget: Connected live aggregate percentage progress and upload speed telemetry.
+### Ø­Ù„ Ø§Ù„Ù…Ø´Ø§ÙƒÙ„
+- **Ù…Ø²Ø§Ù…Ù†Ø© Ø¸Ù‡ÙˆØ± Ø§Ù„ÙˆØ¯Ø¬Øª**: ØªØµØ­ÙŠØ­ Ø­Ø§Ù„Ø© Ø²Ø± Ø¥Ø¸Ù‡Ø§Ø±/Ø¥Ø®ÙØ§Ø¡ Ø§Ù„ÙˆØ¯Ø¬Øª ÙÙŠ Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª ÙˆÙ‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¹Ø±Ø¶ Ø¹Ù†Ø¯ Ø¥ØºÙ„Ø§Ù‚Ù‡.
+- **ØªØ«Ø¨ÙŠØª Ø§Ù„ÙˆØ¯Ø¬Øª Ø¯Ø§Ø®Ù„ Ø­Ø¯ÙˆØ¯ Ø§Ù„Ø´Ø§Ø´Ø©**: Ù…Ù†Ø¹ Ø®Ø±ÙˆØ¬ Ø§Ù„ÙˆØ¯Ø¬Øª Ø®Ø§Ø±Ø¬ Ø£Ø¨Ø¹Ø§Ø¯ Ø§Ù„Ø´Ø§Ø´Ø© Ø¹Ù†Ø¯ ØªØºÙŠÙŠØ± Ø¯Ù‚Ø© Ø§Ù„Ø¹Ø±Ø¶ Ø£Ùˆ Ø§Ø³ØªØ®Ø¯Ø§Ù… Ø¹Ø¯Ø© Ø´Ø§Ø´Ø§Øª.
 
 ## [1.3.5] - 2026-10-29
 
-### Fixed
-- Queue Engine: Fixed StopQueue so pending downloads in Queued status are properly paused rather than launched immediately by the background scheduler.
-- Queue Engine: Fixed StartQueue to accurately account for both paused and queued jobs when resuming queue execution.
-- Queue Scheduling: Fixed an issue where downloads added with speed limits or "Download later" were scheduled one year in the future, preventing them from starting.
-- Queue Concurrency: Fixed browser capture dialog resetting MaxConcurrentDownloads to 3, preserving user-configured sequential queue concurrency limits.
-- UI: Fixed inverted download row ordering in the main window table where new downloads were prepended, causing reverse execution order and backwards queue reordering.
-- UI: Connected queue toolbar actions (Start Queue and Stop Queue) to pause and resume torrent transfers concurrently with standard downloads.
+### Ø­Ù„ Ø§Ù„Ù…Ø´Ø§ÙƒÙ„
+- **Ø¥ÙŠÙ‚Ø§Ù ÙˆØ§Ø³ØªØ¦Ù†Ø§Ù Ø§Ù„Ø·Ø§Ø¨ÙˆØ±**: ØªØµØ­ÙŠØ­ Ø¥ÙŠÙ‚Ø§Ù Ø§Ù„Ø·Ø§Ø¨ÙˆØ± Ø¨Ø­ÙŠØ« ØªØªÙˆÙ‚Ù Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª Ø§Ù„Ù…Ù†ØªØ¸Ø±Ø© ÙØ¹Ù„ÙŠØ§Ù‹ ÙˆÙ…Ø§ØªØ¨Ø¯Ø£Ø´ Ù…Ù† ÙˆØ±Ø§ Ø¶Ù‡Ø± Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… ÙÙŠ Ø§Ù„Ø®Ù„ÙÙŠØ©.
+- **Ø¥ØµÙ„Ø§Ø­ Ø®Ø·Ø£ Ø¬Ø¯ÙˆÙ„Ø© Ø§Ù„ØªØ­Ù…ÙŠÙ„Ø§Øª Ø§Ù„Ù…Ø¤Ø¬Ù„Ø©**: Ø­Ù„ Ø§Ù„Ù…Ø´ÙƒÙ„Ø© Ø§Ù„Ù„ÙŠ ÙƒØ§Ù†Øª Ø¨ØªØ®Ù„ÙŠ Ø®ÙŠØ§Ø± "Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ù„Ø§Ø­Ù‚Ø§Ù‹" ÙŠØªØ¬Ø¯ÙˆÙ„ Ø¨Ø¹Ø¯ Ø³Ù†Ø© ÙƒØ§Ù…Ù„Ø© ÙÙŠ Ø§Ù„Ù…Ø³ØªÙ‚Ø¨Ù„.
+- **Ø§Ù„ØªØ­ÙƒÙ… ÙÙŠ Ø¹Ø¯Ø¯ Ø§Ù„ØªØ­Ù…ÙŠÙ„Ø§Øª Ø§Ù„Ù…ØªØ²Ø§Ù…Ù†Ø©**: Ø§Ù„Ø­ÙØ§Ø¸ Ø¹Ù„Ù‰ Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ù„ØªØ­Ù…ÙŠÙ„Ø§Øª Ø§Ù„Ù…ØªØ²Ø§Ù…Ù†Ø© Ø§Ù„Ù…Ø­Ø¯Ø¯ ÙÙŠ Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø¨Ø¯ÙˆÙ† Ù…Ø§ ÙŠØªØºÙŠØ± ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ù…Ø¹ Ù†ÙˆØ§ÙØ° Ø§Ù„Ù…ØªØµÙØ­.
+- **ØªØ±ØªÙŠØ¨ Ø§Ù„Ø¬Ø¯ÙˆÙ„ Ø¨Ø§Ù„Ø´ÙƒÙ„ Ø§Ù„ØµØ­ÙŠØ­**: Ø¶Ø¨Ø· Ø¥Ø¶Ø§ÙØ© Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© Ù„Ø£Ø³ÙÙ„ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø¹Ø´Ø§Ù† ØªØ­Ø§ÙØ¸ Ø¹Ù„Ù‰ ØªØ±ØªÙŠØ¨ Ø§Ù„ØªÙ†ÙÙŠØ° ÙˆØ§Ù„ØªØ­ÙƒÙ… Ø§Ù„ÙŠØ¯ÙˆÙŠ.
+- **Ø±Ø¨Ø· Ø£Ø²Ø±Ø§Ø± Ø§Ù„Ø·Ø§Ø¨ÙˆØ± Ø¨Ø§Ù„ØªÙˆØ±Ù†Øª**: Ø£Ø²Ø±Ø§Ø± ØªØ´ØºÙŠÙ„ ÙˆØ¥ÙŠÙ‚Ø§Ù Ø§Ù„Ø·Ø§Ø¨ÙˆØ± ÙÙŠ Ø´Ø±ÙŠØ· Ø§Ù„Ø£Ø¯ÙˆØ§Øª Ø¨Ù‚Øª Ø¨ØªÙˆÙ‚Ù ÙˆØªØ´ØºÙ„ Ù…Ù„ÙØ§Øª Ø§Ù„ØªÙˆØ±Ù†Øª Ø¬Ù†Ø¨Ø§Ù‹ Ø¥Ù„Ù‰ Ø¬Ù†Ø¨ Ù…Ø¹ Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª Ø§Ù„Ø¹Ø§Ø¯ÙŠØ©.
 
 ## [1.3.3] - 2026-10-28
 
-### Added
-- Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø³Ù„Ø§Ù…Ø© Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª (Checksum): Ø¯Ø¹Ù… ÙØ­Øµ Ø§Ù„ØªØ¬Ø²Ø¦Ø© SHA-256 Ùˆ SHA-1 Ùˆ MD5 Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„ØªØ¬Ù…ÙŠØ¹ Ù„Ù…Ù†Ø¹ Ø§Ù„ØªÙ„ÙØŒ Ù…Ø¹ Ø´Ø§Ø±Ø© Ø§Ù„ØªØ­Ù‚Ù‚ ÙÙŠ Ù†Ø§ÙØ°Ø© Ø§Ù„Ø§ÙƒØªÙ…Ø§Ù„.
-- ÙÙƒ Ø§Ù„Ø¶ØºØ· Ø§Ù„Ø¢Ù…Ù† (Safe ZIP Extraction): ÙÙƒ Ø¶ØºØ· Ø¢Ù…Ù† ÙˆÙ…Ø­Ù…ÙŠ Ø¶Ø¯ Ù‡Ø¬Ù…Ø§Øª Ù…Ø³Ø§Ø± Ø§Ù„Ù…Ø¬Ù„Ø¯Ø§Øª Zip-Slip Ù…Ø¹ Ø®ÙŠØ§Ø± Ø§Ù„Ø§Ø³ØªØ®Ø±Ø§Ø¬ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ.
-- Ù†Ø§ÙØ°Ø© Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„Ù…ØµØºØ±Ø© Ø§Ù„Ø¹Ø§Ø¦Ù…Ø© (Mini Speed Widget): Ù†Ø§ÙØ°Ø© Ø¹Ø§Ø¦Ù…Ø© ÙÙˆÙ‚ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚Ø§Øª Ù„Ø¹Ø±Ø¶ Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠØ© ÙˆØ¹Ø¯Ø¯ Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§ØªØŒ ÙˆØªØ¯Ø¹Ù… Ø§Ù„Ø³Ø­Ø¨ ÙˆØ§Ù„Ø¥ÙÙ„Ø§Øª Ù„Ù„Ø±ÙˆØ§Ø¨Ø· ÙˆÙ…Ù„ÙØ§Øª Ø§Ù„ØªÙˆØ±Ù†Øª.
-- Ø¥Ø´Ø¹Ø§Ø±Ø§Øª ØªÙØ§Ø¹Ù„ÙŠØ© Ù…Ø®ØµØµØ© (Interactive Toast Balloon): Ø¥Ø´Ø¹Ø§Ø± Ø§ÙƒØªÙ…Ø§Ù„ Ø§Ù„ØªÙ†Ø²ÙŠÙ„ ÙŠØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ Ø£Ø²Ø±Ø§Ø± Ø³Ø±ÙŠØ¹Ø© Ù„ÙØªØ­ Ø§Ù„Ù…Ù„Ù Ø£Ùˆ ÙØªØ­ Ø§Ù„Ù…Ø¬Ù„Ø¯ Ù…Ø¨Ø§Ø´Ø±Ø© Ø£Ùˆ Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±.
-- Ø¬Ø¯ÙˆÙ„Ø© Ø§Ù„Ù†Ø·Ø§Ù‚ Ø§Ù„ØªØ±Ø¯Ø¯ÙŠ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠØ© (Bandwidth Scheduling): ØªØ­Ø¯ÙŠØ¯ Ø£ÙˆÙ‚Ø§Øª Ø°Ø±ÙˆØ© Ù„ØªÙ‚ÙŠÙŠØ¯ Ø§Ù„Ø³Ø±Ø¹Ø© Ù†Ù‡Ø§Ø±Ø§Ù‹ ÙˆÙØªØ­ Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„ÙƒØ§Ù…Ù„Ø© Ù„ÙŠÙ„Ø§Ù‹ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹.
-- Ø´Ø§Ø´Ø© Ù…ØªÙ‚Ø¯Ù…Ø© Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªÙˆØ±Ù†Øª (Torrent Telemetry): ØªØ¨ÙˆÙŠØ¨Ø§Øª Ù„Ù…Ø±Ø§Ù‚Ø¨Ø© Ø§Ù„Ù…ØªØªØ¨Ø¹Ø§Øª Trackers ÙˆØ§Ù„Ø£Ù‚Ø±Ø§Ù† Peers ÙˆØ³Ø±Ø¹Ø§ØªÙ‡Ù… Ù…Ø¹ Ø¥Ù…ÙƒØ§Ù†ÙŠØ© Ø¥Ø¶Ø§ÙØ© Trackers Ø¬Ø¯ÙŠØ¯Ø© Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„ØªØ­Ù…ÙŠÙ„.
-- ØªØ®Ø·ÙŠ Ø§Ù„Ø§Ø¹ØªØ±Ø§Ø¶ ÙÙŠ Ø§Ù„Ù…ØªØµÙØ­ (Alt-Click Bypass): Ø§Ù„Ù†Ù‚Ø± Ù…Ø¹ Ø§Ù„Ø¶ØºØ· Ø¹Ù„Ù‰ Ø²Ø± Alt Ù„ØªÙ†Ø²ÙŠÙ„ Ø§Ù„Ù…Ù„Ù Ø¹Ø¨Ø± Ø§Ù„Ù…ØªØµÙØ­ Ù…Ø¨Ø§Ø´Ø±Ø© Ø¯ÙˆÙ† Ø§Ø¹ØªØ±Ø§Ø¶Ù‡.
-- Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ù…ÙˆØ§Ù‚Ø¹ Ø§Ù„Ù…Ø³ØªØ«Ù†Ø§Ø© (Domain Blacklist): Ø§Ø³ØªØ«Ù†Ø§Ø¡ Ù†Ø·Ø§Ù‚Ø§Øª Ù…Ø­Ø¯Ø¯Ø© Ù…Ù† Ø§Ø¹ØªØ±Ø§Ø¶ Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª ÙˆØ§Ù„ÙˆØ³Ø§Ø¦Ø· Ø¹Ø¨Ø± Ù†Ø§ÙØ°Ø© Ø§Ù„Ø¥Ø¶Ø§ÙØ©.
-- Ø§Ù„ØªÙ‚Ø§Ø· Ù…Ù„ÙØ§Øª Ø§Ù„ØªØ±Ø¬Ù…Ø© (Subtitle Sniffing): Ø§ÙƒØªØ´Ø§Ù ÙˆØªÙ†Ø²ÙŠÙ„ ØªØ¯ÙÙ‚Ø§Øª Ø§Ù„ØªØ±Ø¬Ù…Ø© WebVTT (.vtt) Ùˆ SubRip (.srt).
-
-## [1.3.2] - 2026-10-28
-
-### Added
-- Engine: Checksum verification support (SHA-256, SHA-1, MD5) on download requests and queue items with streaming hash validation and automatic integrity failure reporting.
-- Engine: Safe ZIP extraction with Zip-Slip path traversal protection and optional automatic extraction upon completion.
-- UI: Floating mini speed widget with live aggregate bandwidth, active job count, and drag-and-drop link/torrent importing.
-- UI: Interactive completion toast balloon notification with direct "Open" and "Open folder" actions.
-- UI: Bandwidth scheduler supporting time-based speed throttling windows with overnight wrap-around.
-- Torrent: Telemetry tabs in TorrentDetailsWindow displaying live tracker status/announce intervals and connected peer metrics, plus manual tracker addition.
-- Extension: Subtitle stream sniffing for WebVTT (.vtt) and SubRip (.srt) media manifests.
-- Extension: Persistent domain blacklist configuration in popup to prevent interception on excluded sites.
-- Extension: Alt-click bypass allowing native browser download handling when holding Alt key.
-
-## [1.3.1] - 2026-10-27
-
-### Changed
-- Updates: Startup update checks now run 2 seconds after launch on every app start, removing the 12-hour launch cooldown so available updates prompt immediately while respecting the "Check for updates automatically" option.
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø³Ù„Ø§Ù…Ø© Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª (Checksum)**: Ø¯Ø¹Ù… ÙØ­Øµ Ø§Ù„ØªØ¬Ø²Ø¦Ø© SHA-256 Ùˆ SHA-1 Ùˆ MD5 Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ù„ÙƒØ´Ù Ø£ÙŠ ØªÙ„Ù ÙÙŠ Ø§Ù„Ù…Ù„ÙØ§ØªØŒ Ù…Ø¹ Ø¹Ù„Ø§Ù…Ø© ØªØ­Ù‚Ù‚ ÙÙŠ Ù†Ø§ÙØ°Ø© Ø§Ù„Ø§ÙƒØªÙ…Ø§Ù„.
+- **ÙÙƒ Ø§Ù„Ø¶ØºØ· Ø§Ù„Ø¢Ù…Ù† (Safe ZIP Extraction)**: ÙÙƒ Ø¶ØºØ· Ø¢Ù…Ù† ÙˆÙ…Ø­Ù…ÙŠ Ø¶Ø¯ Ù‡Ø¬Ù…Ø§Øª Ù…Ø³Ø§Ø± Ø§Ù„Ù…Ø¬Ù„Ø¯Ø§Øª Ù…Ø¹ Ø®ÙŠØ§Ø± Ø§Ù„Ø§Ø³ØªØ®Ø±Ø§Ø¬ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ ÙÙˆØ± Ø§Ù†ØªÙ‡Ø§Ø¡ Ø§Ù„ØªÙ†Ø²ÙŠÙ„.
+- **Ø§Ù„ÙˆØ¯Ø¬Øª Ø§Ù„Ø¹Ø§Ø¦Ù… Ù„Ù…Ø±Ø§Ù‚Ø¨Ø© Ø§Ù„Ø³Ø±Ø¹Ø© (Mini Speed Widget)**: Ù†Ø§ÙØ°Ø© Ø¹Ø§Ø¦Ù…Ø© ÙÙˆÙ‚ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚Ø§Øª Ù„Ø¹Ø±Ø¶ Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠØ© ÙˆØ¹Ø¯Ø¯ Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª ÙˆØ³Ø­Ø¨ Ø§Ù„Ø±ÙˆØ§Ø¨Ø· ÙˆÙ…Ù„ÙØ§Øª Ø§Ù„ØªÙˆØ±Ù†Øª ÙˆØ¥Ø³Ù‚Ø§Ø·Ù‡Ø§ Ø¨Ø³Ù‡ÙˆÙ„Ø©.
+- **Ø¥Ø´Ø¹Ø§Ø±Ø§Øª Ø§ÙƒØªÙ…Ø§Ù„ ØªÙØ§Ø¹Ù„ÙŠØ© (Interactive Toast Balloon)**: Ø¥Ø´Ø¹Ø§Ø± Ø§ÙƒØªÙ…Ø§Ù„ Ø§Ù„ØªÙ†Ø²ÙŠÙ„ ÙŠØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ Ø£Ø²Ø±Ø§Ø± Ø³Ø±ÙŠØ¹Ø© Ù„ÙØªØ­ Ø§Ù„Ù…Ù„Ù Ø£Ùˆ ÙØªØ­ Ø§Ù„Ù…Ø¬Ù„Ø¯ ÙÙˆØ±Ø§Ù‹.
+- **Ø¬Ø¯ÙˆÙ„Ø© Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠØ© (Bandwidth Scheduling)**: ØªØ­Ø¯ÙŠØ¯ Ø£ÙˆÙ‚Ø§Øª Ø°Ø±ÙˆØ© Ù„ØªÙ‚ÙŠÙŠØ¯ Ø§Ù„Ø³Ø±Ø¹Ø© Ù†Ù‡Ø§Ø±Ø§Ù‹ ÙˆÙØªØ­ Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„Ù‚ØµÙˆÙ‰ Ù„ÙŠÙ„Ø§Ù‹ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹.
+- **Ø¨ÙŠØ§Ù†Ø§Øª ØªÙØµÙŠÙ„ÙŠØ© Ù„Ù„ØªÙˆØ±Ù†Øª (Torrent Telemetry)**: ØªØ¨ÙˆÙŠØ¨Ø§Øª Ù„Ù…Ø±Ø§Ù‚Ø¨Ø© Ø§Ù„Ù…ØªØªØ¨Ø¹Ø§Øª Trackers ÙˆØ§Ù„Ø£Ù‚Ø±Ø§Ù† Peers ÙˆØ³Ø±Ø¹Ø§ØªÙ‡Ù… Ù…Ø¹ Ø¥Ù…ÙƒØ§Ù†ÙŠØ© Ø¥Ø¶Ø§ÙØ© Trackers Ø¬Ø¯ÙŠØ¯Ø©.
+- **Ø²Ø± Alt Ù„ØªØ®Ø·ÙŠ Ø§Ù„Ø§Ø¹ØªØ±Ø§Ø¶ (Alt-Click Bypass)**: Ø§Ù„Ù†Ù‚Ø± Ø¹Ù„Ù‰ Ø§Ù„Ø±Ø§Ø¨Ø· Ù…Ø¹ Ø§Ù„Ø¶ØºØ· Ø¹Ù„Ù‰ Ø²Ø± Alt Ù„ØªÙ†Ø²ÙŠÙ„ Ø§Ù„Ù…Ù„Ù Ø¹Ø¨Ø± Ø§Ù„Ù…ØªØµÙØ­ Ù…Ø¨Ø§Ø´Ø±Ø© Ø¨Ø¯ÙˆÙ† Ø§Ù„ØªÙ‚Ø§Ø·Ù‡ Ø¨Ø§Ù„Ø¨Ø±Ù†Ø§Ù…Ø¬.
+- **Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ù…ÙˆØ§Ù‚Ø¹ Ø§Ù„Ù…Ø³ØªØ«Ù†Ø§Ø© (Domain Blacklist)**: Ø§Ø³ØªØ«Ù†Ø§Ø¡ Ù…ÙˆØ§Ù‚Ø¹ Ù…Ø­Ø¯Ø¯Ø© Ù…Ù† Ø§Ù„ØªÙ‚Ø§Ø· Ø§Ù„ØªØ­Ù…ÙŠÙ„Ø§Øª Ø¹Ø¨Ø± Ù†Ø§ÙØ°Ø© Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ù…ØªØµÙØ­.
+- **Ø§Ù„ØªÙ‚Ø§Ø· Ù…Ù„ÙØ§Øª Ø§Ù„ØªØ±Ø¬Ù…Ø© (Subtitle Sniffing)**: Ø§ÙƒØªØ´Ø§Ù ÙˆØªÙ†Ø²ÙŠÙ„ Ù…Ù„ÙØ§Øª Ø§Ù„ØªØ±Ø¬Ù…Ø© Ø§Ù„Ù…Ø±Ø§ÙÙ‚Ø© Ù„Ù„ÙÙŠØ¯ÙŠÙˆ WebVTT (.vtt) Ùˆ SubRip (.srt).
 
 ## [1.3.0] - 2026-10-27
 
-### Added
-- Reliability: Added pre-download, pre-assembly, and torrent volume capacity verification to prevent drive exhaustion and partial staging corruption.
-- Engine: Implemented smart resume disk space calculation that checks only remaining un-downloaded bytes instead of total file size, allowing partial downloads to resume safely.
-- UI: Added a direct "Refresh addressÃ¢â‚¬Â¦" action in DownloadProgressWindow and queue context menus to immediately update expired links and resume failed or paused downloads.
-- UI: Added live free disk space telemetry to the main window status bar alongside aggregate transfer rates.
-- Torrent: Added interactive context menu to TorrentDetailsWindow file list supporting live priority changes (High, Normal, Low, Skip) and one-click file and folder opening.
-
-### Fixed
-- Torrent: Guarded file opening in TorrentDetailsWindow to require 100% completion before launching, preventing execution of sparse or incomplete placeholder files.
-- Reliability: Hardened bulk import URI evaluation with safe parsing to prevent dialog crashes on malformed or non-standard addresses.
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **ÙØ­Øµ Ù…Ø³Ø§Ø­Ø© Ø§Ù„Ù‚Ø±Øµ Ù…Ø³Ø¨Ù‚Ø§Ù‹**: Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ØªÙˆÙØ± Ù…Ø³Ø§Ø­Ø© ÙƒØ§ÙÙŠØ© Ø¹Ù„Ù‰ Ø§Ù„Ù‚Ø±Øµ Ù‚Ø¨Ù„ Ø¨Ø¯Ø¡ Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ø£Ùˆ ÙÙƒ Ø§Ù„Ø£Ø¬Ø²Ø§Ø¡ Ù„Ù…Ù†Ø¹ Ø§Ù…ØªÙ„Ø§Ø¡ Ø§Ù„Ù‡Ø§Ø±Ø¯.
+- **Ø­Ø³Ø§Ø¨ Ø°ÙƒÙŠ Ù„Ù„Ù…Ø³Ø§Ø­Ø© Ø§Ù„Ù…ØªØ¨Ù‚ÙŠØ©**: Ø­Ø³Ø§Ø¨ Ø§Ù„Ø­Ø¬Ù… Ø§Ù„Ù…ØªØ¨Ù‚ÙŠ ØºÙŠØ± Ø§Ù„Ù…Ø­Ù…Ù„ ÙÙ‚Ø· Ø¹Ù†Ø¯ Ø§Ù„Ø§Ø³ØªØ¦Ù†Ø§Ù Ø¨Ø¯Ù„Ø§Ù‹ Ù…Ù† Ø­Ø¬Ù… Ø§Ù„Ù…Ù„Ù Ø¨Ø§Ù„ÙƒØ§Ù…Ù„.
+- **ØªØ­Ø¯ÙŠØ« Ø¹Ù†ÙˆØ§Ù† Ø§Ù„ØªØ­Ù…ÙŠÙ„ (Refresh address)**: Ø²Ø± Ù„ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø±ÙˆØ§Ø¨Ø· Ø§Ù„Ù…Ù†ØªÙ‡ÙŠØ© ÙˆØ§Ø³ØªØ¦Ù†Ø§Ù Ø§Ù„ØªÙ†Ø²ÙŠÙ„ Ø§Ù„ÙØ§Ø´Ù„ Ø¨Ø±Ø§Ø¨Ø· Ø¬Ø¯ÙŠØ¯ Ø¨Ø¯ÙˆÙ† ÙÙ‚Ø¯Ø§Ù† Ø§Ù„Ø£Ø¬Ø²Ø§Ø¡ Ø§Ù„Ù…Ø­Ù…Ù„Ø©.
+- **Ø¹Ø±Ø¶ Ø§Ù„Ù…Ø³Ø§Ø­Ø© Ø§Ù„ÙØ§Ø±ØºØ© ÙÙŠ Ø´Ø±ÙŠØ· Ø§Ù„Ø­Ø§Ù„Ø©**: Ø¥Ø¸Ù‡Ø§Ø± Ø§Ù„Ù…Ø³Ø§Ø­Ø© Ø§Ù„Ù…ØªØ¨Ù‚ÙŠØ© Ø¹Ù„Ù‰ Ø§Ù„Ù‚Ø±Øµ ÙÙŠ Ø§Ù„Ø´Ø±ÙŠØ· Ø§Ù„Ø³ÙÙ„ÙŠ Ù„Ù„Ø¨Ø±Ù†Ø§Ù…Ø¬.
+- **Ø£ÙˆÙ„ÙˆÙŠØ§Øª Ù…Ù„ÙØ§Øª Ø§Ù„ØªÙˆØ±Ù†Øª**: Ø¥Ù…ÙƒØ§Ù†ÙŠØ© ØªØºÙŠÙŠØ± Ø£ÙˆÙ„ÙˆÙŠØ§Øª Ø§Ù„Ù…Ù„ÙØ§Øª Ø§Ù„ÙØ±Ø¯ÙŠØ© Ø¯Ø§Ø®Ù„ Ø§Ù„ØªÙˆØ±Ù†Øª (Ø¹Ø§Ù„ÙŠØ©ØŒ Ø¹Ø§Ø¯ÙŠØ©ØŒ Ù…Ù†Ø®ÙØ¶Ø©ØŒ ØªØ®Ø·ÙŠ).
 
 ## [1.2.9] - 2026-10-26
 
-### Fixed
-- File Assembly: Eliminated cross-volume post-download file copying by placing intermediate assembly staging on the destination volume, enabling near-instantaneous completion and preventing excessive disk writes.
-- File Assembly: Increased sequential file assembly stream buffer from 64 KiB to 4 MiB, drastically accelerating part stitching on SSD and HDD storage.
-- UI Feedback: Added clear "Assembling file..." status, disk writing indicator, and live assembly progress telemetry so multi-gigabyte downloads provide continuous visual feedback instead of appearing frozen at 100%.
-
-## [1.2.8] - 2026-10-24
-
-### Changed
-- Queue Management: Enhanced queue concurrency controls, live reordering, and queue start/stop automation.
-
-### Fixed
-- Engine: Eliminated race condition and redundant cancellation churn during dynamic shard splitting when multiple connection slots are available simultaneously.
-
-## [1.2.7] - 2026-10-24
-
-### Added
-- Host Link Generator: Dedicated tool window and automatic link resolution for supported file hosts (datanodes.to, fuckingfast.co).
-
-### Fixed
-- Engine: Resolved dynamic shard truncation retry offset verification during multi-connection downloads.
+### Ø­Ù„ Ø§Ù„Ù…Ø´Ø§ÙƒÙ„
+- **ØªØ¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ù„ÙØ§Øª Ø¹Ù„Ù‰ Ù†ÙØ³ Ø§Ù„Ù‚Ø±Øµ**: Ø¥Ù†Ø´Ø§Ø¡ Ù…Ø¬Ù„Ø¯ Ø§Ù„ØªØ¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø¤Ù‚Øª Ø¹Ù„Ù‰ Ù†ÙØ³ Ù‚Ø±Øµ Ø§Ù„ÙˆØ¬Ù‡Ø© Ù„ØªØ³Ø±ÙŠØ¹ Ø¥Ù†Ù‡Ø§Ø¡ Ø§Ù„ØªØ­Ù…ÙŠÙ„ ÙÙŠ Ù„Ø­Ø¸ØªÙ‡Ø§ ÙˆÙ…Ù†Ø¹ Ø§Ù„Ù†Ù‚Ù„ Ø§Ù„Ø¨Ø·ÙŠØ¡ Ø¨ÙŠÙ† Ø§Ù„Ø£Ù‚Ø±Ø§Øµ.
+- **ØªØ³Ø±ÙŠØ¹ Ø¯Ù…Ø¬ Ø§Ù„Ø£Ø¬Ø²Ø§Ø¡**: Ø±ÙØ¹ Ø³Ø¹Ø© Ø¨Ø§ÙØ± ØªØ¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ù„ÙØ§Øª Ù…Ù† 64 ÙƒÙŠÙ„ÙˆØ¨Ø§ÙŠØª Ø¥Ù„Ù‰ 4 Ù…ÙŠØ¬Ø§Ø¨Ø§ÙŠØª Ù„Ø²ÙŠØ§Ø¯Ø© Ø³Ø±Ø¹Ø© Ø§Ù„Ø¯Ù…Ø¬ Ø¹Ù„Ù‰ Ø§Ù„Ù‡Ø§Ø±Ø¯Ø§Øª ÙˆØ§Ù„Ù€ SSD.
+- **Ù…Ø¤Ø´Ø± ØªØ¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ù„ÙØ§Øª**: Ø¥Ø¶Ø§ÙØ© Ø­Ø§Ù„Ø© ÙˆØ§Ø¶Ø­Ø© "Ø¬Ø§Ø±ÙŠ ØªØ¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ù„Ù..." Ù…Ø¹ Ù†Ø³Ø¨Ø© Ù…Ø¦ÙˆÙŠØ© ÙˆÙ…Ø¤Ø´Ø± ÙƒØªØ§Ø¨Ø© Ø¹Ø´Ø§Ù† Ø§Ù„Ù…Ù„ÙØ§Øª Ø§Ù„ÙƒØ¨ÙŠØ±Ø© Ù…ØªØ¨Ø§Ù†Ø´ ÙƒØ£Ù†Ù‡Ø§ Ù…Ø¹Ù„Ù‚Ø© Ø¹Ù„Ù‰ 100%.
 
 ## [1.2.6] - 2026-10-24
 
-### Added
-- Host Link Generator: Added dedicated host link generator tool window under Tasks and Downloads menus to convert batches of `datanodes.to` and `fuckingfast.co` links into direct download links with one-click queue addition and clipboard copying.
-- Automatic Host Link Resolution: Integrated `HostLinkResolver` into `BulkImportWindow` and `AddDownloadWindow` so pasted host links are automatically resolved into direct mirror download links.
-- Downloadable Link Detection for Hosters: Integrated `HostLinkResolver` into `DownloadableLinkDetector` so copied `datanodes.to` and `fuckingfast.co` URLs are recognized by the clipboard monitor and import tools.
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **Ø£Ø¯Ø§Ø© ØªØ­ÙˆÙŠÙ„ Ø±ÙˆØ§Ø¨Ø· Ù…ÙˆØ§Ù‚Ø¹ Ø§Ù„Ø±ÙØ¹**: Ù†Ø§ÙØ°Ø© Ù…ØªØ®ØµØµØ© Ù„ØªÙˆÙ„ÙŠØ¯ Ø§Ù„Ø±ÙˆØ§Ø¨Ø· Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø© Ù„Ø±ÙˆØ§Ø¨Ø· `datanodes.to` Ùˆ `fuckingfast.co` ÙˆØ¥Ø¶Ø§ÙØªÙ‡Ø§ Ù„Ù„Ø·Ø§Ø¨ÙˆØ± ÙÙˆØ±Ø§Ù‹.
+- **Ø§Ù„ØªØ¹Ø±Ù Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ Ø¹Ù„Ù‰ Ø±ÙˆØ§Ø¨Ø· Ù…Ø±Ø§ÙƒØ² Ø§Ù„Ø±ÙØ¹**: Ø§Ù„ØªØ¹Ø±Ù Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ Ø¹Ù„Ù‰ Ø§Ù„Ø±ÙˆØ§Ø¨Ø· Ø§Ù„Ù…Ù†Ø³ÙˆØ®Ø© Ù„Ù„Ø­Ø§ÙØ¸Ø© ÙˆØªØ­ÙˆÙŠÙ„Ù‡Ø§ Ù„Ø±ÙˆØ§Ø¨Ø· ØªÙ†Ø²ÙŠÙ„ Ù…Ø¨Ø§Ø´Ø±Ø©.
 
 ## [1.2.5] - 2026-10-24
 
-### Added
-- Queue Concurrency Controls: Added live simultaneous download controls (1 to 16 at a time) directly accessible from the main toolbar button and queue context menus.
-- Download Later in Add URL: Added a dedicated "Download later" action in the Add download dialog to queue downloads in paused status without immediate network transfer.
-- Queue Order Reordering: Added "Move up in queue" and "Move down in queue" actions with keyboard shortcuts (Alt+Up, Alt+Down) to reorder queued downloads.
-- Start and Stop Queue Actions: Added dedicated toolbar buttons and menu commands to start queue processing or pause all active transfers.
-- Concurrency Selection on Link Addition: Added queue concurrency selection in both Add Download and browser capture dialogs.
-
-### Fixed
-- Queue Concurrency Live Update: Ensured that changing concurrent downloads in Settings or toolbar updates the running engine immediately without restart.
-- Quiet Browser Add-to-Queue: Fixed browser capture dialog so selecting "Add to queue" adds the job quietly without opening a popup progress window.
-
-## [1.2.4] - 2026-10-24
-
-### Fixed
-- Torrent: Fixed view filter routing so newly added torrents display immediately in the list rather than being hidden by the default download filter.
-- Torrent: Fixed context menu sequential download toggle and prevented ID mismatch exceptions.
-- Torrent: Optimized magnet link addition by retaining resolved metadata bytes and eliminating redundant second metadata network requests.
-- Torrent: Enabled file and folder opening for completed multi-file torrent downloads.
-- Torrent: Enhanced announce URL extraction and tracker merging from magnet links.
-- Torrent: Added immediate UI queue updates on torrent state and speed changes.
-- Torrent: Implemented batch file priority updates to eliminate repeated disk I/O when adding torrents with skipped files.
-## [1.2.3] - 2026-10-23
-
-### Fixed
-- Engine: Resolved IPv4/IPv6 socket address family mismatch (WSAEADDRNOTAVAIL 10049) on Windows loopback connections in proxy and HTTP handlers.
-- UI: Added accessible names and tooltips across the main toolbar, queue progress indicators, and status summary.
-- UI: Respected system-level reduced motion preferences (`ClientAreaAnimation`) in progress bar smoothing animations.
-- UI: Clarified update check frequency and server description in options.
-- Extension: Added light mode theme support (`prefers-color-scheme`) and improved contrast in popup controls.
-
-## [1.2.2] - 2026-10-23
-
-### Fixed
-- Engine: Resolved IPv4/IPv6 socket address family mismatch (WSAEADDRNOTAVAIL 10049) on Windows loopback connections in proxy and HTTP handlers.
-- UI: Added accessible names and tooltips across the main toolbar, queue progress indicators, and status summary.
-- UI: Respected system-level reduced motion preferences (`ClientAreaAnimation`) in progress bar smoothing animations.
-- Extension: Added light mode theme support (`prefers-color-scheme`) and improved contrast in popup controls.
-
-## [1.2.1] - 2026-10-23
-
-### Fixed
-- Streaming: Prevented infinite looping and redundant segment requests when capturing live HLS media streams.
-- Streaming: Improved stream termination detection for continuous live broadcasts.
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **Ø§Ù„ØªØ­ÙƒÙ… ÙÙŠ Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª Ø§Ù„Ù…ØªØ²Ø§Ù…Ù†Ø©**: ØªØ­Ø¯ÙŠØ¯ Ø¹Ø¯Ø¯ Ø§Ù„ØªØ­Ù…ÙŠÙ„Ø§Øª Ø§Ù„Ø´ØºØ§Ù„Ø© ÙÙŠ Ù†ÙØ³ Ø§Ù„ÙˆÙ‚Øª (Ù…Ù† 1 Ø¥Ù„Ù‰ 16) Ù…Ù† Ø´Ø±ÙŠØ· Ø§Ù„Ø£Ø¯ÙˆØ§Øª ÙˆÙ‚ÙˆØ§Ø¦Ù… Ø§Ù„ÙƒÙ„ÙŠÙƒ ÙŠÙ…ÙŠÙ†.
+- **Ø®ÙŠØ§Ø± Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ù„Ø§Ø­Ù‚Ø§Ù‹**: Ø¥Ù…ÙƒØ§Ù†ÙŠØ© Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ø±Ø§Ø¨Ø· Ù„Ù„Ø·Ø§Ø¨ÙˆØ± ÙÙŠ Ø­Ø§Ù„Ø© Ø§Ù„Ø¥ÙŠÙ‚Ø§Ù Ø§Ù„Ù…Ø¤Ù‚Øª Ø¨Ø¯ÙˆÙ† Ø¨Ø¯Ø¡ Ø§Ù„ØªÙ†Ø²ÙŠÙ„ ÙÙˆØ±Ø§Ù‹.
+- **Ø¥Ø¹Ø§Ø¯Ø© ØªØ±ØªÙŠØ¨ Ø§Ù„Ø·Ø§Ø¨ÙˆØ±**: Ø£Ø²Ø±Ø§Ø± ÙˆØ§Ø®ØªØµØ§Ø±Ø§Øª Ù„ÙˆØ­Ø© Ø§Ù„Ù…ÙØ§ØªÙŠØ­ (Alt+Up Ùˆ Alt+Down) Ù„Ù†Ù‚Ù„ Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ù„Ø£Ø¹Ù„Ù‰ Ø£Ùˆ Ù„Ø£Ø³ÙÙ„.
+- **ØªØ´ØºÙŠÙ„ ÙˆØ¥ÙŠÙ‚Ø§Ù Ø§Ù„Ø·Ø§Ø¨ÙˆØ±**: Ø£Ø²Ø±Ø§Ø± Ù…Ø¨Ø§Ø´Ø±Ø© ÙÙŠ Ø´Ø±ÙŠØ· Ø§Ù„Ø£Ø¯ÙˆØ§Øª Ù„Ø¨Ø¯Ø¡ ØªØ´ØºÙŠÙ„ Ø§Ù„Ø·Ø§Ø¨ÙˆØ± Ø£Ùˆ Ø¥ÙŠÙ‚Ø§ÙÙ‡ Ø¨Ø§Ù„ÙƒØ§Ù…Ù„ Ø¨Ù†Ù‚Ø±Ø© ÙˆØ§Ø­Ø¯Ø©.
 
 ## [1.2.0] - 2026-10-20
 
-### Added
-- Download in background (system tray): dedicated button in the download progress dialog and context menu allowing users to send active downloads to the notification area under the clock to continue transfers silently in the background.
-- Tray progress restoration: clicking the notification area tray icon or selecting the active download in the tray menu instantly restores the progress dialog.
-- Background download completion notices: native balloon notifications announce when a background download completes.
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **Ø§Ù„ØªÙ†Ø²ÙŠÙ„ ÙÙŠ Ø§Ù„Ø®Ù„ÙÙŠØ© Ø¨Ø¬ÙˆØ§Ø± Ø§Ù„Ø³Ø§Ø¹Ø© (System Tray)**: Ø²Ø± Ù…Ø®ØµØµ Ù„Ø¥Ø±Ø³Ø§Ù„ Ù†Ø§ÙØ°Ø© Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ù„ØµÙŠÙ†ÙŠØ© Ø§Ù„Ù†Ø¸Ø§Ù… Ø¨Ø¬Ø§Ù†Ø¨ Ø§Ù„Ø³Ø§Ø¹Ø© Ù„Ù…ØªØ§Ø¨Ø¹Ø© Ø§Ù„ØªØ­Ù…ÙŠÙ„ ÙÙŠ ØµÙ…Øª.
+- **Ø§Ø³ØªØ¹Ø§Ø¯Ø© Ù†Ø§ÙØ°Ø© Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ø¨Ù†Ù‚Ø±Ø© ÙˆØ§Ø­Ø¯Ø©**: Ø§Ù„Ù†Ù‚Ø± Ø¹Ù„Ù‰ Ø£ÙŠÙ‚ÙˆÙ†Ø© Ø´Ø±ÙŠØ· Ø§Ù„Ù…Ù‡Ø§Ù… ÙŠØ¹ÙŠØ¯ Ø¥Ø¸Ù‡Ø§Ø± Ù†Ø§ÙØ°Ø© Ø§Ù„ØªØ­Ù…ÙŠÙ„ ÙÙˆØ±Ø§Ù‹.
 
 ## [1.1.0] - 2026-10-20
 
-### Added
-- Batch URL pattern expansion: syntax `[01-20]` and `[a-z]` with zero padding, step support, and Cartesian product generation in Add URL and Bulk Import.
-- Global bandwidth limiter: aggregate rate governor across concurrent HTTP downloads with quick toolbar presets and custom limits.
-- Sequential torrent downloading: piece order prioritization for previewing media streams during download.
-- Checksum and file integrity verifier: streaming verification supporting SHA-256, SHA-1, and MD5 with real-time match validation in download properties and completion windows.
-- Clipboard monitor and link auto-capture: background clipboard listener for downloadable file links and torrent magnets with instant add prompts.
-- Firefox WebExtension and native bridge: dual manifest support with Gecko integration and native messaging registration.
-
-## [1.0.3] - 2026-10-20
-
-### Fixed
-- Core: Fixed connection retry backoff timing and proxy authentication state handling.
-
-## [1.0.2] - 2026-10-19
-
-### Changed
-- Desktop: one 20 DIP dialog heading scale and 13 DIP window text, flat accent fills (no gradient), and a primary button that uses the dedicated accent hover token.
-- Desktop: Add URL is the single primary toolbar action, toolbar groups are separated, the sidebar actions share one width and height, and search shows a visible placeholder.
-- Desktop: Options uses one 32 DIP control height and drops the redundant Appearance shortcut; progress details no longer use ASCII arrows, and action labels follow sentence case.
-- Extension: the media ribbon and the popup media list share the same rules and offer standard video resolutions from 480p up to 8K (the popup previously stopped at 1080p).
-- Extension: the media ribbon's minimize, close and download buttons meet the 24 px minimum target size for easier clicking and touch input.
-- Extension: popup, ribbon and background worker now use one shared media helper module (titles, sizes, qualities, estimates).
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©
+- **ØªÙˆÙ„ÙŠØ¯ Ø±ÙˆØ§Ø¨Ø· Ø§Ù„Ù…Ø¬Ù…ÙˆØ¹Ø§Øª (Batch URL)**: Ø¯Ø¹Ù… ØµÙŠØ§ØºØ© Ø§Ù„ØªÙƒØ±Ø§Ø± Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ Ù„Ù„Ø£Ø±Ù‚Ø§Ù… ÙˆØ§Ù„Ø­Ø±ÙˆÙ Ù…Ø«Ù„ `[01-20]` ÙÙŠ Ù†Ø§ÙØ°Ø© Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ø±ÙˆØ§Ø¨Ø· ÙˆØ§Ù„Ø§Ø³ØªÙŠØ±Ø§Ø¯ Ø§Ù„Ø¬Ù…Ø§Ø¹ÙŠ.
+- **Ù…Ø­Ø¯Ø¯ Ø§Ù„Ø³Ø±Ø¹Ø© Ø§Ù„Ø¹Ø§Ù… (Global Bandwidth Limiter)**: ØªØ­Ø¯ÙŠØ¯ Ø³Ù‚Ù Ù„Ù„Ø³Ø±Ø¹Ø© Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠØ© Ù„ÙƒÙ„ Ø§Ù„ØªÙ†Ø²ÙŠÙ„Ø§Øª Ø§Ù„Ø´ØºØ§Ù„Ø© Ø¨Ù†Ù‚Ø±Ø© ÙˆØ§Ø­Ø¯Ø©.
+- **Ø§Ù„ØªÙ†Ø²ÙŠÙ„ Ø§Ù„Ù…ØªØªØ§Ø¨Ø¹ Ù„Ù„ØªÙˆØ±Ù†Øª (Sequential Download)**: ØªØ­Ù…ÙŠÙ„ Ø£Ø¬Ø²Ø§Ø¡ Ù…Ù„Ù Ø§Ù„ÙÙŠØ¯ÙŠÙˆ Ø¨Ø§Ù„ØªØ±ØªÙŠØ¨ Ù„Ù…Ø´Ø§Ù‡Ø¯Ø© Ø§Ù„ÙÙŠØ¯ÙŠÙˆ Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„ØªØ­Ù…ÙŠÙ„ Ù‚Ø¨Ù„ Ø§ÙƒØªÙ…Ø§Ù„Ù‡.
+- **Ù…Ø±Ø§Ù‚Ø¨Ø© Ø§Ù„Ø­Ø§ÙØ¸Ø© Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠØ©**: Ø§Ù„ØªÙ‚Ø§Ø· Ø±ÙˆØ§Ø¨Ø· Ø§Ù„ØªØ­Ù…ÙŠÙ„ ÙˆØ§Ù„ØªÙˆØ±Ù†Øª Ø§Ù„Ù…Ù†Ø³ÙˆØ®Ø© ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ ÙˆÙØªØ­ Ù†Ø§ÙØ°Ø© Ø§Ù„ØªÙ†Ø²ÙŠÙ„ ÙÙˆØ±Ø§Ù‹.
 
 ## [1.0.1] - 2026-10-18
 
-### Added
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© (Added)
 - Automated update delivery via Cloudflare Workers with one-click publisher script (`publish.bat`).
 - Parallel segmented HLS stream downloader with AV1 and fMP4 remuxing.
 - Real-time download progress smoothing and live speed / ETA calculation.
 
-### Fixed
-- Window layout and details pane sizing in download progress dialog.
-- UI layout stability during download initialization.
+### Ø­Ù„ Ø§Ù„Ù…Ø´Ø§ÙƒÙ„ (Fixed)
+- ØªØ­Ø³ÙŠÙ† Ø£Ø¨Ø¹Ø§Ø¯ ÙˆØªØ®Ø·ÙŠØ· Ù†Ø§ÙØ°Ø© ØªÙØ§ØµÙŠÙ„ Ø§Ù„ØªØ­Ù…ÙŠÙ„.
+- Ø§Ø³ØªÙ‚Ø±Ø§Ø± ØªØ®Ø·ÙŠØ· Ø§Ù„ÙˆØ§Ø¬Ù‡Ø© Ø£Ø«Ù†Ø§Ø¡ Ø¨Ø¯Ø¡ Ø§Ù„ØªØ­Ù…ÙŠÙ„Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©.
 
 ## [1.0.0] - 2026-09-20
 
-### Added
-- Download queue with pause, resume, retry and scheduling.
+### Ø§Ù„Ù…Ù…ÙŠØ²Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© (Added)
 - Segmented download engine with dynamic segmentation and resume.
-- Modern interface with light and dark themes.
-- Chrome, Edge and Brave extension with a media ribbon for detected audio and video.
-- System tray integration and start with Windows.
+- Ø·Ø§Ø¨ÙˆØ± ØªÙ†Ø²ÙŠÙ„Ø§Øª Ù…ØªÙƒØ§Ù…Ù„ Ù…Ø¹ Ø¥Ù…ÙƒØ§Ù†ÙŠØ§Øª Ø§Ù„Ø¥ÙŠÙ‚Ø§Ù ÙˆØ§Ù„Ø§Ø³ØªØ¦Ù†Ø§Ù ÙˆØ¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© ÙˆØ§Ù„Ø¬Ø¯ÙˆÙ„Ø©.
+- ÙˆØ§Ø¬Ù‡Ø© Ø¹ØµØ±ÙŠØ© ØªØ¯Ø¹Ù… Ø§Ù„Ø«ÙŠÙ… Ø§Ù„ÙØ§ØªØ­ ÙˆØ§Ù„Ø¯Ø§ÙƒÙ† ÙˆØ£Ù„ÙˆØ§Ù† Ù…ØªØ¹Ø¯Ø¯Ø©.
+- Ø¥Ø¶Ø§ÙØ© Ù…ØªØµÙØ­Ø§Øª ÙƒØ±ÙˆÙ… ÙˆØ¥ÙŠØ¯Ø¬ ÙˆØ¨Ø±ÙŠÙ Ù…Ø¹ Ø´Ø±ÙŠØ· Ù„Ø§ÙƒØªØ´Ø§Ù ÙˆØ³Ø§Ø¦Ø· Ø§Ù„ØµÙˆØª ÙˆØ§Ù„ÙÙŠØ¯ÙŠÙˆ ÙÙŠ Ø§Ù„ØµÙØ­Ø§Øª.
+- Ø§Ù„ØªÙƒØ§Ù…Ù„ Ù…Ø¹ Ø´Ø±ÙŠØ· Ù…Ù‡Ø§Ù… ÙˆÙŠÙ†Ø¯ÙˆØ² ÙˆØ§Ù„Ø¨Ø¯Ø¡ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ Ù…Ø¹ Ø§Ù„Ù†Ø¸Ø§Ù….

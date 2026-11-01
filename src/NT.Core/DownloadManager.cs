@@ -1926,15 +1926,29 @@ public sealed partial class DownloadManager : IDisposable
             }
             Notify();
 
-            const int BufferSize = 4 * 1024 * 1024;
+            const int BufferSize = 8 * 1024 * 1024;
             long totalWritten = 0;
             long totalExpected = w.Total > 0 ? w.Total : w.Segments.Sum(s => s.Done);
-            EnsureDiskSpace(staging, totalExpected);
             var lastAssemblyNotify = Stopwatch.GetTimestamp();
+
+            using var incrementalHash = !string.IsNullOrWhiteSpace(w.Request.ExpectedHash)
+                ? System.Security.Cryptography.IncrementalHash.CreateHash(
+                    (w.Request.HashAlgorithm ?? "SHA256").Trim().ToUpperInvariant() switch
+                    {
+                        "MD5" => System.Security.Cryptography.HashAlgorithmName.MD5,
+                        "SHA1" => System.Security.Cryptography.HashAlgorithmName.SHA1,
+                        _ => System.Security.Cryptography.HashAlgorithmName.SHA256
+                    })
+                : null;
 
             var parts = w.Segments.Where(s => s.PartId != null).Select(s => PartFile(w, s.PartId!.Value)).Distinct().ToArray();
             bool singlePartSource = (parts.Length == 1 && File.Exists(parts[0])) ||
                                    (parts.Length > 1 && File.Exists(parts[0]) && !File.Exists(parts[1]));
+
+            if (!singlePartSource || (parts.Length > 0 && !string.Equals(Path.GetPathRoot(parts[0]), Path.GetPathRoot(staging), StringComparison.OrdinalIgnoreCase)))
+            {
+                EnsureDiskSpace(staging, totalExpected);
+            }
 
             if (singlePartSource && new FileInfo(parts[0]).Length == totalExpected)
             {
@@ -1951,18 +1965,25 @@ public sealed partial class DownloadManager : IDisposable
                 var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
                 try
                 {
-                    await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous))
+                    await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous))
                     {
+                        if (totalExpected > 0)
+                        {
+                            output.SetLength(totalExpected);
+                        }
+
                         if (parts.Length > 1 && !File.Exists(parts[1]) && File.Exists(parts[0]))
                         {
-                            await using var input = new FileStream(parts[0], FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                            await using var input = new FileStream(parts[0], FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
                             int read;
                             while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
                             {
                                 await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                                incrementalHash?.AppendData(buffer.AsSpan(0, read));
                                 totalWritten += read;
                                 UpdateAssemblyProgress(w, totalWritten, totalExpected, ref lastAssemblyNotify);
                             }
+                            try { File.Delete(parts[0]); } catch { }
                         }
                         else
                         {
@@ -1970,19 +1991,23 @@ public sealed partial class DownloadManager : IDisposable
                             {
                                 var s = w.Segments[i];
                                 if (s.Done != s.Length) throw new IOException("Incomplete segment cannot be published.");
-                                await using var input = new FileStream(PartFile(w, s.PartId!.Value), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                                if (input.Length != s.Length) throw new IOException("Partial file length changed.");
-                                int read;
-                                while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
+                                var partPath = PartFile(w, s.PartId!.Value);
+                                await using (var input = new FileStream(partPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
                                 {
-                                    await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-                                    totalWritten += read;
-                                    UpdateAssemblyProgress(w, totalWritten, totalExpected, ref lastAssemblyNotify);
+                                    if (input.Length != s.Length) throw new IOException("Partial file length changed.");
+                                    int read;
+                                    while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
+                                    {
+                                        await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                                        incrementalHash?.AppendData(buffer.AsSpan(0, read));
+                                        totalWritten += read;
+                                        UpdateAssemblyProgress(w, totalWritten, totalExpected, ref lastAssemblyNotify);
+                                    }
                                 }
+                                try { File.Delete(partPath); } catch { }
                             }
                         }
                         await output.FlushAsync(token).ConfigureAwait(false);
-                        output.Flush(true);
                     }
                 }
                 finally
@@ -1993,30 +2018,39 @@ public sealed partial class DownloadManager : IDisposable
             if (w.Request.AutoName) SettleName(w, null, ReadHead(staging));
             if (!string.IsNullOrWhiteSpace(w.Request.ExpectedHash))
             {
-                var algo = (w.Request.HashAlgorithm ?? "SHA256").Trim().ToUpperInvariant();
-                await using (var checkStream = new FileStream(staging, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                string actualHash;
+                if (incrementalHash != null && !singlePartSource)
                 {
-                    byte[] hashBytes = algo switch
+                    byte[] hashBytes = incrementalHash.GetHashAndReset();
+                    actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                }
+                else
+                {
+                    var algo = (w.Request.HashAlgorithm ?? "SHA256").Trim().ToUpperInvariant();
+                    await using (var checkStream = new FileStream(staging, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
                     {
-                        "MD5" => await System.Security.Cryptography.MD5.HashDataAsync(checkStream, token).ConfigureAwait(false),
-                        "SHA1" => await System.Security.Cryptography.SHA1.HashDataAsync(checkStream, token).ConfigureAwait(false),
-                        _ => await System.Security.Cryptography.SHA256.HashDataAsync(checkStream, token).ConfigureAwait(false)
-                    };
-                    string actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-                    string expectedClean = w.Request.ExpectedHash.Trim().ToLowerInvariant();
-                    if (!string.Equals(actualHash, expectedClean, StringComparison.OrdinalIgnoreCase))
-                    {
-                        lock (gate)
+                        byte[] hashBytes = algo switch
                         {
-                            w.Job.IsAssembling = false;
-                            w.ChecksumVerified = false;
-                            w.Job.Status = "Failed";
-                            w.Job.Error = $"Integrity check failed: expected {expectedClean}, got {actualHash}";
-                            SaveLocked();
-                        }
-                        Notify();
-                        return;
+                            "MD5" => await System.Security.Cryptography.MD5.HashDataAsync(checkStream, token).ConfigureAwait(false),
+                            "SHA1" => await System.Security.Cryptography.SHA1.HashDataAsync(checkStream, token).ConfigureAwait(false),
+                            _ => await System.Security.Cryptography.SHA256.HashDataAsync(checkStream, token).ConfigureAwait(false)
+                        };
+                        actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
                     }
+                }
+                string expectedClean = w.Request.ExpectedHash.Trim().ToLowerInvariant();
+                if (!string.Equals(actualHash, expectedClean, StringComparison.OrdinalIgnoreCase))
+                {
+                    lock (gate)
+                    {
+                        w.Job.IsAssembling = false;
+                        w.ChecksumVerified = false;
+                        w.Job.Status = "Failed";
+                        w.Job.Error = $"Integrity check failed: expected {expectedClean}, got {actualHash}";
+                        SaveLocked();
+                    }
+                    Notify();
+                    return;
                 }
                 w.ChecksumVerified = true;
             }

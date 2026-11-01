@@ -1,6 +1,6 @@
-d7929a944d48e9aa9e6a2c19ca52ac640bd872dbbea4c1c1ada51956e528ca1c *N&T-Setup-1.3.10.msi
-d7929a944d48e9aa9e6a2c19ca52ac640bd872dbbea4c1c1ada51956e528ca1c *N&T-Setup.msi
-d7929a944d48e9aa9e6a2c19ca52ac640bd872dbbea4c1c1ada51956e528ca1c *N.T-Setup-1.3.10.msi
-d7929a944d48e9aa9e6a2c19ca52ac640bd872dbbea4c1c1ada51956e528ca1c *N.T-Setup.msi
-d7929a944d48e9aa9e6a2c19ca52ac640bd872dbbea4c1c1ada51956e528ca1c *NeoDM-Setup-1.3.10.msi
-d7929a944d48e9aa9e6a2c19ca52ac640bd872dbbea4c1c1ada51956e528ca1c *NeoDM-Setup.msi
+ae8d41e758b19d70a0da11cf02450bcf983ab2a6051e5c1b154bfb065aad9703 *N&T-Setup-1.3.11.msi
+ae8d41e758b19d70a0da11cf02450bcf983ab2a6051e5c1b154bfb065aad9703 *N&T-Setup.msi
+ae8d41e758b19d70a0da11cf02450bcf983ab2a6051e5c1b154bfb065aad9703 *N.T-Setup-1.3.11.msi
+ae8d41e758b19d70a0da11cf02450bcf983ab2a6051e5c1b154bfb065aad9703 *N.T-Setup.msi
+ae8d41e758b19d70a0da11cf02450bcf983ab2a6051e5c1b154bfb065aad9703 *NeoDM-Setup-1.3.11.msi
+ae8d41e758b19d70a0da11cf02450bcf983ab2a6051e5c1b154bfb065aad9703 *NeoDM-Setup.msi

@@ -8,6 +8,42 @@ namespace NT.App;
 public partial class App : Application
 {
     static App() => WindowSizing.Attach();
+
+    public App()
+    {
+        DispatcherUnhandledException += (sender, args) =>
+        {
+            LogCrash("DispatcherUnhandledException", args.Exception);
+            args.Handled = true;
+            MessageBox.Show("An unexpected error occurred in N&T:\n\n" + args.Exception.Message, "N&T Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+            {
+                LogCrash("AppDomainUnhandledException", ex);
+            }
+        };
+
+        TaskScheduler.UnobservedTaskException += (sender, args) =>
+        {
+            LogCrash("UnobservedTaskException", args.Exception);
+            args.SetObserved();
+        };
+    }
+
+    private static void LogCrash(string source, Exception ex)
+    {
+        try
+        {
+            var logPath = Path.Combine(StateDirectory, "crash.log");
+            var text = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC] [{source}] {ex}\n\n";
+            File.AppendAllText(logPath, text);
+        }
+        catch { }
+    }
+
     private Mutex? _singleton;
     private bool _ownsMutex;
     private DownloadManager? _manager;
@@ -108,10 +144,12 @@ public partial class App : Application
                     var closeTask = splash.FadeOutAndCloseAsync(200);
                     window.Show();
                     await closeTask;
+                    window.BringToFront();
                 }
                 else
                 {
                     window.Show();
+                    window.BringToFront();
                 }
             }
 
