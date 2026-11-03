@@ -123,11 +123,26 @@ public partial class AboutWindow : Window
                     bullet.SetResourceReference(TextBlock.ForegroundProperty, "InkBrush");
                     var text = new TextBlock
                     {
-                        Text = entry.Replace("`", ""),
                         TextWrapping = TextWrapping.Wrap,
                         LineHeight = 18
                     };
                     text.SetResourceReference(TextBlock.ForegroundProperty, "InkBrush");
+                    var clean = entry.Replace("`", "");
+                    var parts = Regex.Split(clean, @"(\*\*.*?\*\*)");
+                    if (parts.Length > 1)
+                    {
+                        foreach (var part in parts)
+                        {
+                            if (part.StartsWith("**", StringComparison.Ordinal) && part.EndsWith("**", StringComparison.Ordinal) && part.Length >= 4)
+                                text.Inlines.Add(new System.Windows.Documents.Run(part[2..^2]) { FontWeight = FontWeights.SemiBold });
+                            else if (part.Length > 0)
+                                text.Inlines.Add(new System.Windows.Documents.Run(part));
+                        }
+                    }
+                    else
+                    {
+                        text.Text = clean;
+                    }
                     Grid.SetColumn(text, 1);
                     row.Children.Add(bullet);
                     row.Children.Add(text);

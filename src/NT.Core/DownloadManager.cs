@@ -74,7 +74,7 @@ public sealed partial class DownloadManager : IDisposable
         downloads = Path.GetFullPath(downloadDirectory);
         state = Path.GetFullPath(stateDirectory);
         Directory.CreateDirectory(downloads);
-        Directory.CreateDirectory(Path.Combine(downloads, ".ndm-staging"));
+        TryCleanupStagingDirectory(Path.Combine(downloads, ".ndm-staging"));
         Directory.CreateDirectory(state);
         queuePath = Path.Combine(state, "queue.json");
         ownership = new FileStream(Path.Combine(state, "queue.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
@@ -1917,8 +1917,10 @@ public sealed partial class DownloadManager : IDisposable
     private async Task PublishAsync(Work w, CancellationToken token)
     {
         var staging = StagingFile(w);
+        var stagingDir = Path.GetDirectoryName(staging);
         try
         {
+            if (!string.IsNullOrEmpty(stagingDir)) Directory.CreateDirectory(stagingDir);
             lock (gate)
             {
                 w.Job.IsAssembling = true;
@@ -2076,6 +2078,7 @@ public sealed partial class DownloadManager : IDisposable
             }
             Notify();
             DeletePartial(w);
+            TryCleanupStagingDirectory(stagingDir);
         }
         finally
         {
@@ -2084,6 +2087,7 @@ public sealed partial class DownloadManager : IDisposable
                 w.Job.IsAssembling = false;
             }
             if (File.Exists(staging)) File.Delete(staging);
+            TryCleanupStagingDirectory(stagingDir);
         }
     }
 
@@ -2119,20 +2123,22 @@ public sealed partial class DownloadManager : IDisposable
     {
         var targetDir = Path.GetDirectoryName(w.Job.FilePath);
         var baseDir = !string.IsNullOrEmpty(targetDir) ? targetDir : downloads;
-        try
-        {
-            var stagingDir = Path.Combine(baseDir, ".ndm-staging");
-            Directory.CreateDirectory(stagingDir);
-            return stagingDir;
-        }
-        catch
-        {
-            var stagingDir = Path.Combine(downloads, ".ndm-staging");
-            Directory.CreateDirectory(stagingDir);
-            return stagingDir;
-        }
+        return Path.Combine(baseDir, ".ndm-staging");
     }
     private string StagingFile(Work w) => Path.Combine(StagingDirectory(w), w.Job.Id + ".tmp");
+
+    private static void TryCleanupStagingDirectory(string? stagingDir)
+    {
+        if (string.IsNullOrEmpty(stagingDir)) return;
+        try
+        {
+            if (Directory.Exists(stagingDir) && !Directory.EnumerateFileSystemEntries(stagingDir).Any())
+            {
+                Directory.Delete(stagingDir);
+            }
+        }
+        catch { }
+    }
 
     public static void EnsureDiskSpace(string targetPath, long requiredBytes)
     {
@@ -2169,8 +2175,10 @@ public sealed partial class DownloadManager : IDisposable
         {
             var staging = StagingFile(w);
             if (File.Exists(staging)) File.Delete(staging);
+            TryCleanupStagingDirectory(Path.GetDirectoryName(staging));
             var legacyStaging = Path.Combine(downloads, ".ndm-staging", w.Job.Id + ".tmp");
             if (File.Exists(legacyStaging)) File.Delete(legacyStaging);
+            TryCleanupStagingDirectory(Path.Combine(downloads, ".ndm-staging"));
         }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }

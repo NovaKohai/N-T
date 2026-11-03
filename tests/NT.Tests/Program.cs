@@ -239,6 +239,7 @@ async Task Remove()
 {
     using var server = new FixtureServer(); var paths = Paths(); using var manager = Manager(paths);
     var completed = await manager.AddAsync(new(server.BaseUrl + "/range")); var done = await Complete(manager, completed.Id);
+    Check(!Directory.Exists(Path.Combine(paths.Download, ".ndm-staging")), "Staging directory not cleaned up after completion");
     manager.Remove(done.Id); Check(File.Exists(done.FilePath) && manager.Jobs.Count == 0, "Remove deleted completed file");
     var partial = await manager.AddScheduledAsync(new(server.BaseUrl + "/range"), DateTimeOffset.UtcNow.AddHours(1));
     manager.SetSpeedLimit(partial.Id, 400000); manager.Schedule(partial.Id, DateTimeOffset.UtcNow);

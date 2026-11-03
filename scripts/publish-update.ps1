@@ -20,7 +20,7 @@ $propsPath = Join-Path $root 'Directory.Build.props'
 if (-not (Test-Path -LiteralPath $propsPath)) {
     throw "Directory.Build.props not found at: $propsPath"
 }
-$propsContent = Get-Content -LiteralPath $propsPath -Raw
+$propsContent = Get-Content -LiteralPath $propsPath -Raw -Encoding utf8
 $verMatch = [regex]::Match($propsContent, '<Version>\s*(\d+)\.(\d+)\.(\d+)\s*</Version>')
 if (-not $verMatch.Success) {
     throw "Could not parse <Version> from Directory.Build.props"
@@ -72,7 +72,7 @@ Write-Host ""
 
 # 2. Verify or add changelog entry
 $changelogPath = Join-Path $root 'CHANGELOG.md'
-$changelog = Get-Content -LiteralPath $changelogPath -Raw
+$changelog = Get-Content -LiteralPath $changelogPath -Raw -Encoding utf8
 if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
     $prevMatch = [regex]::Match($changelog, "(?ms)## \[$([regex]::Escape($currentVersion))\].*?(?=(?:`r?`n## \[|\Z))")
     if ($targetVersion -ne $currentVersion -and $prevMatch.Success -and $prevMatch.Value.Trim().Length -gt 0) {
@@ -87,7 +87,7 @@ if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
         }
     }
 
-    $changelog = Get-Content -LiteralPath $changelogPath -Raw
+    $changelog = Get-Content -LiteralPath $changelogPath -Raw -Encoding utf8
     if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
         Write-Host "CHANGELOG.md does not have release notes for [$targetVersion]." -ForegroundColor Yellow
         Write-Host "Enter a short one-line summary, or press ENTER to open CHANGELOG.md in editor for multi-line notes:" -ForegroundColor Cyan
@@ -95,15 +95,15 @@ if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
         if ([string]::IsNullOrWhiteSpace($notes)) {
             Write-Host "Opening CHANGELOG.md in editor... Save, close, and press Enter to continue." -ForegroundColor Yellow
             Start-Process "notepad.exe" -ArgumentList "`"$changelogPath`"" -Wait
-            $changelog = Get-Content -LiteralPath $changelogPath -Raw
+            $changelog = Get-Content -LiteralPath $changelogPath -Raw -Encoding utf8
             if ($changelog -notmatch "## \[$([regex]::Escape($targetVersion))\]") {
                 throw "CHANGELOG.md still has no '## [$targetVersion]' section."
             }
         } else {
             $today = (Get-Date).ToString("yyyy-MM-dd")
             $newSection = "## [$targetVersion] - $today`r`n`r`n### Changed`r`n- $notes`r`n`r`n"
-            if ($changelog -match "(?ms)^(# Changelog\r?\n.*?\r?\n)(## \[)") {
-                $changelog = [regex]::Replace($changelog, "(?ms)^(# Changelog\r?\n.*?\r?\n)(## \[)", "`${1}$newSection`${2}", 1)
+            if ($changelog -match "(?ms)^(# [^\r\n]+\r?\n.*?\r?\n)(## \[)") {
+                $changelog = [regex]::Replace($changelog, "(?ms)^(# [^\r\n]+\r?\n.*?\r?\n)(## \[)", "`${1}$newSection`${2}", 1)
             } else {
                 $changelog = $newSection + $changelog
             }
