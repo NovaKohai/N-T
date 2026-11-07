@@ -319,8 +319,11 @@ public partial class MainWindow : Window
             bool sortChanged = false;
             var ids = snapshot.Select(j => j.Id).ToHashSet();
             _torrents.CollectRowIds(ids);
-            _rowLookup.Clear();
-            for (int i = 0; i < Rows.Count; i++) _rowLookup[Rows[i].Id] = Rows[i];
+            if (_rowLookup.Count != Rows.Count)
+            {
+                _rowLookup.Clear();
+                for (int i = 0; i < Rows.Count; i++) _rowLookup[Rows[i].Id] = Rows[i];
+            }
 
             for (int i = Rows.Count - 1; i >= 0; i--)
             {
@@ -354,7 +357,7 @@ public partial class MainWindow : Window
             _completion.Observe(snapshot);
             queueFinished |= ObserveFinish(snapshot);
             RestoreSelection(selectedIds);
-            var visible = view.Cast<object>().Count();
+            var visible = (view as CollectionView)?.Count ?? view.Cast<object>().Count();
             CountLabel.Text = $"{visible} {(visible == 1 ? "download" : "downloads")}";
             bool shouldBeEmpty = visible == 0;
             if (shouldBeEmpty && EmptyState.Visibility != Visibility.Visible)

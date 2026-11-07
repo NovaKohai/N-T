@@ -48,6 +48,15 @@
       if (videos.length === 1) return videos[0];
       const playing = videos.find(v => !v.paused && !v.ended && v.readyState > 1);
       if (playing) return playing;
+      const winW = window.innerWidth || document.documentElement?.clientWidth || 0;
+      const winH = window.innerHeight || document.documentElement?.clientHeight || 0;
+      const inViewport = videos.find(v => {
+        try {
+          const r = v.getBoundingClientRect();
+          return r.width > 50 && r.height > 50 && r.bottom > 50 && r.top < winH - 50 && r.right > 50 && r.left < winW - 50;
+        } catch { return false; }
+      });
+      if (inViewport) return inViewport;
       return videos.reduce((best, v) => ((v.videoHeight * v.videoWidth) > ((best?.videoHeight || 0) * (best?.videoWidth || 0)) ? v : best), null);
     } catch {
       return null;

@@ -1,12 +1,12 @@
 {
-    "body":  "## [1.3.12] - 2026-11-04\r\n\r\n### تحسينات عامة وتنظيف\r\n- **حذف مجلد التجميع (.ndm-staging) تلقائياً**: يتم مسح المجلد فور اكتمال التجميع ونقل الملف النهائي، أو عند إلغاء التحميل، كما يتم مسحه تلقائياً عند بدء التشغيل إذا كان فارغاً لضمان عدم بقاء أي مجلدات فارغة في مجلد التنزيلات.\r\n- **إصلاح ترميز نافذة حول البرنامج (About)**: حل مشكلة ظهور النصوص المشوهة في قائمة \"ما الجديد\" وضمان عرض النص العربي بترميز UTF-8 القياسي مع تنسيق الخط العريض بشكل أنيق ومقروء.",
-    "name":  "N&T 1.3.12",
-    "published_at":  "2026-11-03T22:18:05Z",
+    "body":  "## [1.3.13] - 2026-11-07\r\n\r\n### Changed\r\n- الجديد في التحديث:",
+    "name":  "N&T 1.3.13",
+    "published_at":  "2026-11-07T04:24:57Z",
     "assets":  [
                    {
-                       "browser_download_url":  "/updates/N&T-Setup-1.3.12.msi",
-                       "name":  "N&T-Setup-1.3.12.msi",
-                       "size":  93677652
+                       "browser_download_url":  "/updates/N&T-Setup-1.3.13.msi",
+                       "name":  "N&T-Setup-1.3.13.msi",
+                       "size":  93673556
                    },
                    {
                        "browser_download_url":  "/updates/SHA256SUMS.txt",
@@ -14,6 +14,6 @@
                        "size":  511
                    }
                ],
-    "tag_name":  "v1.3.12",
-    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.3.12"
+    "tag_name":  "v1.3.13",
+    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.3.13"
 }

@@ -1372,8 +1372,10 @@ public sealed partial class DownloadManager : IDisposable
 
         var workers = Enumerable.Range(0, numWorkers).Select(workerId => Task.Run(async () =>
         {
-            var buf = new byte[65536];
-            while (queue.TryDequeue(out var item))
+            var buf = ArrayPool<byte>.Shared.Rent(65536);
+            try
+            {
+                while (queue.TryDequeue(out var item))
             {
                 token.ThrowIfCancellationRequested();
                 var chunkFile = Path.Combine(partDir, $"chunk_{item.index:D6}{chunkExt}");
@@ -1469,7 +1471,12 @@ public sealed partial class DownloadManager : IDisposable
 
             lock (gate) { w.Segments[workerId].Active = false; }
             Notify();
-        }, token)).ToArray();
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buf);
+        }
+    }, token)).ToArray();
 
         await Task.WhenAll(workers).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
@@ -2070,6 +2077,8 @@ public sealed partial class DownloadManager : IDisposable
                     try { File.Move(staging, Path.Combine(targetDir, name), false); w.Job.FileName = name; w.Job.FilePath = Path.Combine(targetDir, name); break; }
                     catch (IOException) when (File.Exists(Path.Combine(targetDir, name))) { }
                 }
+                DeletePartial(w);
+                TryCleanupStagingDirectory(stagingDir);
                 w.Job.IsAssembling = false;
                 w.Job.AssemblyProgress = 100;
                 w.Job.Status = "Completed"; w.Job.Error = null;
@@ -2077,8 +2086,6 @@ public sealed partial class DownloadManager : IDisposable
                 SaveLocked();
             }
             Notify();
-            DeletePartial(w);
-            TryCleanupStagingDirectory(stagingDir);
         }
         finally
         {
@@ -2130,14 +2137,22 @@ public sealed partial class DownloadManager : IDisposable
     private static void TryCleanupStagingDirectory(string? stagingDir)
     {
         if (string.IsNullOrEmpty(stagingDir)) return;
-        try
+        for (int i = 0; i < 5; i++)
         {
-            if (Directory.Exists(stagingDir) && !Directory.EnumerateFileSystemEntries(stagingDir).Any())
+            try
             {
-                Directory.Delete(stagingDir);
+                if (Directory.Exists(stagingDir) && !Directory.EnumerateFileSystemEntries(stagingDir).Any())
+                {
+                    Directory.Delete(stagingDir);
+                }
+                break;
             }
+            catch (IOException) when (i < 4)
+            {
+                Thread.Sleep(15);
+            }
+            catch { break; }
         }
-        catch { }
     }
 
     public static void EnsureDiskSpace(string targetPath, long requiredBytes)
