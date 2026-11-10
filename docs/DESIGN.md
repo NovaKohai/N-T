@@ -10,9 +10,10 @@ The layout is a menu, a command toolbar, a status navigation rail and a sortable
 | --- | --- | --- |
 | Native window frame | Standard minimize, maximize, close, resize and Windows snap | Existing OS chrome, native DPI manifest; no custom titlebar |
 | Menu | Tasks / File / Downloads / View / Help | Access keys; real add/import, scheduler, resume/stop, options, filters and help handlers |
-| Command toolbar | Add URL (primary), Add torrent, Resume, Stop, Stop all, Remove, Remove completed, Options, Scheduler | Compact 30 DIP buttons, grouped and wrapping if needed; destructive actions confirm and keep saved files |
-| Status navigation | DOWNLOADS: All, Downloading, Paused, Completed, Failed, Queued, Scheduled (non-torrent items only). TORRENTS: All torrents, Downloading, Seeding, Completed | 166 DIP rail; filters match actual engine status, not guessed extension categories |
-| Queue table | Filename, Size, Status, Progress, Remaining, Speed | Virtualized ListView/GridView; 30 DIP rows, sortable typed values, reorderable/resizable columns, horizontal and vertical scroll |
+| Command toolbar | Add URL (primary), Add torrent; Resume, Stop, Remove, Scheduler for the selection; Start queue, Stop queue; Options at the right edge | One row of flat 30 DIP icon-and-label buttons (`ToolButton`, glyph through `local:Ui.Icon`), wrapping only at narrow widths; Resume/Stop/Remove act on the whole selection; destructive actions confirm and keep saved files |
+| Status navigation | DOWNLOADS: All, Downloading, Paused, Completed, Failed, Queued, Scheduled (non-torrent items only). TORRENTS: All torrents, Downloading, Seeding, Completed. WHOLE QUEUE (bottom): Import URLs, Resume all paused, Stop all, Remove completed | 178 DIP rail; each filter shows its live count (nothing when empty); filters match actual engine status, not guessed extension categories |
+| Queue table | Filename, Size, Status, Progress, Remaining, Speed | Virtualized ListView/GridView; 34 DIP rows, sortable typed values, reorderable/resizable columns, horizontal and vertical scroll. Filename fills the spare width until the user resizes it; Status carries a state dot (accent = active, success = done, warning = scheduled, error = failed) |
+| Status bar | Notice, free disk space, queue summary, total speed, then three setting chips: queue concurrency, global speed limit, action when downloads finish | 12 DIP text; chips are `ChipButton` and open their menu upwards; free disk space hides below 1080 DIP window width |
 | Search | Match filename or original URL within current filter | Visible placeholder, accessible name, Ctrl+F; no synthetic matches |
 | Selection strip | Filename/path/error; compatible Pause/Resume, Speed, Open file, Open folder | Small inline strip; legacy named controls retained |
 | Progress window | Per-download live inspection without blocking the queue | Modeless, one view per job; total/downloaded, core speed/ETA, resume support and connection/segment snapshots |
@@ -23,6 +24,9 @@ The layout is a menu, a command toolbar, a status navigation rail and a sortable
 ## Tokens and accessibility
 - Reuse `Themes/Light.xaml`, `Themes/Dark.xaml` and `Themes/Controls.xaml`: Canvas, Sidebar, Surface, SurfaceHover, Ink, Muted, Border, Accent, AccentSoft and semantic brushes. Dynamic resources update already-open windows.
 - Segoe UI; main table and workspace 13 DIP, secondary labels 11 to 12 DIP, dialog headings 18 to 20 DIP. The UI uses native text and plain borders, with no gradients, decorative cards, blur or automatic animation.
+- Icons are original 16 × 16 stroke geometries defined in `Themes/Controls.xaml` (`Icon*` keys). Any `Button` shows one through the attached property `local:Ui.Icon`; `Button.Content` stays a plain string so code and tests keep reading it as text.
+- Dialogs show the fields everyone needs first; optional settings sit in a themed `Expander` (Add download: schedule, speed limit, checksum and queue concurrency under "More options").
+- Text whose first letter is Arabic or Hebrew (release notes in About and the update window) is laid out right-to-left through `Ui.DirectionOf`.
 - Main minimum size is 900 × 480 DIP. All six default columns, including Remaining and Speed, fit at this width; user-resized columns can scroll. Status navigation scrolls at short heights.
 - Native window buttons remain unobstructed. Tab traversal, list arrows, visible focus outlines, menu access keys and named accessible search/queue controls are retained.
 - Ctrl+N adds, Ctrl+F searches, Ctrl+V pastes a URL outside text inputs, F5 refreshes, Enter inspects the selected incomplete download or guarded-opens a completed one, Delete confirms removal. Escape closes progress/completion views without stopping transfers.

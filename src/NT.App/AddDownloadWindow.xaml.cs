@@ -70,6 +70,15 @@ public partial class AddDownloadWindow : Window
         Loaded += (_, _) => { UrlInput.Focus(); UrlInput.SelectAll(); };
     }
 
+    /// <summary>The dialog opens compact; opening "More options" gives the extra fields room (within the screen) instead of a tiny scroll area.</summary>
+    private void MoreOptions_Expanded(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded || WindowState != WindowState.Normal) return;
+        double available = SystemParameters.WorkArea.Height - 40;
+        if (Height < 640) Height = Math.Min(640, available);
+        if (Top + Height > SystemParameters.WorkArea.Bottom) Top = Math.Max(SystemParameters.WorkArea.Top, SystemParameters.WorkArea.Bottom - Height);
+    }
+
     private void UrlInput_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (PatternHint is null) return;
@@ -111,8 +120,12 @@ public partial class AddDownloadWindow : Window
         await ProcessAcceptAsync();
     }
 
+    /// <summary>Closes with success. A window shown modelessly has no DialogResult to set.</summary>
+    private void Finish() { try { DialogResult = true; } catch (InvalidOperationException) { Close(); } }
+
     private async Task ProcessAcceptAsync()
     {
+        bool inOptions = false; // true while the fields under "More options" are being read, so their errors open that section
         try
         {
             if (ConcurrentInput.SelectedItem is ComboBoxItem concItem && int.TryParse(concItem.Tag as string, out var conc))
@@ -124,7 +137,7 @@ public partial class AddDownloadWindow : Window
                 TorrentValidator.ParseMagnet(url);
                 MagnetUri = url;
                 Request = null;
-                try { DialogResult = true; } catch (InvalidOperationException) { Close(); }
+                Finish();
                 return;
             }
 
@@ -137,11 +150,13 @@ public partial class AddDownloadWindow : Window
                     string customName = NameInput.Text.Trim();
                     if (customName.Length > 0)
                         throw new FormatException("Custom file name cannot be used with a batch URL pattern; names are resolved per URL.");
+                    inOptions = true;
                     ScheduledAt = ScheduleEnabled.IsChecked == true ? DownloadDialogValidation.ParseSchedule(ScheduleInput.Text) : null;
                     SpeedLimit = DownloadDialogValidation.ParseSpeed(SpeedInput.Text);
+                    inOptions = false;
                     BatchRequests = expanded.Select(u => new DownloadRequest(u)).ToList();
                     Request = BatchRequests[0];
-                    DialogResult = true;
+                    Finish();
                     return;
                 }
             }
@@ -167,15 +182,17 @@ public partial class AddDownloadWindow : Window
             string name = NameInput.Text.Trim();
             if (name.Length > 0 && (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name is "." or ".." || name.EndsWith('.') || name.EndsWith(' ')))
                 throw new FormatException("Use a file name without folder paths or invalid characters.");
+            inOptions = true;
             ScheduledAt = ScheduleEnabled.IsChecked == true ? DownloadDialogValidation.ParseSchedule(ScheduleInput.Text) : null;
             SpeedLimit = DownloadDialogValidation.ParseSpeed(SpeedInput.Text);
+            inOptions = false;
             string? expectedHash = ChecksumInput is not null && !string.IsNullOrWhiteSpace(ChecksumInput.Text) ? ChecksumInput.Text.Trim() : null;
             string? hashAlgo = ChecksumAlgo?.SelectedItem is ComboBoxItem algoItem && algoItem.Tag is string a ? a : "SHA256";
             Request = new DownloadRequest(url, name.Length == 0 ? null : name, ExpectedHash: expectedHash, HashAlgorithm: hashAlgo);
-            DialogResult = true;
+            Finish();
         }
         catch (TorrentRejectedException ex) { ValidationError.Text = ex.Message; UpdateLayout(); ValidationError.BringIntoView(); }
-        catch (FormatException ex) { ValidationError.Text = ex.Message; UpdateLayout(); ValidationError.BringIntoView(); }
-        catch (Exception ex) { ValidationError.Text = "Host link resolution failed: " + ex.Message; UpdateLayout(); ValidationError.BringIntoView(); }
+        catch (FormatException ex) { ValidationError.Text = ex.Message; if (inOptions) MoreOptions.IsExpanded = true; UpdateLayout(); ValidationError.BringIntoView(); }
+        catch (Exception ex) { ValidationError.Text = "This link could not be added: " + ex.Message; UpdateLayout(); ValidationError.BringIntoView(); }
     }
 }

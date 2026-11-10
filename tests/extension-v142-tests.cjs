@@ -192,6 +192,20 @@ test('popup list: entries can be downloaded from the popup', async () => {
   assert.equal(await b.message({ action: 'popup-media', tabId: 7 }, b.pageSender()), undefined, 'page scripts cannot use the popup actions');
 });
 
+test('blocked sites: a pasted address is reduced to its host, junk is refused, and the stored entry really matches', async () => {
+  const b = makeBackground();
+  const add = domain => b.message({ action: 'blacklist-add', domain });
+  let r = await add('https://www.Example.com/some/page?x=1'); assert.equal(r.ok, true); assert.equal(r.domain, 'example.com'); assert.deepEqual(json(r.domains), ['example.com']);
+  r = await add('  sub.site.org:8443/path '); assert.equal(r.domain, 'sub.site.org');
+  r = await add('example.com'); assert.deepEqual(json(r.domains), ['example.com', 'sub.site.org'], 'no duplicate entry');
+  for (const junk of ['', '   ', 'not a host', 'exa mple.com', 'http://', '..', 'a'.repeat(300) + '.com']) {
+    r = await add(junk); assert.equal(r.ok, false, JSON.stringify(junk)); assert.match(r.error, /site|full/i); assert.equal(r.domains.length, 2);
+  }
+  const stored = (await b.message({ action: 'blacklist-get' })).domains;
+  assert.equal(S.isBlacklisted(json(stored), 'https://www.example.com/file.zip'), true, 'the stored host matches the site it was pasted from');
+  r = await b.message({ action: 'blacklist-remove', domain: 'example.com' }); assert.deepEqual(json(r.domains), ['sub.site.org']);
+});
+
 test('full videos with numeric IDs (Instagram, CDN) are classified as downloadable files and not segments', async () => {
   const b = makeBackground();
   const url = 'https://scontent.cdninstagram.com/v/t50.2886-16/480572019_1150388279930713_4826190740925761358_n.mp4?bytestart=0&byteend=9999';

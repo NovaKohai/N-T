@@ -78,6 +78,19 @@ public sealed class UpdateInstaller
         }
     }
 
+    private readonly object cleanupGate = new();
+    private bool downloadStarted;
+
+    /// <summary>Startup retry of <see cref="CleanUp"/> for files the previous installer still held open. Does nothing once this
+    /// session has started a download, so it can never remove an installer that is being downloaded, verified or launched.</summary>
+    public void CleanUpLeftovers()
+    {
+        lock (cleanupGate)
+        {
+            if (!downloadStarted) CleanUp();
+        }
+    }
+
     /// <summary>Downloads and verifies. Returns the path of the verified MSI; throws <see cref="UpdateException"/> with a user-readable reason.</summary>
     public async Task<string> DownloadAndVerifyAsync(ReleaseInfo release, IProgress<(long Done, long Total)>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -86,6 +99,7 @@ public sealed class UpdateInstaller
         string name = Path.GetFileName(release.Installer.Name);
         if (name != release.Installer.Name || name.Length == 0) throw new UpdateException("The installer name in the release is not valid.");
         Directory.CreateDirectory(directory);
+        lock (cleanupGate) { downloadStarted = true; } // from here on the deferred startup cleanup stays out of the folder
         CleanUp();
         string partial = Path.Combine(directory, name + ".partial"), final = Path.Combine(directory, name);
         try

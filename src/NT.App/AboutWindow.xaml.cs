@@ -111,12 +111,13 @@ public partial class AboutWindow : Window
                         Text = name,
                         Style = (Style)FindResource("Muted"),
                         FontWeight = FontWeights.SemiBold,
+                        FlowDirection = Ui.DirectionOf(name),
                         Margin = new Thickness(0, 5, 0, 2)
                     });
                 }
                 foreach (var entry in entries)
                 {
-                    var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                    var row = new Grid { Margin = new Thickness(0, 2, 0, 2), FlowDirection = Ui.DirectionOf(entry.Replace("*", "").Replace("`", "")) };
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
                     row.ColumnDefinitions.Add(new ColumnDefinition());
                     var bullet = new TextBlock { Text = "\u2022", VerticalAlignment = VerticalAlignment.Top };

@@ -177,6 +177,10 @@ internal static partial class ReleaseTests
         Check(Directory.GetFiles(dir).Length == 1 && !Directory.GetFiles(dir, "*.partial").Any(), "Update download: old updates and partial files were cleaned up, no .partial left");
         Check(steps.Count > 0 && steps.Last().Item1 == msi.Length && steps.Last().Item2 == msi.Length, "Update download: progress reaches the full size");
         Check(UpdateInstaller.LooksLikeMsi(path) && !UpdateInstaller.LooksLikeMsi(Path.Combine(dir, "nope.msi")), "MSI check: Windows Installer (OLE) signature");
+        var session = Make(); File.WriteAllText(Path.Combine(dir, "stale.partial"), "x");
+        session.CleanUpLeftovers(); Check(Directory.GetFiles(dir).Length == 0, "Startup cleanup retry: removes leftovers while no download has started");
+        string kept = Sync(session.DownloadAndVerifyAsync(release)); session.CleanUpLeftovers();
+        Check(File.Exists(kept) && File.ReadAllBytes(kept).SequenceEqual(msi), "Startup cleanup retry: never deletes the installer once this session has started a download");
 
         void Refused(string what, Action arrange, string expected)
         {

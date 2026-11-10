@@ -33,6 +33,7 @@ public sealed class UpdateController
     private readonly Func<UpdateChecker> checkerFactory;
     private readonly Func<DateTimeOffset> clock;
     private DispatcherTimer? timer;
+    private CancellationTokenSource? cleanupCancel;
     private bool checking;
     public Action<ReleaseInfo> ShowAvailable { get; set; } = _ => { };
     public Action<string> ShowMessage { get; set; } = _ => { };
@@ -48,6 +49,9 @@ public sealed class UpdateController
     public void Start(TimeSpan? firstDelay = null)
     {
         Installer.CleanUp(); // leftovers of an earlier update
+        cleanupCancel?.Cancel();
+        cleanupCancel = new CancellationTokenSource();
+        _ = DeferredCleanupAsync(cleanupCancel.Token);
         timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = firstDelay ?? UpdateSchedule.StartDelay };
         bool isStartup = true;
         timer.Tick += async (_, _) =>
@@ -59,7 +63,23 @@ public sealed class UpdateController
         };
         timer.Start();
     }
-    public void Stop() => timer?.Stop();
+
+    /// <summary>The previous installer can still hold its MSI open for a few seconds after the restart; retry a few times.</summary>
+    private async Task DeferredCleanupAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(4000, cancellationToken).ConfigureAwait(false);
+            for (int i = 0; i < 5; i++)
+            {
+                Installer.CleanUpLeftovers();
+                await Task.Delay(2500, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException) { }
+    }
+
+    public void Stop() { timer?.Stop(); cleanupCancel?.Cancel(); }
 
     /// <summary>Background check: silent unless a new, not-skipped version exists.</summary>
     public async Task<UpdateCheckResult?> RunAutomaticAsync(bool isStartup = false)

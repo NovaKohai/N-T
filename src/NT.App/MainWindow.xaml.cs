@@ -123,6 +123,9 @@ public partial class MainWindow : Window
         CollectionViewSource.GetDefaultView(Rows).Filter = Matches;
         DownloadList.ContextMenuOpening += DownloadList_ContextMenuOpening;
         DownloadList.PreviewMouseRightButtonDown += DownloadList_PreviewMouseRightButtonDown;
+        _nameColumn = (DownloadList.View as GridView)?.Columns.FirstOrDefault();
+        DownloadList.SizeChanged += (_, _) => FitNameColumn();
+        SizeChanged += (_, _) => DiskSpaceLabel.Visibility = ActualWidth < 1080 ? Visibility.Collapsed : Visibility.Visible;
         _ready = true;
         _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Background, (_, _) => Refresh(), Dispatcher);
         PreviewKeyDown += Window_KeyDown;
@@ -359,6 +362,7 @@ public partial class MainWindow : Window
             RestoreSelection(selectedIds);
             var visible = (view as CollectionView)?.Count ?? view.Cast<object>().Count();
             CountLabel.Text = $"{visible} {(visible == 1 ? "download" : "downloads")}";
+            UpdateNavigationCounts();
             bool shouldBeEmpty = visible == 0;
             if (shouldBeEmpty && EmptyState.Visibility != Visibility.Visible)
             {
@@ -471,13 +475,40 @@ public partial class MainWindow : Window
         catch (Exception) { Notice.Text = "The queue could not be refreshed. Try again shortly."; }
     }
 
+    private GridViewColumn? _nameColumn;
+    private double _nameColumnAutoWidth = double.NaN;
+
+    /// <summary>The file name column takes whatever width the other columns leave, so a wide window is not half empty.
+    /// Once the user drags that column to a width of their own, it is left alone.</summary>
+    private void FitNameColumn()
+    {
+        if (_nameColumn is null || DownloadList.View is not GridView grid || DownloadList.ActualWidth <= 0) return;
+        if (!double.IsNaN(_nameColumnAutoWidth) && Math.Abs(_nameColumn.Width - _nameColumnAutoWidth) > 0.5) return;
+        double others = grid.Columns.Where(c => !ReferenceEquals(c, _nameColumn)).Sum(c => double.IsNaN(c.Width) ? c.ActualWidth : c.Width);
+        _nameColumn.Width = _nameColumnAutoWidth = Math.Max(150, Math.Floor(DownloadList.ActualWidth - others - 34));
+    }
+
+    /// <summary>Each status filter shows how many downloads it holds; an empty filter shows nothing rather than a zero.</summary>
+    private void UpdateNavigationCounts()
+    {
+        foreach (var item in Navigation.Items.OfType<ListBoxItem>())
+        {
+            if (item.Tag is not string tag || tag == "header" || item.Content is not DockPanel { Children.Count: > 0 } panel || panel.Children[0] is not TextBlock badge) continue;
+            int count = 0;
+            for (int i = 0; i < Rows.Count; i++) if (FilterMatches(tag, Rows[i])) count++;
+            string text = count == 0 ? "" : count.ToString(System.Globalization.CultureInfo.CurrentCulture);
+            if (badge.Text != text) badge.Text = text;
+        }
+    }
+
     private void UpdateSelection()
     {
         var row = Selected;
         PauseButton.IsEnabled = row is not null && (row.CanPause || row.CanResume);
         PauseButton.Content = row?.CanResume == true ? "Resume" : "Pause";
-        ResumeButton.IsEnabled = row?.CanResume == true;
-        StopButton.IsEnabled = row?.CanPause == true;
+        var selection = SelectedRows;
+        ResumeButton.IsEnabled = selection.Any(r => r.CanResume);
+        StopButton.IsEnabled = selection.Any(r => r.CanPause);
         OpenButton.IsEnabled = row?.IsComplete == true && (File.Exists(row.FilePath) || (row.IsTorrent && Directory.Exists(row.FilePath)));
         FolderButton.IsEnabled = row is not null;
         RemoveButton.IsEnabled = row is not null;
@@ -490,8 +521,8 @@ public partial class MainWindow : Window
         PauseAllButton.IsEnabled = Rows.Any(r => r.CanPause);
         ResumeAllButton.IsEnabled = Rows.Any(r => r.Status == "Paused");
         DetailsPanel.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
-        DetailName.Text = row?.FileName ?? "";
-        DetailPath.Text = row?.FilePath ?? "";
+        DetailName.Text = selection.Count > 1 ? $"{selection.Count} downloads selected" : row?.FileName ?? "";
+        DetailPath.Text = selection.Count > 1 ? "Resume, Stop and Remove apply to all of them. The buttons on the right act on " + (row?.FileName ?? "the first one") + "." : row?.FilePath ?? "";
         DetailPath.ToolTip = row?.FilePath;
         DetailError.Text = row?.Error ?? "";
         DetailError.Visibility = string.IsNullOrWhiteSpace(row?.Error) ? Visibility.Collapsed : Visibility.Visible;

@@ -562,6 +562,7 @@ internal static partial class ReleaseTests
                     Check(outside.Count == 0, $"{label}: no control extends past the right edge of the window");
                     var image = Render((FrameworkElement)window.Content, Math.Min(window.ActualWidth, 400), Math.Min(window.ActualHeight, 300), scale, layout: false);
                     Check(image.PixelWidth == (int)Math.Ceiling(Math.Min(window.ActualWidth, 400) * scale) && image.DpiX == 96 * scale, $"{label}: renders at {scale * 96:0} dpi");
+                    if (scale == 1.0 && Environment.GetEnvironmentVariable("NEODM_SHOTS") is { Length: > 0 } shotDir) { var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(Snapshot((FrameworkElement)window.Content))); using var shotFile = File.Create(Path.Combine(shotDir, "window-" + (tabCount > 1 ? $"{name} tab {tab + 1}" : name).Replace(' ', '-').ToLowerInvariant() + ".png")); png.Save(shotFile); }
                 }
                 window.Close();
             }

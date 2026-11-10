@@ -53,9 +53,25 @@ public partial class UpdateWindow : Window
         SubText.Visibility = SubText.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         foreach (var block in ReleaseNotes.Render(release.Body))
         {
-            var text = new TextBlock { TextWrapping = TextWrapping.Wrap, Text = block.Kind == ReleaseNotes.Kind.Bullet ? "•  " + block.Text : block.Text };
-            if (block.Kind == ReleaseNotes.Kind.Heading) { text.FontWeight = FontWeights.SemiBold; text.Margin = new Thickness(0, 8, 0, 3); }
-            else text.Margin = new Thickness(block.Kind == ReleaseNotes.Kind.Bullet ? 8 : 0, 2, 0, 2);
+            var text = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                FlowDirection = Ui.DirectionOf(block.Text),
+                Text = block.Kind == ReleaseNotes.Kind.Bullet ? "•  " + block.Text : block.Text
+            };
+            if (block.Kind == ReleaseNotes.Kind.Heading)
+            {
+                text.FontWeight = FontWeights.SemiBold;
+                text.FontSize = 13.5;
+                text.Margin = new Thickness(0, 10, 0, 4);
+                text.SetResourceReference(TextBlock.ForegroundProperty, "InkBrush");
+            }
+            else
+            {
+                text.Margin = new Thickness(block.Kind == ReleaseNotes.Kind.Bullet ? 4 : 0, 3, 0, 3);
+                text.LineHeight = 20;
+                text.SetResourceReference(TextBlock.ForegroundProperty, "InkBrush");
+            }
             NotesPanel.Children.Add(text);
         }
         if (NotesPanel.Children.Count == 0) NotesPanel.Children.Add(new TextBlock { Text = "No release notes were published. Use \"View full changelog\".", Style = (Style)FindResource("Muted"), TextWrapping = TextWrapping.Wrap });

@@ -1,59 +1,104 @@
-# Regenerates all icon assets (NT.ico with 7 resolutions, extension icons, logo.png)
-# from the master emblem at tools/icon-master.png. Fully self-contained.
+# Draws the N&T icon and writes every icon asset: NT.ico, the extension icons, docs/images/logo.png
+# and the 1024 px reference image tools/icon-master.png. Fully self-contained (System.Drawing only).
+#
+# The mark is original artwork: a flat teal tile with a download arrow whose shaft is split into two
+# parallel bars of different length (one file arriving over several connections); the split runs a
+# short way into the arrowhead, and the arrow lands on a baseline.
+# It is drawn as vector shapes separately for each size, with coordinates snapped to whole pixels,
+# so the 16 px frame is as crisp as the 256 px one instead of being a blurred downscale.
 [CmdletBinding()]
 param()
 
 Add-Type -AssemblyName System.Drawing
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$masterPath = Join-Path $repoRoot "tools\icon-master.png"
 
-if (-not (Test-Path $masterPath)) {
-    Write-Error "Master icon not found at $masterPath"
-    exit 1
+$tileColor   = [System.Drawing.ColorTranslator]::FromHtml('#006C67')   # the app's Light-theme accent
+$glyphColor  = [System.Drawing.Color]::White
+
+function New-RoundedRect([single]$x, [single]$y, [single]$w, [single]$h, [single]$r) {
+    $path = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $d = 2 * $r
+    $path.AddArc($x, $y, $d, $d, 180, 90)
+    $path.AddArc($x + $w - $d, $y, $d, $d, 270, 90)
+    $path.AddArc($x + $w - $d, $y + $h - $d, $d, $d, 0, 90)
+    $path.AddArc($x, $y + $h - $d, $d, $d, 90, 90)
+    $path.CloseFigure()
+    return $path
 }
 
-$masterBmp = New-Object System.Drawing.Bitmap($masterPath)
+# Geometry is specified on a 64-unit grid and snapped to the pixel grid of the requested size.
+function New-IconBitmap([int]$size) {
+    $u = $size / 64.0
+    function Snap([double]$v) { [int][Math]::Round($v * $u, [MidpointRounding]::AwayFromZero) }
 
-function Resize-Bitmap($src, $w, $h) {
-    $dest = New-Object System.Drawing.Bitmap($w, $h, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-    $g = [System.Drawing.Graphics]::FromImage($dest)
-    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-    $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+    $bmp = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::Half
     $g.Clear([System.Drawing.Color]::Transparent)
-    $g.DrawImage($src, 0, 0, $w, $h)
-    $g.Dispose()
-    return $dest
+
+    # Tile: full bleed at small sizes, a little breathing room from 48 px up.
+    $inset = if ($size -ge 48) { Snap 2 } else { 0 }
+    $radius = [Math]::Max(3, (Snap 14))
+    $tile = New-RoundedRect $inset $inset ($size - 2 * $inset) ($size - 2 * $inset) $radius
+    $tileBrush = New-Object System.Drawing.SolidBrush($tileColor)
+    $g.FillPath($tileBrush, $tile)
+
+    $cx = $size / 2                                  # all sizes are even, so this is a pixel edge
+    $bar = [Math]::Max(2, (Snap 7))                  # width of one shaft bar
+    $gap = [Math]::Max(2, (Snap 5))                  # space between the two bars
+    if (($gap % 2) -ne 0) { $gap += 1 }              # keep the pair centred on a pixel edge
+    $leftX  = $cx - $gap / 2 - $bar
+    $rightX = $cx + $gap / 2
+    $topLeft  = Snap 12                              # first connection: started earlier, so it is longer
+    $topRight = Snap 21
+    $notch    = [Math]::Max(1, (Snap 6))
+    $headTop  = Snap 31
+    $headHalf = [Math]::Max(($gap / 2 + $bar + 2), (Snap 17))    # the head always overhangs the shaft by at least 2 px, or it stops reading as an arrow at 16 px
+    $tip      = Snap 48
+    $baseTop  = Snap 52
+    $baseH    = [Math]::Max(1, (Snap 4))
+    $baseHalf = Snap 15
+
+    $white = New-Object System.Drawing.SolidBrush($glyphColor)
+    $g.FillRectangle($white, [single]$leftX,  [single]$topLeft,  [single]$bar, [single]($headTop - $topLeft + 1))
+    $g.FillRectangle($white, [single]$rightX, [single]$topRight, [single]$bar, [single]($headTop - $topRight + 1))
+    $head = [System.Drawing.PointF[]]@(
+        (New-Object System.Drawing.PointF([single]($cx - $headHalf), [single]$headTop)),
+        (New-Object System.Drawing.PointF([single]($cx + $headHalf), [single]$headTop)),
+        (New-Object System.Drawing.PointF([single]$cx, [single]$tip)))
+    $g.FillPolygon($white, $head)
+    # The split between the bars continues into the head as a notch, so the two connections read as one arrow.
+    $g.FillRectangle($tileBrush, [single]($cx - $gap / 2), [single]$headTop, [single]$gap, [single]$notch)
+    $g.FillRectangle($white, [single]($cx - $baseHalf), [single]$baseTop, [single](2 * $baseHalf), [single]$baseH)
+
+    $white.Dispose(); $tileBrush.Dispose(); $tile.Dispose(); $g.Dispose()
+    return $bmp
 }
 
-# 1. Update logo.png
-Copy-Item $masterPath (Join-Path $repoRoot "docs\images\logo.png") -Force
+function Save-IconPng([int]$size, [string]$path) {
+    $bmp = New-IconBitmap $size
+    $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+}
 
-# 2. Generate extension icons
+# 1. Reference image and README logo
+Save-IconPng 1024 (Join-Path $repoRoot "tools\icon-master.png")
+Save-IconPng 256 (Join-Path $repoRoot "docs\images\logo.png")
+
+# 2. Extension icons
 $extDir = Join-Path $repoRoot "extension\icons"
 if (-not (Test-Path $extDir)) { New-Item -ItemType Directory -Path $extDir | Out-Null }
+foreach ($s in 16, 48, 128) { Save-IconPng $s (Join-Path $extDir "$s.png") }
 
-$s128 = Resize-Bitmap $masterBmp 128 128
-$s128.Save((Join-Path $extDir "128.png"), [System.Drawing.Imaging.ImageFormat]::Png)
-$s128.Dispose()
-
-$s48 = Resize-Bitmap $masterBmp 48 48
-$s48.Save((Join-Path $extDir "48.png"), [System.Drawing.Imaging.ImageFormat]::Png)
-$s48.Dispose()
-
-$s16 = Resize-Bitmap $masterBmp 16 16
-$s16.Save((Join-Path $extDir "16.png"), [System.Drawing.Imaging.ImageFormat]::Png)
-$s16.Dispose()
-
-# 3. Build multi-resolution NT.ico (16, 24, 32, 48, 64, 128, 256)
+# 3. Build multi-resolution NT.ico (classic DIB frames up to 48 px, PNG frames above)
 $icoOut = Join-Path $repoRoot "src\NT.App\Assets\NT.ico"
-$sizes = @(16, 24, 32, 48, 64, 128, 256)
+$sizes = @(16, 20, 24, 32, 40, 48, 64, 128, 256)
 $entries = @()
 
 foreach ($s in $sizes) {
-    $resized = Resize-Bitmap $masterBmp $s $s
+    $resized = New-IconBitmap $s
     $pngMs = New-Object System.IO.MemoryStream
     $resized.Save($pngMs, [System.Drawing.Imaging.ImageFormat]::Png)
     $pngBytes = $pngMs.ToArray()
@@ -110,8 +155,6 @@ foreach ($s in $sizes) {
     }
 }
 
-$masterBmp.Dispose()
-
 # Pack ICONDIR
 $icoMs = New-Object System.IO.MemoryStream
 $icoBw = New-Object System.IO.BinaryWriter($icoMs)
@@ -141,4 +184,4 @@ foreach ($e in $entries) {
 $icoBw.Dispose()
 $icoMs.Dispose()
 
-Write-Host "Successfully generated all icons from tools/icon-master.png!"
+Write-Host "Drew the N&T icon: NT.ico ($($sizes -join ', ')), extension icons, docs logo and tools/icon-master.png"

@@ -1,5 +1,24 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:NT.App">
   <!-- ControlRadius, CardRadius, ControlPadding, CommandPadding, CommandMinHeight and AccentFillBrush live in every theme dictionary (Themes/*.xaml) so a theme can change shape and density. -->
+  <!-- ===== Icons: original 16x16 stroke glyphs, drawn for this app. Shown by any Button through local:Ui.Icon. ===== -->
+  <Geometry x:Key="IconPlus">M8,3 V13 M3,8 H13</Geometry>
+  <Geometry x:Key="IconPlay">M5,3.5 L12.5,8 L5,12.5 Z</Geometry>
+  <Geometry x:Key="IconPause">M5.5,3.5 V12.5 M10.5,3.5 V12.5</Geometry>
+  <Geometry x:Key="IconTrash">M3,4.5 H13 M6.5,4.5 V3 H9.5 V4.5 M4.5,4.5 L5.2,13 H10.8 L11.5,4.5</Geometry>
+  <Geometry x:Key="IconSliders">M2.5,5 H7 M10,5 H13.5 M2.5,11 H6 M9,11 H13.5 M7,5 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 M6,11 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0</Geometry>
+  <Geometry x:Key="IconClock">M8,2.5 a5.5,5.5 0 1,0 0.01,0 Z M8,5 V8 L10,9.5</Geometry>
+  <Geometry x:Key="IconMagnet">M3.5,3 H6.5 V8 a1.5,1.5 0 0,0 3,0 V3 H12.5 V8 a4.5,4.5 0 0,1 -9,0 Z M3.5,5.5 H6.5 M9.5,5.5 H12.5</Geometry>
+  <Geometry x:Key="IconList">M3,4 H13 M3,8 H13 M3,12 H9</Geometry>
+  <Geometry x:Key="IconDownload">M8,2.5 V9.5 M5,7 L8,10 L11,7 M3,13 H13</Geometry>
+  <Geometry x:Key="IconQueueStart">M4,3.5 L10,8 L4,12.5 Z M12.5,3.5 V12.5</Geometry>
+  <Geometry x:Key="IconQueueStop">M4,4 H12 V12 H4 Z</Geometry>
+  <Geometry x:Key="IconCheckCircle">M8,2.5 a5.5,5.5 0 1,0 0.01,0 Z M5.5,8 L7.3,9.8 L10.5,6.3</Geometry>
+  <Geometry x:Key="IconFolder">M2.5,4.5 H6.5 L8,6 H13.5 V12.5 H2.5 Z</Geometry>
+  <Geometry x:Key="IconFile">M4,2.5 H9.5 L12,5 V13.5 H4 Z M9.5,2.5 V5 H12</Geometry>
+  <Geometry x:Key="IconGauge">M3,11.5 a5,5 0 1,1 10,0 M8,11.5 L10.5,7.5</Geometry>
+  <Geometry x:Key="IconSearch">M7,3 a4,4 0 1,0 0.01,0 Z M10,10 L13,13</Geometry>
+  <Geometry x:Key="IconLayers">M8,2.5 L13.5,5.5 L8,8.5 L2.5,5.5 Z M2.5,8.5 L8,11.5 L13.5,8.5</Geometry>
+  <Geometry x:Key="IconPower">M8,2.5 V8 M5,4.5 a5,5 0 1,0 6,0</Geometry>
   <Style TargetType="Window"><Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Background" Value="{DynamicResource CanvasBrush}"/></Style>
   <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style>
   <Style x:Key="Muted" TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/></Style>
@@ -13,7 +32,11 @@
       <Grid SnapsToDevicePixels="True">
         <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{DynamicResource ControlRadius}"/>
         <Border x:Name="HoverOverlay" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="{DynamicResource ControlRadius}" Opacity="0" IsHitTestVisible="False"/>
-        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+        <StackPanel x:Name="Body" Orientation="Horizontal" Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center">
+          <Path x:Name="Glyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          <!-- The application-wide TextBlock style would otherwise win over the button's own Foreground for plain-text content. -->
+          <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"><ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/></Style></ContentPresenter.Resources></ContentPresenter>
+        </StackPanel>
       </Grid>
       <ControlTemplate.Triggers>
         <Trigger Property="IsMouseOver" Value="True">
@@ -32,8 +55,9 @@
             </BeginStoryboard>
           </Trigger.ExitActions>
         </Trigger>
+        <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="Glyph" Property="Visibility" Value="Collapsed"/></Trigger>
         <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.75"/></Trigger>
-        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
       </ControlTemplate.Triggers>
     </ControlTemplate></Setter.Value></Setter>
   </Style>
@@ -42,7 +66,11 @@
       <Grid SnapsToDevicePixels="True">
         <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{DynamicResource ControlRadius}"/>
         <Border x:Name="HoverOverlay" Background="{DynamicResource AccentHoverBrush}" CornerRadius="{DynamicResource ControlRadius}" Opacity="0" IsHitTestVisible="False"/>
-        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+        <StackPanel x:Name="Body" Orientation="Horizontal" Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center">
+          <Path x:Name="Glyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          <!-- The application-wide TextBlock style would otherwise win over the button's own Foreground for plain-text content. -->
+          <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"><ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/></Style></ContentPresenter.Resources></ContentPresenter>
+        </StackPanel>
       </Grid>
       <ControlTemplate.Triggers>
         <Trigger Property="IsMouseOver" Value="True">
@@ -61,20 +89,32 @@
             </BeginStoryboard>
           </Trigger.ExitActions>
         </Trigger>
+        <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="Glyph" Property="Visibility" Value="Collapsed"/></Trigger>
         <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.75"/></Trigger>
-        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/><Setter TargetName="Body" Property="Opacity" Value="0.6"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
       </ControlTemplate.Triggers>
     </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <!-- Flat toolbar command: no resting border, so a row of commands reads as one strip instead of a wall of pills. -->
+  <Style x:Key="ToolButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="Padding" Value="{DynamicResource CommandPadding}"/><Setter Property="MinHeight" Value="{DynamicResource CommandMinHeight}"/>
+  </Style>
+  <!-- Status-bar setting: reads as text until hovered, opens a menu of choices. -->
+  <Style x:Key="ChipButton" TargetType="Button" BasedOn="{StaticResource ToolButton}">
+    <Setter Property="Padding" Value="8,2"/><Setter Property="MinHeight" Value="24"/><Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
   </Style>
   <Style TargetType="TextBox"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="CaretBrush" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10,8"/><Setter Property="MinHeight" Value="36"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">
       <Grid SnapsToDevicePixels="True">
         <Border x:Name="Frame" CornerRadius="{DynamicResource ControlRadius}" BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" Background="{TemplateBinding Background}">
-          <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+          <!-- TextBoxBase already hands Padding to its content host; adding it here as a margin doubled it. -->
+          <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
         </Border>
         <Border x:Name="FocusGlow" CornerRadius="{DynamicResource ControlRadius}" BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{DynamicResource AccentBrush}" Opacity="0" IsHitTestVisible="False"/>
       </Grid>
       <ControlTemplate.Triggers>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Frame" Property="Opacity" Value="0.55"/></Trigger>
         <Trigger Property="IsKeyboardFocusWithin" Value="True">
           <Trigger.EnterActions>
             <BeginStoryboard>
@@ -102,7 +142,7 @@
       <Trigger Property="IsSelected" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/><Setter TargetName="Frame" Property="Background" Value="{DynamicResource AccentSoftBrush}"/></Trigger>
     </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
   </Style>
-  <Style x:Key="NavItem" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="Margin" Value="0,0,0,4"/><Setter Property="Padding" Value="14,12"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+  <Style x:Key="NavItem" TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}"><Setter Property="Margin" Value="0,0,0,2"/><Setter Property="Padding" Value="10,7"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
     <Grid SnapsToDevicePixels="True">
       <Border x:Name="HoverOverlay" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="{DynamicResource ControlRadius}" Opacity="0" IsHitTestVisible="False"/>
       <Border x:Name="SelectedOverlay" Background="{DynamicResource AccentSoftBrush}" CornerRadius="{DynamicResource ControlRadius}" Opacity="0" IsHitTestVisible="False"/>
@@ -208,8 +248,8 @@
   <Style TargetType="ToolTip"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10,6"/><Setter Property="OverridesDefaultStyle" Value="True"/><Setter Property="HasDropShadow" Value="False"/>
     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToolTip"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}"/></Border></ControlTemplate></Setter.Value></Setter></Style>
   <Style x:Key="HeaderGripper" TargetType="Thumb"><Setter Property="Width" Value="8"/><Setter Property="Cursor" Value="SizeWE"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb"><Border Background="Transparent"/></ControlTemplate></Setter.Value></Setter></Style>
-  <Style TargetType="GridViewColumnHeader"><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="Padding" Value="8,6"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="OverridesDefaultStyle" Value="True"/><Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
-    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="GridViewColumnHeader"><Grid SnapsToDevicePixels="True"><Border x:Name="HeaderBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0,0,1,1"><ContentPresenter x:Name="HeaderContent" Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" RecognizesAccessKey="True" TextElement.Foreground="{TemplateBinding Foreground}"/></Border>
+  <Style TargetType="GridViewColumnHeader"><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="Padding" Value="8,6"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="OverridesDefaultStyle" Value="True"/><Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="GridViewColumnHeader"><Grid SnapsToDevicePixels="True"><Border x:Name="HeaderBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0,0,0,1"><ContentPresenter x:Name="HeaderContent" Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" RecognizesAccessKey="True" TextElement.Foreground="{TemplateBinding Foreground}"/></Border>
       <Thumb x:Name="PART_HeaderGripper" HorizontalAlignment="Right" Margin="0,0,-4,0" Style="{StaticResource HeaderGripper}"/></Grid><ControlTemplate.Triggers>
       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/></Trigger>
       <Trigger Property="IsPressed" Value="True"><Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource AccentSoftBrush}"/></Trigger>
@@ -256,5 +296,33 @@
         <Trigger Property="IsChecked" Value="True"><Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/><Setter TargetName="Dot" Property="Visibility" Value="Visible"/></Trigger>
         <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
       </ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
+  <!-- ===== Expander: a plain disclosure row (chevron + label) so optional settings stay out of the way until asked for ===== -->
+  <Style TargetType="Expander"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="OverridesDefaultStyle" Value="True"/><Setter Property="SnapsToDevicePixels" Value="True"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Expander"><DockPanel>
+      <ToggleButton x:Name="HeaderSite" DockPanel.Dock="Top" HorizontalAlignment="Left" Cursor="Hand" FocusVisualStyle="{StaticResource FocusRing}" Content="{TemplateBinding Header}" Foreground="{TemplateBinding Foreground}" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+        <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="Transparent" Padding="0,6,8,6"><StackPanel Orientation="Horizontal">
+          <Path x:Name="Chevron" Data="M0,0 L4,4 L0,8" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="6" Height="9" Margin="3,0,9,0" VerticalAlignment="Center" RenderTransformOrigin="0.35,0.5"/>
+          <ContentPresenter RecognizesAccessKey="True" VerticalAlignment="Center" TextElement.FontWeight="SemiBold"><ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/></Style></ContentPresenter.Resources></ContentPresenter>
+        </StackPanel></Border>
+          <ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="Chevron" Property="RenderTransform"><Setter.Value><RotateTransform Angle="90"/></Setter.Value></Setter></Trigger></ControlTemplate.Triggers>
+        </ControlTemplate></ToggleButton.Template>
+      </ToggleButton>
+      <ContentPresenter x:Name="ExpandSite" Visibility="Collapsed" Margin="{TemplateBinding Padding}"/>
+    </DockPanel>
+      <ControlTemplate.Triggers><Trigger Property="IsExpanded" Value="True"><Setter TargetName="ExpandSite" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter></Style>
+  <!-- ===== PasswordBox: same frame, focus ring and metrics as TextBox ===== -->
+  <Style TargetType="PasswordBox"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="CaretBrush" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10,8"/><Setter Property="MinHeight" Value="36"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="PasswordBox">
+      <Grid SnapsToDevicePixels="True">
+        <Border x:Name="Frame" CornerRadius="{DynamicResource ControlRadius}" BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" Background="{TemplateBinding Background}">
+          <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+        </Border>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Frame" Property="Opacity" Value="0.55"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter></Style>
   <Style TargetType="Hyperlink"><Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/><Setter Property="TextDecorations" Value="Underline"/></Style>
 </ResourceDictionary>

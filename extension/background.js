@@ -235,15 +235,17 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     return true;
   }
   if (popup && message.action === 'blacklist-add') {
-    const domain = String(message.domain || '').trim().toLowerCase();
+    const domain = blockedHost(message.domain);
     chrome.storage.local.get(['blacklistDomains']).then(async s => {
       const list = Array.isArray(s.blacklistDomains) ? s.blacklistDomains : [];
-      if (domain && !list.includes(domain)) {
+      if (!domain) { respond({ ok: false, error: 'Enter a site name such as example.com.', domains: list }); return; }
+      if (list.length >= 500 && !list.includes(domain)) { respond({ ok: false, error: 'The blocked list is full. Remove a site first.', domains: list }); return; }
+      if (!list.includes(domain)) {
         list.push(domain);
         await chrome.storage.local.set({ blacklistDomains: list });
         await refreshTabs();
       }
-      respond({ ok: true, domains: list });
+      respond({ ok: true, domain, domains: list });
     });
     return true;
   }
@@ -262,6 +264,18 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   native({ action: 'ping' }).then(respond, () => respond({ ok: false, error: 'Native host unavailable. Check installation.' }));
   return true;
 });
+
+/** What the user typed or pasted (a host, or a whole address) -> the bare host name the blocked list matches on, or '' when it is not one.
+ *  A pasted "https://www.example.com/page" used to be stored verbatim and then never matched anything. */
+function blockedHost(input) {
+  let text = String(input || '').trim().toLowerCase();
+  if (!text || text.length > 2048) return '';
+  if (text.includes('://')) { try { text = new URL(text).hostname; } catch { return ''; } }
+  else text = text.split(/[/?#]/)[0].replace(/^[^@]*@/, '').replace(/:\d+$/, '');
+  text = text.replace(/^\.+|\.+$/g, '').replace(/^www\./, '');
+  if (text.length > 253 || !/^[a-z0-9-]+(\.[a-z0-9-]+)*$/.test(text)) return '';
+  return text;
+}
 
 /** Session-scoped pause. scope 'all' = every site; scope 'site' = one hostname. on=false re-enables it. */
 async function setPause({ scope, host, on }) {

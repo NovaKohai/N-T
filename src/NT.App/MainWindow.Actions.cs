@@ -253,8 +253,18 @@ public partial class MainWindow
 
     public DownloadProgressWindow? ShowCapturedProgress(string id) => _settings.ShowProgressForCapturedDownloads ? OpenProgressWindow(id, foreground: true) : null;
 
-    private async void Resume_Click(object sender, RoutedEventArgs e) { if (Selected is { CanResume: true } row) await PerformAsync(() => ResumeRow(row), "Download resumed."); }
-    private async void Stop_Click(object sender, RoutedEventArgs e) { if (Selected is { CanPause: true } row) await PerformAsync(() => PauseRow(row), "Download paused."); }
+    private async void Resume_Click(object sender, RoutedEventArgs e) => await ChangeSelectedAsync(resume: true);
+    private async void Stop_Click(object sender, RoutedEventArgs e) => await ChangeSelectedAsync(resume: false);
+
+    /// <summary>Resume / Stop act on every selected row that the action applies to, like Remove does, not only the first one.</summary>
+    private async Task ChangeSelectedAsync(bool resume)
+    {
+        var rows = SelectedRows.Where(r => resume ? r.CanResume : r.CanPause).ToArray();
+        if (rows.Length == 0) return;
+        string verb = resume ? "resumed" : "paused";
+        await PerformAsync(async () => { foreach (var row in rows) await (resume ? ResumeRow(row) : PauseRow(row)); },
+            rows.Length == 1 ? $"Download {verb}." : $"{rows.Length} downloads {verb}.");
+    }
 
     private async void RemoveCompleted_Click(object sender, RoutedEventArgs e)
     {
@@ -352,7 +362,7 @@ public partial class MainWindow
             };
             menu.Items.Add(item);
         }
-        menu.PlacementTarget = QueueConcurrentButton;
+        menu.PlacementTarget = QueueConcurrentButton; menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Top; // the chips sit in the status bar, so their menus open upwards
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
         menu.IsOpen = true;
     }
@@ -398,7 +408,7 @@ public partial class MainWindow
             };
             menu.Items.Add(item);
         }
-        menu.PlacementTarget = WhenDoneButton;
+        menu.PlacementTarget = WhenDoneButton; menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Top; // the chips sit in the status bar, so their menus open upwards
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
         menu.IsOpen = true;
     }
@@ -510,7 +520,7 @@ public partial class MainWindow
             }
         };
         menu.Items.Add(custom);
-        menu.PlacementTarget = SpeedLimitButton;
+        menu.PlacementTarget = SpeedLimitButton; menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Top; // the chips sit in the status bar, so their menus open upwards
         menu.IsOpen = true;
     }
 

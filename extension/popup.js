@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
-const show = text => $('status').textContent = text;
+/** One status line at the bottom of the popup. kind: 'ok' | 'err' | undefined (neutral). */
+const show = (text, kind) => { const el = $('status'); el.textContent = text; el.className = kind || ''; };
 const PAUSE_KEY = 'neodm.pause';
 let host = '';
 
@@ -34,10 +35,12 @@ async function renderMedia(tab) {
     }
     what.title = (title ? title + '\n' : '') + i.url;
     const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Download';
+    b.setAttribute('aria-label', `Download ${title || meta} with N&T`);
     b.onclick = async () => {
-      b.disabled = true;
+      b.disabled = true; show('Sending to N&T…');
       const r = await chrome.runtime.sendMessage({ action: 'popup-download', tab: { id: tab.id, url: tab.url, title: tab.title }, id: i.id }).catch(() => null);
-      show(r?.ok === true ? 'Accepted by N&T.' : r?.error || 'N&T did not accept this media.'); b.disabled = false;
+      if (r?.ok === true) show('Accepted by N&T.', 'ok'); else show(r?.error || 'N&T did not accept this media.', 'err');
+      b.disabled = false;
     };
     li.append(what, b); list.append(li);
   }
@@ -60,10 +63,13 @@ chrome.storage.local.get(['captureEnabled', 'cookiesEnabled', 'ribbonEnabled', '
 });
 
 $('test').onclick = async () => {
+  const button = $('test');
+  button.disabled = true; show('Checking the connection to N&T…');
   try {
     const r = await chrome.runtime.sendMessage({ action: 'test' });
-    show(r?.ok ? 'Host connected.' : r?.error || 'Host did not respond.');
-  } catch { show('Could not connect to host.'); }
+    if (r?.ok) show('Connected to N&T.', 'ok'); else show(r?.error || 'N&T did not respond. Is the app installed and running?', 'err');
+  } catch { show('Could not reach N&T. Is the app installed and running?', 'err'); }
+  button.disabled = false;
 };
 
 $('ribbon').onchange = async () => {
@@ -82,56 +88,55 @@ for (const box of document.querySelectorAll('#types input[data-type]')) {
 
 $('pauseSite').onchange = () => setPause('site', $('pauseSite').checked);
 $('pauseAll').onchange = () => setPause('all', $('pauseAll').checked);
-$('resume').onclick = async () => { await setPause('all', false); await setPause('site', false); show('N&T re-enabled.'); };
+$('resume').onclick = async () => { await setPause('all', false); await setPause('site', false); show('N&T re-enabled.', 'ok'); };
 
-for (const [id, key] of [['capture', 'captureEnabled'], ['cookies', 'cookiesEnabled']]) {
+for (const [id, key, name] of [['capture', 'captureEnabled', 'Download capture'], ['cookies', 'cookiesEnabled', 'Authentication cookies']]) {
   $(id).onchange = async () => {
-    let enabled = $(id).checked;
+    let enabled = $(id).checked, refused = false;
     if (enabled && id === 'cookies') {
       try { enabled = await chrome.permissions.request({ permissions: ['cookies'] }); } catch { enabled = false; }
+      refused = !enabled;
     }
     $(id).checked = enabled;
     await chrome.storage.local.set({ [key]: enabled });
-    if (!enabled && id === 'cookies') await chrome.permissions.remove({ permissions: ['cookies'] });
-    show(enabled ? 'Enabled.' : 'Disabled.');
+    if (!enabled && id === 'cookies') { try { await chrome.permissions.remove({ permissions: ['cookies'] }); } catch {} }
+    if (refused) show('Cookies stay off: the browser permission was not granted.', 'err');
+    else show(`${name} ${enabled ? 'on' : 'off'}.`);
   };
 }
 
-async function renderBlacklist() {
-  const r = await chrome.runtime.sendMessage({ action: 'blacklist-get' }).catch(() => null);
+async function renderBlacklist(domains) {
   const list = $('blacklistList');
   if (!list) return;
+  if (!Array.isArray(domains)) {
+    const r = await chrome.runtime.sendMessage({ action: 'blacklist-get' }).catch(() => null);
+    domains = Array.isArray(r?.domains) ? r.domains : [];
+  }
   list.textContent = '';
-  const domains = Array.isArray(r?.domains) ? r.domains : [];
   for (const d of domains) {
     const li = document.createElement('li');
-    li.style.display = 'flex';
-    li.style.justifyContent = 'space-between';
-    li.style.alignItems = 'center';
-    li.style.padding = '2px 0';
-    const span = document.createElement('span');
-    span.textContent = d;
+    const span = document.createElement('span'); span.textContent = d; span.title = d;
     const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = '✕';
-    btn.style.padding = '0 4px';
-    btn.style.fontSize = '10px';
+    btn.type = 'button'; btn.textContent = 'Remove'; btn.setAttribute('aria-label', `Unblock ${d}`);
     btn.onclick = async () => {
-      await chrome.runtime.sendMessage({ action: 'blacklist-remove', domain: d });
-      await renderBlacklist();
+      btn.disabled = true;
+      const r = await chrome.runtime.sendMessage({ action: 'blacklist-remove', domain: d }).catch(() => null);
+      await renderBlacklist(r?.domains);
+      show(`${d} is no longer blocked.`);
     };
     li.append(span, btn);
     list.append(li);
   }
 }
 
-if ($('blacklistAdd')) {
-  $('blacklistAdd').onclick = async () => {
-    const val = $('blacklistInput').value.trim();
-    if (val) {
-      await chrome.runtime.sendMessage({ action: 'blacklist-add', domain: val });
-      $('blacklistInput').value = '';
-      await renderBlacklist();
-    }
-  };
+async function addBlocked() {
+  const input = $('blacklistInput'), val = input.value.trim();
+  if (!val) { input.focus(); return; }
+  const r = await chrome.runtime.sendMessage({ action: 'blacklist-add', domain: val }).catch(() => null);
+  if (r?.ok === false) { show(r.error || 'That site could not be blocked.', 'err'); input.focus(); return; }
+  input.value = '';
+  await renderBlacklist(r?.domains);
+  show(r?.domain ? `${r.domain} is blocked.` : 'Site blocked.', 'ok');
 }
+// The Block button submits the form, so Enter in the field works too.
+if ($('blacklistForm')) $('blacklistForm').onsubmit = e => { e.preventDefault(); addBlocked(); };

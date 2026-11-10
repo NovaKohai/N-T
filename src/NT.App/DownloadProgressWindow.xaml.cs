@@ -178,7 +178,7 @@ public partial class DownloadProgressWindow : Window
         else
         {
             MinHeight = 520;
-            if (Height < 700) Height = 780;
+            if (Height < 560) Height = 660;
             UpdateListHeight();
         }
     }
