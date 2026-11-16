@@ -55,6 +55,14 @@ internal static class UiTests
             window.Show(); Pump();
             Check(((SolidColorBrush)window.Background).Color == (Color)ColorConverter.ConvertFromString("#F3F4F6"), "Light window token applied to derived WPF window");
             Check(window.Rows.Count == 0 && ((StackPanel)window.FindName("EmptyState")).Visibility == Visibility.Visible, "Genuine empty queue shown");
+            Check(((Button)window.FindName("EmptyAddUrlButton")) != null && ((Button)window.FindName("EmptyPasteButton")) != null, "Empty state action buttons exist");
+            Check(((Border)window.FindName("WindowDropOverlay")) != null && ((Border)window.FindName("WindowDropOverlay")).Visibility == Visibility.Collapsed, "Window drop overlay is present and initially collapsed");
+            Check(CategoryHelper.GetCategory("movie.mp4") == CategoryHelper.Category.Video, "Video category maps correctly");
+            Check(CategoryHelper.GetCategory("song.mp3") == CategoryHelper.Category.Music, "Music category maps correctly");
+            Check(CategoryHelper.GetCategory("archive.zip") == CategoryHelper.Category.Compressed, "Compressed category maps correctly");
+            Check(CategoryHelper.GetCategory("setup.exe") == CategoryHelper.Category.Programs, "Programs category maps correctly");
+            Check(CategoryHelper.GetCategory("doc.pdf") == CategoryHelper.Category.Documents, "Documents category maps correctly");
+            Check(CategoryHelper.GetCategory("data.xyz") == CategoryHelper.Category.General, "General category maps correctly");
             var diskLabel = (TextBlock)window.FindName("DiskSpaceLabel");
             Check(diskLabel != null && !string.IsNullOrEmpty(diskLabel.Text) && diskLabel.Text.StartsWith("Free on "), "Main window status bar shows free disk space: " + diskLabel?.Text);
             app.ApplyTheme("Dark"); Pump();

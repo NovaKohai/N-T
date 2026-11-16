@@ -33,7 +33,7 @@
   const offeredQuality = q => OFFERED_QUALITIES.test(q && q !== 'HLS' ? String(q) : '');
   /** Shared media description label for popup and ribbon (kind, quality, size). */
   const describeItem = (i, qualityOverride, estimatedSizeOverride) => {
-    const kind = i.kind === 'gif' ? 'GIF' : i.kind === 'image' ? 'Image' : i.kind === 'subtitle' ? 'Subtitles' : i.track === 'audio-only' ? 'Audio only' : i.track === 'video-only' ? 'Video only (no sound)' : i.kind === 'audio' ? 'Audio' : i.isHls ? 'Video (MP4)' : 'Video';
+    const kind = i.kind === 'gif' ? 'GIF' : i.kind === 'image' ? 'Image' : i.kind === 'subtitle' ? 'Subtitles' : i.track === 'audio-only' ? 'Audio only' : i.track === 'video-only' ? 'Video only (no sound)' : i.kind === 'audio' ? 'Audio' : i.isDash ? 'Video (DASH)' : i.isHls ? 'Video (MP4)' : 'Video';
     const q = qualityOverride !== undefined ? qualityOverride : (i.quality && i.quality !== 'HLS' ? i.quality : '');
     const est = estimatedSizeOverride || i.estimatedSize || 0;
     let sizeStr = fmtSize(i.size);
@@ -68,6 +68,13 @@
     } catch { return false; }
   };
   const isSubtitleMime = type => /^(text\/vtt|application\/x-subrip|text\/srt)/i.test(type);
+  const isDashUrl = url => {
+    try {
+      const u = new URL(url);
+      return /\.mpd($|[?#&])/i.test(u.pathname) || /[?&][^=]*=[^&]*\.mpd($|[?#&])/i.test(u.search);
+    } catch { return false; }
+  };
+  const isDashMime = type => /dash|\.mpd/i.test(type);
 
   const header = (headers, name) => { const h = (headers || []).find(x => x.name && x.name.toLowerCase() === name); return h ? String(h.value || '') : ''; };
   const isHttp = value => { try { const u = new URL(value); return (u.protocol === 'http:' || u.protocol === 'https:') && !u.username && !u.password; } catch { return false; } };
@@ -180,7 +187,7 @@
   const isSegmentUrl = u => {
     try {
       const p = u.pathname.toLowerCase();
-      if (/\.(ts|m4s|mpd)($|[?#&])/i.test(p) || p.endsWith('.ts') || p.endsWith('.m4s') || p.endsWith('.mpd')) return true;
+      if (/\.(ts|m4s)($|[?#&])/i.test(p) || p.endsWith('.ts') || p.endsWith('.m4s')) return true;
       if (/[?&][^=]*=[^&]*\.(ts|m4s)($|[?#&])/i.test(u.search) || /\.(ts|m4s)($|[?#&])/i.test(u.search)) return true;
       let name = p.split('/').pop() || '';
       try { name = decodeURIComponent(name); } catch {}
@@ -196,7 +203,7 @@
   const isMediaResponse = details => {
     if (!details) return false;
     const type = header(details.responseHeaders, 'content-type').trim().toLowerCase();
-    return /^(video|audio|image)\//i.test(type) || isHlsMime(type) || isHlsUrl(details.url) || isSubtitleUrl(details.url) || isSubtitleMime(type) || isGoogleVideoUrl(details.url);
+    return /^(video|audio|image)\//i.test(type) || isHlsMime(type) || isHlsUrl(details.url) || isDashMime(type) || isDashUrl(details.url) || isSubtitleUrl(details.url) || isSubtitleMime(type) || isGoogleVideoUrl(details.url);
   };
 
   /**
@@ -212,12 +219,13 @@
     let u; try { u = new URL(details.url); } catch { return out; }
     const type = header(details.responseHeaders, 'content-type').split(';')[0].trim().toLowerCase();
 
-    // HLS stream manifest (.m3u8): offered as a complete MP4 video download via FFmpeg
-    if (isHlsUrl(details.url) || isHlsMime(type)) {
+    // HLS or DASH stream manifest (.m3u8, .mpd): offered as a complete MP4 video download via FFmpeg
+    if (isHlsUrl(details.url) || isHlsMime(type) || isDashUrl(details.url) || isDashMime(type)) {
       const url = canonicalUrl(u.href);
+      const isDash = isDashUrl(details.url) || isDashMime(type);
       const initiator = details.initiator || '';
       const documentUrl = details.documentUrl || '';
-      out.item = { id: url, url: u.href, rawUrl: u.href, groupKey: url, kind: 'video', track: 'stream', isHls: true, complete: true, size: 0, quality: extractQuality(u.href), mime: 'application/vnd.apple.mpegurl', source: 'net', initiator, documentUrl };
+      out.item = { id: url, url: u.href, rawUrl: u.href, groupKey: url, kind: 'video', track: 'stream', isHls: true, isDash, complete: true, size: 0, quality: extractQuality(u.href) || (isDash ? 'DASH' : ''), mime: isDash ? 'application/dash+xml' : 'application/vnd.apple.mpegurl', source: 'net', initiator, documentUrl };
       return out;
     }
 
@@ -292,7 +300,6 @@
     const effectiveUrl = (isBlob && pageUrl && isHttp(pageUrl)) ? pageUrl : url;
     if (!isHttp(effectiveUrl)) return null;
     let u; try { u = new URL(effectiveUrl); } catch { return null; }
-    if (/\.mpd$/i.test(decodeURIComponent(u.pathname))) return null;
     if (tag === 'track' || isSubtitleUrl(u.href)) {
       const key = canonicalUrl(u.href);
       const item = { id: key, url: key, rawUrl: u.href, groupKey: key, kind: 'subtitle', track: 'subtitle', isSubtitle: true, complete: true, size: 0, quality: 'Subtitles', mime: /\.srt/i.test(u.pathname) ? 'application/x-subrip' : 'text/vtt', source: 'dom', primary: false };
@@ -303,10 +310,11 @@
     const isYt = /(^|\.)youtube\.com$/i.test(u.hostname) || /(^|\.)youtu\.be$/i.test(u.hostname);
     const key = isYt ? (canonicalUrl(u.origin + u.pathname + (u.searchParams.get('v') ? '?v=' + u.searchParams.get('v') : ''))) : canonicalUrl(u.href);
     const isHls = isHlsUrl(u.href);
+    const isDash = isDashUrl(u.href);
     let quality = tag === 'audio' ? '' : extractQuality(u.href);
     if (!quality && height > 0) quality = qualityFromHeight(height);
     const estimatedSize = duration > 0 ? estimateBytes(duration, height || (quality ? parseInt(quality, 10) : 0) || 720, tag === 'audio') : 0;
-    const item = { id: key, url: isHls ? u.href : key, rawUrl: u.href, groupKey: key, kind: tag === 'audio' ? 'audio' : 'video', track: isHls ? 'stream' : 'file', isHls, complete: true, size: 0, quality, mime: isHls ? 'application/vnd.apple.mpegurl' : (isYt ? 'video/mp4' : ''), source: 'dom', primary: true };
+    const item = { id: key, url: (isHls || isDash) ? u.href : key, rawUrl: u.href, groupKey: key, kind: tag === 'audio' ? 'audio' : 'video', track: (isHls || isDash) ? 'stream' : 'file', isHls: (isHls || isDash), isDash, complete: true, size: 0, quality: quality || (isDash ? 'DASH' : ''), mime: isDash ? 'application/dash+xml' : (isHls ? 'application/vnd.apple.mpegurl' : (isYt ? 'video/mp4' : '')), source: 'dom', primary: true };
     if (title) item.title = title;
     if (estimatedSize > 0) item.estimatedSize = estimatedSize;
     if (duration > 0) item.duration = duration;
@@ -416,6 +424,22 @@
     return Array.from(stem).slice(0, 255 - ext.length - suffix.length - quality.length).join('') + quality + suffix + ext;
   }
 
-  scope.NeoSniff = { TYPE_IDS, DEFAULT_TYPES, typeOfFile, typeOfItem, withDefaults, fmtSize, OFFERED_QUALITIES, offeredQuality, describeItem, cleanTitle, estimateBytes, hostOf, isPaused, isBlacklisted, isSubtitleUrl, isSubtitleMime, MIN_SIZE, IMAGE_MIN_SIZE, classify, inspect, ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, canonicalUrl, groupKey, SEGMENTED_ROW, MAX_KEYS, fromDom, merge, safeName, suggestedName, extensionFor, isHttp, extractQuality, qualityFromHeight };
+  function qualityBadgeInfo(item, qualityOverride) {
+    if (!item) return { label: 'MEDIA', cls: 'q-def' };
+    if (item.isSubtitle || item.kind === 'subtitle') return { label: 'CC', cls: 'q-sub' };
+    if (item.kind === 'audio' || item.track === 'audio-only') return { label: 'AUDIO', cls: 'q-audio' };
+    const q = String(qualityOverride !== undefined ? qualityOverride : (item.quality || '')).trim().toLowerCase();
+    if (q === '2160p' || q === '4k' || q === '4320p' || q === '8k') return { label: q === '8k' || q === '4320p' ? '8K' : '4K UHD', cls: 'q-4k' };
+    if (q === '1440p' || q === '2k') return { label: '1440p', cls: 'q-2k' };
+    if (q === '1080p') return { label: '1080p HD', cls: 'q-1080p' };
+    if (q === '720p') return { label: '720p HD', cls: 'q-720p' };
+    if (q === '480p') return { label: '480p SD', cls: 'q-sd' };
+    if (q === '360p' || q === '240p' || q === '144p') return { label: q, cls: 'q-sd' };
+    if (item.isDash) return { label: 'DASH', cls: 'q-stream' };
+    if (item.isHls) return { label: 'HLS', cls: 'q-stream' };
+    return { label: q ? q.toUpperCase() : 'VIDEO', cls: 'q-def' };
+  }
+
+  scope.NeoSniff = { TYPE_IDS, DEFAULT_TYPES, typeOfFile, typeOfItem, withDefaults, fmtSize, OFFERED_QUALITIES, offeredQuality, qualityBadgeInfo, describeItem, cleanTitle, estimateBytes, hostOf, isPaused, isBlacklisted, isSubtitleUrl, isSubtitleMime, isDashUrl, isDashMime, MIN_SIZE, IMAGE_MIN_SIZE, classify, inspect, ingest, upsert, resetTracking, listItems, withInfo, isMediaResponse, canonicalUrl, groupKey, SEGMENTED_ROW, MAX_KEYS, fromDom, merge, safeName, suggestedName, extensionFor, isHttp, extractQuality, qualityFromHeight };
   if (typeof module !== 'undefined') module.exports = scope.NeoSniff;
 })(globalThis);

@@ -26,19 +26,52 @@ async function renderMedia(tab) {
     if (i.info) { what.textContent = i.text; what.classList.add('note'); li.append(what); list.append(li); continue; }
     const title = NeoSniff.cleanTitle(i.title || tab?.title || '');
     const meta = describe(i);
+    const qInfo = NeoSniff.qualityBadgeInfo ? NeoSniff.qualityBadgeInfo(i) : null;
+    const badge = document.createElement('span');
+    badge.className = `q-badge ${qInfo ? qInfo.cls : 'q-def'}`;
+    badge.textContent = qInfo ? qInfo.label : (i.quality || 'MEDIA');
+
+    const isYt = /(^|\.)youtube\.com/i.test(i.url) || /(^|\.)youtu\.be/i.test(i.url);
+    let selectedQuality = '';
+
     if (title) {
+      const hdr = document.createElement('div'); hdr.className = 'item-header';
+      hdr.append(badge);
       const t = document.createElement('div'); t.className = 'item-title'; t.textContent = title;
+      hdr.append(t);
       const s = document.createElement('div'); s.className = 'item-meta'; s.textContent = meta;
-      what.append(t, s);
+      what.append(hdr, s);
     } else {
-      what.textContent = meta;
+      const hdr = document.createElement('div'); hdr.className = 'item-header';
+      hdr.append(badge);
+      const s = document.createElement('span'); s.textContent = meta;
+      hdr.append(s);
+      what.append(hdr);
     }
+
+    if (isYt) {
+      const sel = document.createElement('select'); sel.className = 'q-select';
+      sel.setAttribute('aria-label', 'Select video quality');
+      const opts = [
+        { val: '', label: '1080p Full HD (Best)' },
+        { val: 'quality=720p', label: '720p HD' },
+        { val: 'quality=480p', label: '480p SD' },
+        { val: 'quality=audio', label: 'Audio only (M4A)' }
+      ];
+      for (const o of opts) {
+        const opt = document.createElement('option'); opt.value = o.val; opt.textContent = o.label;
+        sel.append(opt);
+      }
+      sel.onchange = () => { selectedQuality = sel.value; };
+      what.append(sel);
+    }
+
     what.title = (title ? title + '\n' : '') + i.url;
     const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Download';
     b.setAttribute('aria-label', `Download ${title || meta} with N&T`);
     b.onclick = async () => {
       b.disabled = true; show('Sending to N&T…');
-      const r = await chrome.runtime.sendMessage({ action: 'popup-download', tab: { id: tab.id, url: tab.url, title: tab.title }, id: i.id }).catch(() => null);
+      const r = await chrome.runtime.sendMessage({ action: 'popup-download', tab: { id: tab.id, url: tab.url, title: tab.title }, id: i.id, quality: selectedQuality }).catch(() => null);
       if (r?.ok === true) show('Accepted by N&T.', 'ok'); else show(r?.error || 'N&T did not accept this media.', 'err');
       b.disabled = false;
     };
@@ -48,6 +81,31 @@ async function renderMedia(tab) {
 async function setPause(scope, on) {
   await chrome.runtime.sendMessage({ action: 'pause-set', scope, host, on });
   await renderPause();
+}
+
+async function checkConnection() {
+  const ind = $('connectionStatus'), lbl = $('connectionLabel'), button = $('test');
+  if (ind) ind.className = 'status-indicator checking';
+  if (lbl) lbl.textContent = 'Testing…';
+  if (button) button.disabled = true;
+  show('Checking the connection to N&T…');
+  try {
+    const r = await chrome.runtime.sendMessage({ action: 'test' });
+    if (r?.ok) {
+      if (ind) ind.className = 'status-indicator online';
+      if (lbl) lbl.textContent = 'Connected';
+      show('Connected to N&T.', 'ok');
+    } else {
+      if (ind) ind.className = 'status-indicator offline';
+      if (lbl) lbl.textContent = 'Offline';
+      show(r?.error || 'N&T did not respond. Is the app installed and running?', 'err');
+    }
+  } catch {
+    if (ind) ind.className = 'status-indicator offline';
+    if (lbl) lbl.textContent = 'Offline';
+    show('Could not reach N&T. Is the app installed and running?', 'err');
+  }
+  if (button) button.disabled = false;
 }
 
 chrome.storage.local.get(['captureEnabled', 'cookiesEnabled', 'ribbonEnabled', 'mediaTypes', 'status']).then(async s => {
@@ -60,17 +118,26 @@ chrome.storage.local.get(['captureEnabled', 'cookiesEnabled', 'ribbonEnabled', '
   try { const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); host = NeoSniff.hostOf(tab?.url); if (Number.isInteger(tab?.id)) await renderMedia(tab); } catch {}
   await renderPause();
   await renderBlacklist();
+
+  // Subtle connection check on startup
+  chrome.runtime.sendMessage({ action: 'test' }).then(r => {
+    const ind = $('connectionStatus'), lbl = $('connectionLabel');
+    if (r?.ok) {
+      if (ind) ind.className = 'status-indicator online';
+      if (lbl) lbl.textContent = 'Connected';
+    } else {
+      if (ind) ind.className = 'status-indicator offline';
+      if (lbl) lbl.textContent = 'Offline';
+    }
+  }).catch(() => {
+    const ind = $('connectionStatus'), lbl = $('connectionLabel');
+    if (ind) ind.className = 'status-indicator offline';
+    if (lbl) lbl.textContent = 'Offline';
+  });
 });
 
-$('test').onclick = async () => {
-  const button = $('test');
-  button.disabled = true; show('Checking the connection to N&T…');
-  try {
-    const r = await chrome.runtime.sendMessage({ action: 'test' });
-    if (r?.ok) show('Connected to N&T.', 'ok'); else show(r?.error || 'N&T did not respond. Is the app installed and running?', 'err');
-  } catch { show('Could not reach N&T. Is the app installed and running?', 'err'); }
-  button.disabled = false;
-};
+if ($('connectionStatus')) $('connectionStatus').onclick = checkConnection;
+if ($('test')) $('test').onclick = checkConnection;
 
 $('ribbon').onchange = async () => {
   await chrome.storage.local.set({ ribbonEnabled: $('ribbon').checked });
@@ -105,6 +172,34 @@ for (const [id, key, name] of [['capture', 'captureEnabled', 'Download capture']
   };
 }
 
+async function updateSiteBadge(domains) {
+  const badge = $('siteBadge');
+  if (!badge) return;
+  if (!host) { badge.hidden = true; return; }
+  badge.hidden = false;
+  const domainEl = $('siteDomain');
+  if (domainEl) domainEl.textContent = host;
+  const isBlocked = Array.isArray(domains) && domains.includes(host);
+  const btn = $('siteBadgeToggle');
+  if (btn) {
+    btn.textContent = isBlocked ? 'Unblock site' : 'Block site';
+    btn.className = isBlocked ? 'badge-btn blocked' : 'badge-btn';
+    btn.onclick = async () => {
+      btn.disabled = true;
+      if (isBlocked) {
+        const r = await chrome.runtime.sendMessage({ action: 'blacklist-remove', domain: host }).catch(() => null);
+        await renderBlacklist(r?.domains);
+        show(`${host} is no longer blocked.`);
+      } else {
+        const r = await chrome.runtime.sendMessage({ action: 'blacklist-add', domain: host }).catch(() => null);
+        await renderBlacklist(r?.domains);
+        show(`${host} is blocked.`, 'ok');
+      }
+      btn.disabled = false;
+    };
+  }
+}
+
 async function renderBlacklist(domains) {
   const list = $('blacklistList');
   if (!list) return;
@@ -112,6 +207,7 @@ async function renderBlacklist(domains) {
     const r = await chrome.runtime.sendMessage({ action: 'blacklist-get' }).catch(() => null);
     domains = Array.isArray(r?.domains) ? r.domains : [];
   }
+  await updateSiteBadge(domains);
   list.textContent = '';
   for (const d of domains) {
     const li = document.createElement('li');

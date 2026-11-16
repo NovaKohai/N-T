@@ -164,6 +164,20 @@ public partial class DownloadProgressWindow : Window
     /// <summary>Called by the main window when the job finishes while this window is already open.</summary>
     public void ShowCompletion() => Refresh();
     private void HideTab_Click(object sender, RoutedEventArgs e) => Tabs.SelectedIndex = -1;
+    private void CopyPath_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Clipboard.SetText(Row.FilePath);
+            Notice.Text = "File path copied to clipboard.";
+            NoticeContainer.Visibility = Visibility.Visible;
+        }
+        catch (Exception)
+        {
+            Notice.Text = "Could not access clipboard.";
+            NoticeContainer.Visibility = Visibility.Visible;
+        }
+    }
     private void Details_Click(object sender, RoutedEventArgs e)
     {
         bool show = DetailsPane.Visibility != Visibility.Visible;
@@ -199,8 +213,23 @@ public partial class DownloadProgressWindow : Window
             timer.Stop(); return;
         }
         bool changed = Row.Update(job);
+        string name = !string.IsNullOrEmpty(Row.FileName) ? Row.FileName : System.IO.Path.GetFileName(Row.FilePath);
         if (!string.IsNullOrEmpty(Row.FileName)) Title = Row.FileName;
+        FileNameHeading.Text = name;
+        SavePathText.Text = Row.FilePath;
+        SavePathText.ToolTip = Row.FilePath;
         UrlText.Text = Row.Url; UrlText.ToolTip = Row.Url;
+        var cat = Row.Category;
+        FileCategoryGlyph.Data = cat switch
+        {
+            "Video" => (Geometry)FindResource("IconVideo"),
+            "Music" => (Geometry)FindResource("IconAudio"),
+            "Compressed" => (Geometry)FindResource("IconPackage"),
+            "Programs" => (Geometry)FindResource("IconApp"),
+            "Documents" => (Geometry)FindResource("IconFile"),
+            "Torrent" => (Geometry)FindResource("IconMagnet"),
+            _ => (Geometry)FindResource("IconFile")
+        };
         if (SaveToText.Text != Row.FilePath) SaveToText.Text = Row.FilePath;
         ChangeLocationButton.IsEnabled = !Row.IsTorrent;
         ChangeLocationButton.ToolTip = Row.IsTorrent ? "Torrent data is stored by the torrent engine; change its folder in Options > Torrents." : null;
@@ -214,12 +243,12 @@ public partial class DownloadProgressWindow : Window
 
         if (Row.IsComplete)
         {
-            long rem = Math.Max(0, Row.TotalBytes - Row.DownloadedBytes);
             DownloadedText.Text = Row.TotalBytes > 0
-                ? $"{DownloadRow.FormatBytes(Row.DownloadedBytes, 2)} (100%) · {DownloadRow.FormatBytes(rem, 2)} left"
+                ? $"{DownloadRow.FormatBytes(Row.DownloadedBytes, 2)} (100%)"
                 : DownloadRow.FormatBytes(Row.DownloadedBytes, 2);
-            RateText.Text = "0 Bytes/sec";
+            RateText.Text = "Finished";
             TimeLeftText.Text = "Done";
+            ResumeText.Text = "Complete";
             OverallBar.BeginAnimation(RangeBase.ValueProperty, null);
             OverallBar.IsIndeterminate = false;
             OverallBar.Value = 100;
@@ -254,7 +283,10 @@ public partial class DownloadProgressWindow : Window
             OverallBar.IsIndeterminate = false;
             OverallBar.Value = Row.Progress;
         }
-        ResumeText.Text = Row.ResumeSupported switch { true => "Yes", false => "No", _ => "(unknown)" };
+        if (!Row.IsComplete)
+        {
+            ResumeText.Text = Row.ResumeSupported switch { true => "Yes", false => "No", _ => "(unknown)" };
+        }
         UpdateConnectionsAndSegments(changed);
         bool done = Row.IsComplete;
         BackgroundButton.Visibility = PauseButton.Visibility = CancelButton.Visibility = done ? Visibility.Collapsed : Visibility.Visible;
@@ -269,6 +301,13 @@ public partial class DownloadProgressWindow : Window
             ApplyOptionRules();
             OptionsNote.Text = "This download is complete; completion options no longer apply.";
             if (string.IsNullOrEmpty(Notice.Text)) Notice.Text = "Download completed successfully. The file is saved and ready to open.";
+            NoticeContainer.Visibility = Visibility.Visible;
+            SegmentBarBorder.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            NoticeContainer.Visibility = string.IsNullOrWhiteSpace(Notice.Text) ? Visibility.Collapsed : Visibility.Visible;
+            SegmentBarBorder.Visibility = Visibility.Visible;
         }
     }
     private void UpdateConnectionsAndSegments(bool changed)
@@ -276,13 +315,17 @@ public partial class DownloadProgressWindow : Window
         if (!changed && _connectionRows.Count > 0) return;
 
         var newRows = Row.ConnectionRows;
-        while (_connectionRows.Count > newRows.Count) _connectionRows.RemoveAt(_connectionRows.Count - 1);
-        for (int i = 0; i < newRows.Count; i++)
+        var targetRows = Row.IsComplete
+            ? (newRows.Where(r => r.Snapshot.DownloadedBytes > 0 || r.Snapshot.IsActive).ToList() is { Count: > 0 } active ? active : newRows)
+            : newRows;
+
+        while (_connectionRows.Count > targetRows.Count) _connectionRows.RemoveAt(_connectionRows.Count - 1);
+        for (int i = 0; i < targetRows.Count; i++)
         {
             if (i >= _connectionRows.Count)
-                _connectionRows.Add(newRows[i]);
-            else if (_connectionRows[i] != newRows[i])
-                _connectionRows[i] = newRows[i];
+                _connectionRows.Add(targetRows[i]);
+            else if (_connectionRows[i] != targetRows[i])
+                _connectionRows[i] = targetRows[i];
         }
 
         DrawSegments();

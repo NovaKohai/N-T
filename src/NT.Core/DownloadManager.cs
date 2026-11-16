@@ -451,7 +451,8 @@ public sealed partial class DownloadManager : IDisposable
             var active = activeJobs.Count;
             foreach (var w in jobs)
             {
-                if (active >= maxConcurrentDownloads) break;
+                int limit = options.StrictSequential ? 1 : maxConcurrentDownloads;
+                if (active >= limit) break;
                 if (w.Runner != null || w.Job.Status is not ("Queued" or "Scheduled") || w.Job.ScheduledAt > now) continue;
                 w.Job.Status = "Downloading"; w.Job.Error = null;
                 w.Cancellation = new CancellationTokenSource();
@@ -558,6 +559,7 @@ public sealed partial class DownloadManager : IDisposable
                 try { SaveLocked(); } catch (Exception ex) { LastPersistenceError = ex.Message; }
             }
             Notify();
+            Tick(null);
         }
     }
 
@@ -855,12 +857,23 @@ public sealed partial class DownloadManager : IDisposable
                uri.Query.Contains(".m3u8", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsDashUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        return uri.AbsolutePath.Contains(".mpd", StringComparison.OrdinalIgnoreCase) ||
+               uri.Query.Contains(".mpd", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsStreamUrl(string? url) => IsHlsUrl(url) || IsDashUrl(url);
+
     private static bool IsHls(Work w, Probe? probe)
     {
-        if (IsHlsUrl(w.Request.Url) || IsHlsUrl(w.ResolvedUrl)) return true;
-        if (probe?.Description?.ContentType is { } ct && ct.Contains("mpegurl", StringComparison.OrdinalIgnoreCase))
+        if (IsStreamUrl(w.Request.Url) || IsStreamUrl(w.ResolvedUrl)) return true;
+        if (probe?.Description?.ContentType is { } ct &&
+            (ct.Contains("mpegurl", StringComparison.OrdinalIgnoreCase) || ct.Contains("dash", StringComparison.OrdinalIgnoreCase)))
             return true;
-        if (IsHlsUrl(probe?.ResolvedUrl)) return true;
+        if (IsStreamUrl(probe?.ResolvedUrl)) return true;
         return false;
     }
 
@@ -986,17 +999,39 @@ public sealed partial class DownloadManager : IDisposable
                 startInfo.ArgumentList.Add(ffmpegDir);
             }
         }
+        var rawTargetUrl = w.ResolvedUrl ?? w.Request.Url;
+        if (!IsYoutubeUrl(rawTargetUrl) && IsYoutubeUrl(w.Request.Referer))
+        {
+            rawTargetUrl = w.Request.Referer!;
+        }
+
+        string ytFormat = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best";
+        if (rawTargetUrl.Contains("#audio", StringComparison.OrdinalIgnoreCase) || rawTargetUrl.Contains("quality=audio", StringComparison.OrdinalIgnoreCase))
+        {
+            ytFormat = "bestaudio[ext=m4a]/bestaudio/best";
+        }
+        else if (rawTargetUrl.Contains("quality=720", StringComparison.OrdinalIgnoreCase))
+        {
+            ytFormat = "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]";
+        }
+        else if (rawTargetUrl.Contains("quality=480", StringComparison.OrdinalIgnoreCase))
+        {
+            ytFormat = "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]";
+        }
+        else if (rawTargetUrl.Contains("quality=1080", StringComparison.OrdinalIgnoreCase))
+        {
+            ytFormat = "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]";
+        }
+
+        int hashIdx = rawTargetUrl.IndexOf('#');
+        var targetUrl = hashIdx >= 0 ? rawTargetUrl.Substring(0, hashIdx) : rawTargetUrl;
+
         startInfo.ArgumentList.Add("-f");
-        startInfo.ArgumentList.Add("bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best");
+        startInfo.ArgumentList.Add(ytFormat);
         startInfo.ArgumentList.Add("--merge-output-format");
         startInfo.ArgumentList.Add("mp4");
         startInfo.ArgumentList.Add("-o");
         startInfo.ArgumentList.Add(outputFile);
-        var targetUrl = w.ResolvedUrl ?? w.Request.Url;
-        if (!IsYoutubeUrl(targetUrl) && IsYoutubeUrl(w.Request.Referer))
-        {
-            targetUrl = w.Request.Referer!;
-        }
         startInfo.ArgumentList.Add(targetUrl);
 
         using var process = new Process { StartInfo = startInfo };
@@ -1223,18 +1258,41 @@ public sealed partial class DownloadManager : IDisposable
         try
         {
             var url = w.ResolvedUrl ?? w.Request.Url;
+            var segmentList = new List<(string url, double duration, string? mapUri)>();
+            string? currentMapUri = null;
+            long bestBandwidth = -1;
+            var playlistUri = Uri.TryCreate(url, UriKind.Absolute, out var initialPu) ? initialPu : new Uri("http://localhost");
 
         // 1. Fetch playlist
         using var m3u8Req = Request(w, url);
         using var m3u8Resp = await SendAsync(m3u8Req, token).ConfigureAwait(false);
-        if (!m3u8Resp.IsSuccessStatusCode) return false;
+        if (!m3u8Resp.IsSuccessStatusCode)
+        {
+            var cachedManifest = Path.Combine(PartDirectory(w), "manifest.json");
+            if (File.Exists(cachedManifest))
+            {
+                try
+                {
+                    var raw = File.ReadAllText(cachedManifest);
+                    var cp = JsonSerializer.Deserialize<HlsManifestCheckpoint>(raw);
+                    if (cp != null && cp.Segments.Count > 0)
+                    {
+                        segmentList = cp.Segments.Select(s => (s.Url, s.Duration, s.MapUri)).ToList();
+                        currentMapUri = cp.MapUri;
+                        if (Uri.TryCreate(cp.PlaylistUrl, UriKind.Absolute, out var pu)) playlistUri = pu;
+                        goto SkipPlaylistFetch;
+                    }
+                }
+                catch (Exception) { }
+            }
+            return false;
+        }
         var m3u8Content = await m3u8Resp.Content.ReadAsStringAsync(token).ConfigureAwait(false);
         if (!m3u8Content.TrimStart().StartsWith("#EXTM3U", StringComparison.OrdinalIgnoreCase))
             return false;
-        var playlistUri = m3u8Resp.RequestMessage?.RequestUri ?? new Uri(url);
+        playlistUri = m3u8Resp.RequestMessage?.RequestUri ?? playlistUri;
         if (string.IsNullOrEmpty(playlistUri.Query) && Uri.TryCreate(url, UriKind.Absolute, out var origUri) && !string.IsNullOrEmpty(origUri.Query))
             playlistUri = new UriBuilder(playlistUri) { Query = origUri.Query.TrimStart('?') }.Uri;
-        long bestBandwidth = -1;
 
         // 2. Check for Master Playlist
         if (m3u8Content.Contains("#EXT-X-STREAM-INF", StringComparison.OrdinalIgnoreCase))
@@ -1285,8 +1343,8 @@ public sealed partial class DownloadManager : IDisposable
 
         // 3. Parse media playlist
         var pLines = m3u8Content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-        var segmentList = new List<(string url, double duration, string? mapUri)>();
-        string? currentMapUri = null;
+        segmentList.Clear();
+        currentMapUri = null;
 
         for (int i = 0; i < pLines.Length; i++)
         {
@@ -1315,6 +1373,7 @@ public sealed partial class DownloadManager : IDisposable
             }
         }
 
+    SkipPlaylistFetch:
         if (segmentList.Count == 0) return false;
 
         // 4. Setup multi-connection segments matching options.MaxSegments
@@ -1324,6 +1383,19 @@ public sealed partial class DownloadManager : IDisposable
 
         bool isFmp4 = !string.IsNullOrEmpty(currentMapUri);
         string chunkExt = isFmp4 ? ".m4s" : ".ts";
+
+        var manifestPath = Path.Combine(partDir, "manifest.json");
+        try
+        {
+            var checkpoint = new HlsManifestCheckpoint(
+                playlistUri.AbsoluteUri,
+                isFmp4,
+                currentMapUri,
+                segmentList.Select((s, idx) => new HlsSegmentEntry(idx, s.url, s.duration, s.mapUri, $"chunk_{idx:D6}{chunkExt}")).ToList(),
+                DateTimeOffset.UtcNow);
+            File.WriteAllText(manifestPath, JsonSerializer.Serialize(checkpoint));
+        }
+        catch (Exception) { }
 
         double totalDuration = segmentList.Sum(s => s.duration);
         long initialEstTotal = bestBandwidth > 0
@@ -2260,7 +2332,8 @@ public sealed partial class DownloadManager : IDisposable
             if (status == "Completed") { w.Job.TotalBytes = w.Job.DownloadedBytes = r.Total; }
             else
             {
-                if (!ValidSegments(w)) { DeletePartial(w); w.Segments.Clear(); w.Total = 0; }
+                bool isHlsJob = IsHls(w, null) || File.Exists(Path.Combine(PartDirectory(w), "manifest.json"));
+                if (!isHlsJob && !ValidSegments(w)) { DeletePartial(w); w.Segments.Clear(); w.Total = 0; }
                 UpdateProgressLocked(w);
             }
             jobs.Add(w);

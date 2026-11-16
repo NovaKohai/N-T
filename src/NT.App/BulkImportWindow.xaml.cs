@@ -10,9 +10,9 @@ public partial class BulkImportWindow : Window
     private bool _importing;
     /// <summary>How long each magnet may take to resolve its metadata before the line is reported as not saved.</summary>
     public TimeSpan MagnetTimeout { get; set; } = TimeSpan.FromSeconds(60);
-    public BulkImportWindow(DownloadManager manager, ITorrentFeature? torrents = null, AppSettings? settings = null)
+    public BulkImportWindow(DownloadManager manager, ITorrentFeature? torrents = null, AppSettings? settings = null, string? initialUrls = null)
     {
-        _manager = manager; _torrents = torrents; _settings = settings; InitializeComponent(); Loaded += (_, _) => UrlsInput.Focus();
+        _manager = manager; _torrents = torrents; _settings = settings; InitializeComponent(); if (!string.IsNullOrEmpty(initialUrls)) UrlsInput.Text = initialUrls; Loaded += (_, _) => UrlsInput.Focus();
     }
     private async void Import_Click(object sender, RoutedEventArgs e) => await ImportAsync();
     public async Task ImportAsync()

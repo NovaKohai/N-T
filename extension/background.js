@@ -186,14 +186,19 @@ chrome.downloads.onCreated.addListener(async item => {
   if (!result.skipped) await status(result.ok ? 'Taken over by N&T; the browser download was removed' : result.error);
 });
 
-async function downloadItem(tab, id) {
-  const state = await loadTab(tab.id), item = state.items.find(i => i.id === id);
+async function downloadItem(tab, id, quality) {
+  const baseId = String(id || '').split('#')[0];
+  const state = await loadTab(tab.id), item = state.items.find(i => i.id === id || i.id === baseId);
   if (!item) return { ok: false, error: 'This media is no longer available on the page.' };
   let title = tab?.title || '';
   if (!title && Number.isInteger(tab?.id)) {
     try { const t = await chrome.tabs.get(tab.id); if (t?.title) title = t.title; } catch {}
   }
-  const targetUrl = (item.isHls && item.rawUrl) ? item.rawUrl : item.url;
+  let targetUrl = (item.isHls && item.rawUrl) ? item.rawUrl : item.url;
+  if (quality) {
+    const qStr = String(quality).trim();
+    if (qStr) targetUrl = (targetUrl.split('#')[0]) + (qStr.startsWith('#') ? qStr : '#' + qStr);
+  }
   const referer = (item.documentUrl && http(item.documentUrl)) ? item.documentUrl
     : (http(tab?.url) ? tab.url : (item.initiator && http(item.initiator) ? item.initiator : ''));
   const request = url => ({ url, fileName: suggestedName(item, title), referer, method: 'GET' });
@@ -219,22 +224,37 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       .then(() => Promise.all(found.map(i => addItem(sender.tab.id, i))))
       .then(() => respond({ ok: true })); return true;
   }
-  if (page && message.action === 'media-download') { downloadItem(sender.tab, String(message.id)).then(respond); return true; }
+  if (page && message.action === 'media-download') { downloadItem(sender.tab, String(message.id), message.quality).then(respond); return true; }
   if (popup && message.action === 'popup-media' && Number.isInteger(message.tabId)) { loadTab(message.tabId).then(popupItems).then(items => respond({ items }), () => respond({ items: [] })); return true; }
-  if (popup && message.action === 'popup-download' && Number.isInteger(message.tab?.id)) { downloadItem({ id: message.tab.id, url: String(message.tab.url || ''), title: String(message.tab.title || '') }, String(message.id)).then(respond); return true; }
+  if (popup && message.action === 'popup-download' && Number.isInteger(message.tab?.id)) { downloadItem({ id: message.tab.id, url: String(message.tab.url || ''), title: String(message.tab.title || '') }, String(message.id), message.quality).then(respond); return true; }
   if (popup && message.action === 'pause-set') {
     setPause(message).then(respond, () => respond({ ok: false })); return true;
+  }
+  if (page && message.action === 'force-download' && typeof message.url === 'string') {
+    (async () => {
+      try {
+        const tab = sender.tab;
+        const referer = message.referer || (tab && http(tab.url) ? tab.url : '');
+        const fileName = typeof message.fileName === 'string' ? message.fileName : '';
+        await send({ url: message.url, fileName, referer, method: 'GET' }, tab);
+        await status('Accepted by N&T');
+        respond({ ok: true });
+      } catch (e) {
+        respond({ ok: false, error: e?.message || 'Download was not accepted' });
+      }
+    })();
+    return true;
   }
   if (message.action === 'bypass-download' && typeof message.url === 'string') {
     bypassedUrls.set(message.url, Date.now());
     if (bypassedUrls.size > 200) bypassedUrls.delete(bypassedUrls.keys().next().value);
     return false;
   }
-  if (popup && message.action === 'blacklist-get') {
+  if ((popup || page) && message.action === 'blacklist-get') {
     chrome.storage.local.get(['blacklistDomains']).then(s => respond({ domains: Array.isArray(s.blacklistDomains) ? s.blacklistDomains : [] }));
     return true;
   }
-  if (popup && message.action === 'blacklist-add') {
+  if ((popup || page) && message.action === 'blacklist-add') {
     const domain = blockedHost(message.domain);
     chrome.storage.local.get(['blacklistDomains']).then(async s => {
       const list = Array.isArray(s.blacklistDomains) ? s.blacklistDomains : [];

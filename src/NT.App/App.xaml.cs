@@ -227,6 +227,7 @@ public partial class App : Application
                 case NativeBridge.ActionShow: window.BringToFront(); break;
                 case NativeBridge.ActionAddMagnet when request.Value is { } magnet: _ = window.AddMagnetAsync(magnet); break;
                 case NativeBridge.ActionAddTorrent when request.Value is { } path: _ = window.AddTorrentPathAsync(path); break;
+                case NativeBridge.ActionImportBatch when request.Value is { } urls: window.ShowBulkImport(urls); break;
             }
         }));
         return null;

@@ -57,6 +57,7 @@ internal static class SnapshotTime
 public sealed class DownloadOptions
 {
     public int MaxConcurrentDownloads { get; init; } = 3;
+    public bool StrictSequential { get; init; } = false;
     public int MaxSegments { get; init; } = 4;
     public bool EnableDynamicSegmentation { get; init; } = true;
     public long MinimumSegmentSize { get; init; } = 256 * 1024;
@@ -104,3 +105,17 @@ public enum FileDeleteOutcome { NotRequested, Deleted, Missing, Failed }
 
 /// <summary>Result of removing a job; <c>Problem</c> explains a failed file deletion (the job is removed regardless).</summary>
 public sealed record RemoveResult(bool JobRemoved, FileDeleteOutcome File, string? Problem);
+
+public sealed record HlsManifestCheckpoint(
+    string PlaylistUrl,
+    bool IsFmp4,
+    string? MapUri,
+    List<HlsSegmentEntry> Segments,
+    DateTimeOffset SavedAtUtc);
+
+public sealed record HlsSegmentEntry(
+    int Index,
+    string Url,
+    double Duration,
+    string? MapUri,
+    string ChunkFile);

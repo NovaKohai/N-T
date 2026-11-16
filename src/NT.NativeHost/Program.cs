@@ -83,6 +83,33 @@ internal static class Program
         using var doc = JsonDocument.Parse(message); var root = doc.RootElement;
         if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException();
         if (root.TryGetProperty("action", out var action) && action.GetString() == "ping") return JsonSerializer.SerializeToUtf8Bytes(new { ok = true, host = "com.ndm.bridge", keepAlive = true });
+        if (root.TryGetProperty("action", out var batchAction) && batchAction.GetString() == "import-batch")
+        {
+            if (!root.TryGetProperty("urls", out var urlsArray) || urlsArray.ValueKind != JsonValueKind.Array) throw new InvalidDataException();
+            var validUrls = new List<string>();
+            foreach (var el in urlsArray.EnumerateArray())
+            {
+                var u = el.GetString();
+                if (!string.IsNullOrEmpty(u) && Http(u) && validUrls.Count < 500) validUrls.Add(u);
+            }
+            string refUrl = Field(root, "referer");
+            if (refUrl.Length > 0 && !Http(refUrl)) refUrl = "";
+            byte[] batchPayload = JsonSerializer.SerializeToUtf8Bytes(new { action = "import-batch", value = string.Join("\n", validUrls), referer = refUrl });
+
+            using var batchDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(10)); var bct = batchDeadline.Token;
+            using var bpipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            try { using var first = CancellationTokenSource.CreateLinkedTokenSource(bct); first.CancelAfter(300); await bpipe.ConnectAsync(first.Token); }
+            catch (OperationCanceledException) when (!bct.IsCancellationRequested)
+            {
+                var app = config.AppPath ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../app/NT.exe"));
+                if (!Path.IsPathFullyQualified(app) || !File.Exists(app)) throw new FileNotFoundException();
+                Process.Start(new ProcessStartInfo(app) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(app)! });
+                await bpipe.ConnectAsync(bct);
+            }
+            AllowAppForeground(bpipe);
+            await bpipe.WriteAsync(batchPayload, bct); await bpipe.WriteAsync(new byte[] { 10 }, bct); await bpipe.FlushAsync(bct);
+            return JsonSerializer.SerializeToUtf8Bytes(new { ok = true, count = validUrls.Count });
+        }
         if (root.TryGetProperty("method", out var method) && method.GetString() != "GET") throw new InvalidDataException();
         string url = Field(root,"url"), fileName = Field(root,"fileName",255), referer = Field(root,"referer"), cookie = Field(root,"cookie",32768), mime = Field(root,"mime",100);
         bool keepAlive = pending != null && root.TryGetProperty("keepAlive", out var ka) && ka.ValueKind == JsonValueKind.True;

@@ -19,7 +19,7 @@ public sealed class NativeBridge : IDisposable
     
     /// <summary>Instance-control message from a second launch (show window, hand over a magnet link or .torrent path).</summary>
     public record ControlRequest(string Action, string? Value);
-    public const string ActionShow = "show", ActionAddMagnet = "add-magnet", ActionAddTorrent = "add-torrent";
+    public const string ActionShow = "show", ActionAddMagnet = "add-magnet", ActionAddTorrent = "add-torrent", ActionImportBatch = "import-batch";
     private readonly Func<ControlRequest, string?>? _onControl;
     private readonly CancellationTokenSource _stop = new();
     private Task? _loop;
@@ -181,6 +181,7 @@ public sealed class NativeBridge : IDisposable
         switch (action)
         {
             case ActionShow: break;
+            case ActionImportBatch: break;
             case ActionAddMagnet:
                 if (value is null || value.Length > 8192 || !value.StartsWith("magnet:?", StringComparison.OrdinalIgnoreCase) || value.Any(char.IsControl)) return "Not a valid magnet link.";
                 break;

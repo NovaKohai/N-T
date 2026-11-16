@@ -28,6 +28,7 @@ public partial class SettingsWindow : Window
         Timeout.Text = settings.RequestTimeoutSeconds.ToString(CultureInfo.InvariantCulture);
         DynamicSegmentation.IsChecked = settings.EnableDynamicSegmentation;
         CompletionDialog.IsChecked = settings.ShowCompletionDialog;
+        CompletionToast.IsChecked = settings.ShowCompletionToast;
         CapturedProgress.IsChecked = settings.ShowProgressForCapturedDownloads;
         ProgressOnCompletion.IsChecked = settings.ShowProgressOnCompletion;
         CompletionSound.IsChecked = settings.PlayCompletionSound;
@@ -259,6 +260,8 @@ public partial class SettingsWindow : Window
             updated.Theme = _theme; updated.AccentOverride = _accent;
             updated.EnableDynamicSegmentation = DynamicSegmentation.IsChecked == true;
             updated.ShowCompletionDialog = CompletionDialog.IsChecked == true;
+            updated.ShowCompletionToast = CompletionToast.IsChecked == true;
+            updated.NotificationStyle = updated.ShowCompletionDialog ? NotificationStyle.Window : (updated.ShowCompletionToast ? NotificationStyle.Toast : NotificationStyle.None);
             updated.ShowProgressForCapturedDownloads = CapturedProgress.IsChecked == true;
             updated.ShowProgressOnCompletion = ProgressOnCompletion.IsChecked == true;
             updated.PlayCompletionSound = CompletionSound.IsChecked == true;

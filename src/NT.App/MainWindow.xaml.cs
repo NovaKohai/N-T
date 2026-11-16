@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
+using System.Windows.Shell;
 using Hardcodet.Wpf.TaskbarNotification;
 using NT.Core;
 
@@ -251,9 +252,12 @@ public partial class MainWindow : Window
     public void OnJobCompleted(DownloadJob job)
     {
         if (CompletionSound.ShouldPlay(_settings, JobCompletion.Get(job.Id))) PlayCompletionSound();
-        if ((_progressWindows.TryGetValue(job.Id, out var pw) && !pw.IsVisible) || !_progressWindows.ContainsKey(job.Id))
+        if (_settings.ShowCompletionToast || _settings.NotificationStyle == NotificationStyle.Toast)
         {
-            ShowDownloadCompleteToast(job);
+            if ((_progressWindows.TryGetValue(job.Id, out var pw) && !pw.IsVisible) || !_progressWindows.ContainsKey(job.Id))
+            {
+                ShowDownloadCompleteToast(job);
+            }
         }
         if (_settings.AutoExtractZip && ArchiveExtractor.IsZip(job.FilePath))
         {
@@ -382,7 +386,9 @@ public partial class MainWindow : Window
                 EmptyState.Visibility = Visibility.Collapsed;
             }
             EmptyHeading.Text = Rows.Count == 0 ? "No downloads" : "No matching downloads";
-            EmptyBody.Text = Rows.Count == 0 ? "Add a URL, import a list, or send a download from your browser." : "Try a different filter or search term.";
+            EmptyBody.Text = Rows.Count == 0 ? "Add a URL, import a list, or drop files here." : "Try a different filter or search term.";
+            if (EmptyActionsPanel != null)
+                EmptyActionsPanel.Visibility = Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
             int active = 0;
             int seeding = 0;
@@ -429,6 +435,36 @@ public partial class MainWindow : Window
                     aggregateProgress = sumActiveProgress / active;
             }
             _miniWidget?.UpdateTelemetry(downSpeed, active, aggregateProgress, upSpeed);
+            if (AppTaskbarInfo != null)
+            {
+                if (active > 0)
+                {
+                    if (totalActiveBytes > 0)
+                    {
+                        AppTaskbarInfo.ProgressState = TaskbarItemProgressState.Normal;
+                        AppTaskbarInfo.ProgressValue = Math.Clamp((double)downloadedActiveBytes / totalActiveBytes, 0.0, 1.0);
+                    }
+                    else
+                    {
+                        AppTaskbarInfo.ProgressState = TaskbarItemProgressState.Indeterminate;
+                    }
+                }
+                else if (Rows.Any(r => r.Status is "Failed" or "Error"))
+                {
+                    AppTaskbarInfo.ProgressState = TaskbarItemProgressState.Error;
+                    AppTaskbarInfo.ProgressValue = 1.0;
+                }
+                else if (Rows.Any(r => r.Status == "Paused"))
+                {
+                    AppTaskbarInfo.ProgressState = TaskbarItemProgressState.Paused;
+                    AppTaskbarInfo.ProgressValue = 0.0;
+                }
+                else
+                {
+                    AppTaskbarInfo.ProgressState = TaskbarItemProgressState.None;
+                    AppTaskbarInfo.ProgressValue = 0.0;
+                }
+            }
             if (_settings.EnableBandwidthSchedule)
             {
                 int hour = DateTime.Now.Hour;

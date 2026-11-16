@@ -5,6 +5,13 @@ using NT.Core;
 
 namespace NT.App;
 
+public enum NotificationStyle
+{
+    Toast,
+    Window,
+    None
+}
+
 public sealed class AppSettings
 {
     public string DownloadDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
@@ -20,6 +27,9 @@ public sealed class AppSettings
     public long? GlobalSpeedLimitBytesPerSecond { get; set; }
     public bool EnableClipboardMonitoring { get; set; } = false;
     public bool ShowCompletionDialog { get; set; } = true;
+    public bool ShowCompletionToast { get; set; } = true;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public NotificationStyle NotificationStyle { get; set; } = NotificationStyle.Toast;
     public bool ShowProgressForCapturedDownloads { get; set; } = true;
     /// <summary>Re-open (or restore) a download's own window when it finishes, in the Complete state. A download can override this in its 'Options on completion' tab.</summary>
     public bool ShowProgressOnCompletion { get; set; } = true;
@@ -102,6 +112,7 @@ public sealed class AppSettings
             if (settings.SettingsSchema < 2) settings.EnableCategoryFolders = true; // one-time switch; explicit choices saved afterwards carry schema 2
             if (settings.SettingsSchema < 3) settings.PlayCompletionSound = true; // one-time: the old default was off
             if (settings.SettingsSchema < 4) settings.ShowProgressOnCompletion = true; // one-time: the option did not exist before
+            settings.NotificationStyle = settings.ShowCompletionDialog ? NotificationStyle.Window : NotificationStyle.Toast;
             settings.SettingsSchema = CurrentSchema;
             if (string.IsNullOrWhiteSpace(settings.DownloadDirectory) || !Path.IsPathFullyQualified(settings.DownloadDirectory)) settings.DownloadDirectory = new AppSettings().DownloadDirectory;
             else if (string.Equals(Path.GetFileName(settings.DownloadDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)), "New Download Manager", StringComparison.OrdinalIgnoreCase)) settings.DownloadDirectory = new AppSettings().DownloadDirectory;
@@ -139,7 +150,7 @@ public sealed class AppSettings
         MaxSegments = source.MaxSegments; MaxConcurrentDownloads = source.MaxConcurrentDownloads;
         RetryCount = source.RetryCount; RequestTimeoutSeconds = source.RequestTimeoutSeconds;
         EnableDynamicSegmentation = source.EnableDynamicSegmentation;
-        ShowCompletionDialog = source.ShowCompletionDialog; ShowProgressForCapturedDownloads = source.ShowProgressForCapturedDownloads; ShowProgressOnCompletion = source.ShowProgressOnCompletion; PlayCompletionSound = source.PlayCompletionSound; AutoExtractZip = source.AutoExtractZip;
+        ShowCompletionDialog = source.ShowCompletionDialog; ShowCompletionToast = source.ShowCompletionToast; NotificationStyle = source.NotificationStyle; ShowProgressForCapturedDownloads = source.ShowProgressForCapturedDownloads; ShowProgressOnCompletion = source.ShowProgressOnCompletion; PlayCompletionSound = source.PlayCompletionSound; AutoExtractZip = source.AutoExtractZip;
         ShowSplashScreen = source.ShowSplashScreen;
         ShowMiniWidget = source.ShowMiniWidget; MiniWidgetLeft = source.MiniWidgetLeft; MiniWidgetTop = source.MiniWidgetTop; EnableBandwidthSchedule = source.EnableBandwidthSchedule; ScheduledSpeedLimitKiB = source.ScheduledSpeedLimitKiB; ScheduleStartHour = source.ScheduleStartHour; ScheduleEndHour = source.ScheduleEndHour;
         EnableCategoryFolders = source.EnableCategoryFolders; SettingsSchema = source.SettingsSchema;

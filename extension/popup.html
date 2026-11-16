@@ -1,16 +1,45 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>N&amp;T</title><link rel="stylesheet" href="popup.css"></head>
 <body>
-<header>
-  <img src="icons/48.png" alt="" width="28" height="28">
-  <div class="title"><h1>N&amp;T</h1><p id="pauseState" role="status" aria-live="polite"></p></div>
-  <button id="test" type="button" title="Check that the browser can reach the N&amp;T app">Test connection</button>
+<header class="app-header">
+  <img src="icons/48.png" alt="" width="28" height="28" class="header-logo">
+  <div class="title">
+    <div class="brand-row">
+      <h1>N&amp;T</h1>
+      <button id="connectionStatus" type="button" class="status-indicator" title="Click to test connection to N&amp;T app" aria-label="Connection status">
+        <span class="status-dot"></span>
+        <span id="connectionLabel">Checking…</span>
+      </button>
+    </div>
+    <p id="pauseState" role="status" aria-live="polite"></p>
+  </div>
+  <button id="test" type="button" hidden aria-hidden="true" tabindex="-1">Test connection</button>
 </header>
+<div id="siteBadge" class="site-badge" hidden>
+  <div class="site-info">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+    <span>Site: <strong id="siteDomain"></strong></span>
+  </div>
+  <button id="siteBadgeToggle" type="button" class="badge-btn">Block site</button>
+</div>
 <main>
 <section id="mediaPanel" aria-labelledby="mediaHeading">
   <h2 id="mediaHeading">On this page</h2>
   <ul id="mediaList"></ul>
-  <p id="mediaNone" class="empty">No downloadable media found yet. Start playing a video or audio file and it will be listed here.</p>
+  <div id="mediaNone" class="empty-media">
+    <div class="empty-icon-wrap">
+      <svg class="radar-svg" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 12l5-5"/>
+        <path d="M12 3a9 9 0 0 1 9 9"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    </div>
+    <div class="empty-text">
+      <strong>Listening for media streams…</strong>
+      <p>Play a video or audio file on this page, and N&amp;T will organize downloadable qualities here.</p>
+    </div>
+  </div>
 </section>
 <section aria-labelledby="captureHeading">
   <h2 id="captureHeading">Capture</h2>
@@ -24,7 +53,7 @@
   <label class="switch"><input type="checkbox" id="pauseAll"> <span>Pause N&amp;T on all sites for this session</span></label>
   <button id="resume" type="button" class="primary" hidden>Re-enable N&amp;T</button>
 </section>
-<details><summary>File types</summary>
+<details><summary>File types <svg class="chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></summary>
 <div id="types" role="group" aria-label="File types">
 <label><input type="checkbox" data-type="video"> Video</label>
 <label><input type="checkbox" data-type="audio"> Audio</label>
@@ -37,7 +66,7 @@
 </div>
 <p class="hint">Applies to both the media ribbon and download capture. Unticked types are left to the browser.</p>
 </details>
-<details><summary>Blocked sites</summary>
+<details><summary>Blocked sites <svg class="chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></summary>
 <div id="blacklistPanel">
   <form id="blacklistForm" class="addrow">
     <input type="text" id="blacklistInput" placeholder="example.com" aria-label="Site to block" autocomplete="off" spellcheck="false">
@@ -46,6 +75,13 @@
   <ul id="blacklistList"></ul>
 </div>
 <p class="hint">N&amp;T never captures downloads or detects media on these sites.</p>
+</details>
+<details><summary>Shortcuts &amp; Gestures <svg class="chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></summary>
+<div class="shortcuts-group">
+  <div class="shortcut-item"><kbd>Alt + Click</kbd><span>Force download link with N&amp;T</span></div>
+  <div class="shortcut-item"><kbd>Shift + Click</kbd><span>Bypass N&amp;T (browser download)</span></div>
+  <div class="shortcut-item"><kbd>Drag header</kbd><span>Reposition ribbon on video</span></div>
+</div>
 </details>
 </main>
 <footer><p id="status" role="status" aria-live="polite"></p></footer>

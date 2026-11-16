@@ -125,11 +125,19 @@ public partial class MainWindow
         if (dialog.ShowDialog() == true) { Refresh(); Notice.Text = schedule ? "Schedule updated." : "Speed limit updated."; }
     }
 
-    private void Bulk_Click(object sender, RoutedEventArgs e)
+    private void Bulk_Click(object sender, RoutedEventArgs e) => ShowBulkImport();
+
+    public void ShowBulkImport(string? initialUrls = null)
     {
         if (_adding) return;
         _adding = true;
-        try { new BulkImportWindow(_manager, _torrents, _settings) { Owner = this }.ShowDialog(); Refresh(); Notice.Text = "Import closed. Per-line results were shown in the import dialog."; }
+        try
+        {
+            BringToFront();
+            new BulkImportWindow(_manager, _torrents, _settings, initialUrls) { Owner = this }.ShowDialog();
+            Refresh();
+            Notice.Text = "Import closed. Per-line results were shown in the import dialog.";
+        }
         finally { _adding = false; }
     }
 
@@ -670,4 +678,71 @@ public partial class MainWindow
 
     private async void ContextRemove_Click(object sender, RoutedEventArgs e) => await RemoveRowsAsync(SelectedRows, deleteFiles: false);
     private async void ContextDelete_Click(object sender, RoutedEventArgs e) => await RemoveRowsAsync(SelectedRows, deleteFiles: true);
+
+    private void Window_DragEnter(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.Text) || e.Data.GetDataPresent(DataFormats.UnicodeText))
+        {
+            WindowDropOverlay.Visibility = Visibility.Visible;
+            e.Effects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+    }
+
+    private void Window_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop) || e.Data.GetDataPresent(DataFormats.Text) || e.Data.GetDataPresent(DataFormats.UnicodeText))
+        {
+            e.Effects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+    }
+
+    private void Window_DragLeave(object sender, DragEventArgs e)
+    {
+        WindowDropOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private async void Window_Drop(object sender, DragEventArgs e)
+    {
+        WindowDropOverlay.Visibility = Visibility.Collapsed;
+        try
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+                {
+                    foreach (var f in files)
+                    {
+                        if (f.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase))
+                            await AddTorrentPathAsync(f);
+                    }
+                }
+            }
+            else if (e.Data.GetDataPresent(DataFormats.UnicodeText) || e.Data.GetDataPresent(DataFormats.Text))
+            {
+                var text = (e.Data.GetData(DataFormats.UnicodeText) as string ?? e.Data.GetData(DataFormats.Text) as string)?.Trim();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (lines.Length > 1)
+                    {
+                        ShowBulkImport(text);
+                    }
+                    else if (lines.Length == 1)
+                    {
+                        var single = lines[0];
+                        if (single.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase))
+                            await AddTorrentPathAsync(single);
+                        else
+                            await ShowAddAsync(single);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Notice.Text = "Could not process dropped item: " + ex.Message;
+        }
+    }
 }

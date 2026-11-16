@@ -38,10 +38,22 @@ test('sniff: HLS streams are captured as complete MP4 stream items', () => {
     assert.equal(item.complete, true);
   }
 });
-test('sniff: DASH manifests, segments, non-media, POST, errors and non-tab requests are excluded', () => {
+test('sniff: DASH manifests (.mpd) are classified as stream items', () => {
   for (const [url, type] of [
     ['https://c.example/x.mpd', 'application/dash+xml'],
     ['https://c.example/x', 'video/vnd.mpeg.dash.mpd'],
+    ['https://c.example/manifest.mpd?token=123', 'application/dash+xml'],
+  ]) {
+    const item = S.classify(response(url, type, 9 * MB));
+    assert.ok(item, url + ' ' + type);
+    assert.equal(item.kind, 'video');
+    assert.equal(item.track, 'stream');
+    assert.equal(item.isHls, true);
+    assert.equal(item.isDash, true);
+  }
+});
+test('sniff: segments, non-media, POST, errors and non-tab requests are excluded', () => {
+  for (const [url, type] of [
     ['https://c.example/seg1', 'video/MP2T'],
     ['https://c.example/s.ts', 'video/mp4'],
     ['https://c.example/s.ts?token=123', 'video/mp4'],
@@ -78,7 +90,7 @@ test('sniff googlevideo: audio-only and video-only streams are labelled and neve
   const cr = gv({ itag: '22', mime: 'video/mp4' }, { statusCode: 206 }); cr.responseHeaders.push({ name: 'Content-Range', value: 'bytes 0-1999/6000000' }); assert.equal(S.classify(cr).size, 6000000, 'falls back to Content-Range');
 });
 test('sniff: DOM items, merge precedence, newest first, cap', () => {
-  assert.equal(S.fromDom('blob:https://x/1', 'video'), null); assert.ok(S.fromDom('https://x/a.m3u8', 'video')?.isHls); assert.equal(S.fromDom('https://x/a.mpd?x=1'.replace('?x=1', ''), 'video'), null);
+  assert.equal(S.fromDom('blob:https://x/1', 'video'), null); assert.ok(S.fromDom('https://x/a.m3u8', 'video')?.isHls); assert.ok(S.fromDom('https://x/a.mpd?x=1'.replace('?x=1', ''), 'video')?.isDash);
   assert.equal(S.fromDom('https://r1.googlevideo.com/videoplayback?itag=18', 'video'), null);
   const dom = S.fromDom('https://x/a.mp4', 'video'), net = S.classify(response('https://x/a.mp4', 'video/mp4', 4 * MB));
   let list = S.merge([], dom); list = S.merge(list, net); assert.equal(list.length, 1); assert.equal(list[0].size, 4 * MB); assert.equal(list[0].source, 'net'); assert.equal(list[0].mime, 'video/mp4');
@@ -287,4 +299,47 @@ test('sniff: signed URLs and HLS manifests preserve time and signature parameter
 
   const unsignedVideo = 'https://cdn.example/video.mp4?_=12345&cb=abc&range=0-100';
   assert.equal(S.canonicalUrl(unsignedVideo), 'https://cdn.example/video.mp4', 'cachebusters stripped when no signature is present');
+});
+
+test('sniff: qualityBadgeInfo resolves badges for 4K, 1080p, 720p, audio and subtitles', () => {
+  assert.deepEqual(S.qualityBadgeInfo({ quality: '2160p' }), { label: '4K UHD', cls: 'q-4k' });
+  assert.deepEqual(S.qualityBadgeInfo({ quality: '4k' }), { label: '4K UHD', cls: 'q-4k' });
+  assert.deepEqual(S.qualityBadgeInfo({ quality: '1440p' }), { label: '1440p', cls: 'q-2k' });
+  assert.deepEqual(S.qualityBadgeInfo({ quality: '1080p' }), { label: '1080p HD', cls: 'q-1080p' });
+  assert.deepEqual(S.qualityBadgeInfo({ quality: '720p' }), { label: '720p HD', cls: 'q-720p' });
+  assert.deepEqual(S.qualityBadgeInfo({ quality: '480p' }), { label: '480p SD', cls: 'q-sd' });
+  assert.deepEqual(S.qualityBadgeInfo({ kind: 'audio', track: 'audio-only' }), { label: 'AUDIO', cls: 'q-audio' });
+  assert.deepEqual(S.qualityBadgeInfo({ kind: 'subtitle', isSubtitle: true }), { label: 'CC', cls: 'q-sub' });
+  assert.deepEqual(S.qualityBadgeInfo({ isHls: true }), { label: 'HLS', cls: 'q-stream' });
+  assert.deepEqual(S.qualityBadgeInfo({ isDash: true }), { label: 'DASH', cls: 'q-stream' });
+});
+
+test('ribbon: youtube item provides quality selector dropdown and dispatches selected quality', async () => {
+  const ytItem = item({ id: 'https://www.youtube.com/watch?v=demo', url: 'https://www.youtube.com/watch?v=demo', title: 'Demo Video' });
+  const r = ribbon([ytItem]); await tick();
+  const select = r.ui().root.querySelector('select.quality-select');
+  assert.ok(select, 'YouTube item renders quality dropdown');
+  assert.ok(select.options.length >= 4, 'Has at least 4 quality presets');
+  assert.equal(select.options[0].textContent, '1080p FHD (Best)');
+  assert.equal(select.options[1].value, 'quality=720p');
+
+  // Change to 720p and download
+  select.value = 'quality=720p';
+  select.dispatchEvent(new r.w.Event('change'));
+  r.ui().root.querySelector('button.dl').click();
+  await tick();
+  const downloads = r.sent.filter(m => m.action === 'media-download');
+  assert.equal(downloads.length, 1);
+  assert.equal(downloads[0].id, 'https://www.youtube.com/watch?v=demo');
+  assert.equal(downloads[0].quality, 'quality=720p');
+});
+
+test('ribbon: hover on video sets full opacity without flickering', async () => {
+  const r = ribbon([item()]); await tick();
+  const bar = r.ui().root.querySelector('.bar');
+  assert.ok(bar, 'Ribbon bar is rendered');
+
+  // Trigger pointerenter on bar
+  bar.dispatchEvent(new r.w.Event('pointerenter'));
+  assert.equal(bar.style.opacity, '1', 'Bar becomes fully opaque on hover');
 });

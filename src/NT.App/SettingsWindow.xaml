@@ -115,6 +115,7 @@
         </StackPanel></GroupBox>
         <TextBlock Text="When a download finishes" Style="{StaticResource SectionTitle}"/>
         <CheckBox x:Name="CompletionDialog" Content="Show download _completion dialog"/>
+        <CheckBox x:Name="CompletionToast" Content="Show desktop _toast notification"/>
         <CheckBox x:Name="CompletionSound" Content="Play completion _sound"/>
         <CheckBox x:Name="CapturedProgress" Content="Show _progress window for captured downloads"/>
         <CheckBox x:Name="ProgressOnCompletion" Content="_Open the download window when a download finishes"/>

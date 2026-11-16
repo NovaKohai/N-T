@@ -65,6 +65,7 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
     public double Ratio { get; private set; }
     public double UploadSpeed { get; private set; }
     public static string TorrentRowId(string infoHash) => "bt:" + infoHash;
+    public string Category => IsTorrent ? "Torrent" : CategoryHelper.GetCategory(FileName).ToString();
     public bool IsComplete => Status.Equals("Completed", StringComparison.OrdinalIgnoreCase) || (IsTorrent && Status == "Seeding");
     public bool CanResume => Status is "Paused" or "Failed" or "Canceled" || (IsTorrent && Status == "Completed");
     public bool CanPause => !IsAssembling && (Status is "Downloading" or "Queued" or "Connecting" or "Scheduled" || (IsTorrent && Status is "Checking" or "Seeding"));

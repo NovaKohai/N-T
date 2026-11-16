@@ -9,14 +9,45 @@
   </Grid.RowDefinitions>
   <TabControl x:Name="Tabs" Grid.Row="0" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" Padding="12" AutomationProperties.Name="Download details">
     <TabItem x:Name="StatusTab" Header="Download status">
-      <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
-        <TextBlock x:Name="UrlText" Grid.ColumnSpan="2" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,0,0,8"/>
+      <Grid Margin="0,4,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border x:Name="FileIconBorder" Background="{DynamicResource AccentSoftBrush}" CornerRadius="{DynamicResource ControlRadius}" Width="36" Height="36" Margin="0,0,10,0" VerticalAlignment="Center">
+            <Path x:Name="FileCategoryGlyph" Data="{StaticResource IconFile}" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <TextBlock x:Name="FileNameHeading" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock x:Name="UrlText" Style="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+          </StackPanel>
+        </Grid>
         <TextBlock Grid.Row="1" Text="Status" Style="{StaticResource Muted}" Margin="0,4,24,4"/><TextBlock x:Name="StatusText" Grid.Row="1" Grid.Column="1" Margin="0,3" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"/>
         <TextBlock Grid.Row="2" Text="File size" Style="{StaticResource Muted}" Margin="0,4,24,4"/><TextBlock x:Name="SizeText" Grid.Row="2" Grid.Column="1" Margin="0,3"/>
         <TextBlock Grid.Row="3" Text="Downloaded" Style="{StaticResource Muted}" Margin="0,4,24,4"/><TextBlock x:Name="DownloadedText" Grid.Row="3" Grid.Column="1" Margin="0,3"/>
         <TextBlock Grid.Row="4" Text="Transfer rate" Style="{StaticResource Muted}" Margin="0,4,24,4"/><TextBlock x:Name="RateText" Grid.Row="4" Grid.Column="1" Margin="0,3"/>
         <TextBlock Grid.Row="5" Text="Time left" Style="{StaticResource Muted}" Margin="0,4,24,4"/><TextBlock x:Name="TimeLeftText" Grid.Row="5" Grid.Column="1" Margin="0,3"/>
         <TextBlock Grid.Row="6" Text="Resume capability" Style="{StaticResource Muted}" Margin="0,4,24,4"/><TextBlock x:Name="ResumeText" Grid.Row="6" Grid.Column="1" Margin="0,3"/>
+        <TextBlock Grid.Row="7" Text="Save path" Style="{StaticResource Muted}" Margin="0,4,24,4"/>
+        <DockPanel Grid.Row="7" Grid.Column="1" Margin="0,3" LastChildFill="True">
+          <Button Content="Copy" Click="CopyPath_Click" Height="22" Padding="8,1" Margin="8,0,0,0" Style="{StaticResource ToolButton}" ToolTip="Copy destination file path to clipboard"/>
+          <TextBlock x:Name="SavePathText" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Foreground="{DynamicResource InkBrush}"/>
+        </DockPanel>
       </Grid>
     </TabItem>
     <TabItem x:Name="SpeedTab" Header="Speed limiter">
@@ -45,7 +76,12 @@
     </TabItem>
   </TabControl>
   <ProgressBar x:Name="OverallBar" Grid.Row="1" Maximum="100" Height="10" Margin="0,12,0,12" AutomationProperties.Name="Overall download progress"/>
-  <TextBlock x:Name="Notice" Grid.Row="2" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8" AutomationProperties.LiveSetting="Polite"/>
+  <Border x:Name="NoticeContainer" Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource ControlRadius}" Padding="10,6" Margin="0,0,0,8" Visibility="Collapsed">
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Path Data="{StaticResource IconCheckCircle}" Stroke="{DynamicResource SuccessBrush}" StrokeThickness="1.4" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+      <TextBlock x:Name="Notice" Style="{StaticResource Muted}" TextWrapping="Wrap" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
+    </StackPanel>
+  </Border>
   <Grid Grid.Row="3" Margin="0,0,0,10">
     <Button x:Name="DetailsButton" Content="Hide details" Click="Details_Click" HorizontalAlignment="Left" MinWidth="130"/>
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -53,14 +89,14 @@
       <Button x:Name="BackgroundButton" Content="Download in _background" ToolTip="Hide this window to the system tray and continue downloading in the background" Click="Background_Click" MinWidth="170" Margin="0,0,10,0"/>
       <Button x:Name="PauseButton" Content="Pause" Click="Pause_Click" MinWidth="100" Margin="0,0,10,0"/>
       <Button x:Name="CancelButton" Content="Cancel" Click="Cancel_Click" MinWidth="100"/>
-      <Button x:Name="OpenButton" Content="_Open" Click="Open_Click" MinWidth="90" Margin="0,0,10,0" Visibility="Collapsed"/>
-      <Button x:Name="FolderButton" Content="Open _folder" Click="Folder_Click" MinWidth="100" Margin="0,0,10,0" Visibility="Collapsed"/>
+      <Button x:Name="OpenButton" Content="_Open" Click="Open_Click" Style="{StaticResource PrimaryButton}" MinWidth="95" Margin="0,0,10,0" Visibility="Collapsed"/>
+      <Button x:Name="FolderButton" Content="Open _folder" Click="Folder_Click" MinWidth="105" Margin="0,0,10,0" Visibility="Collapsed"/>
       <Button x:Name="CloseButton" Content="_Close" Click="Close_Click" MinWidth="90" Visibility="Collapsed"/>
     </StackPanel>
   </Grid>
   <StackPanel x:Name="DetailsPane" Grid.Row="4" Margin="0,4,0,0">
     <TextBlock Text="CONNECTIONS" FontSize="11" FontWeight="SemiBold" Style="{StaticResource Muted}" Margin="0,0,0,6" ToolTip="Start position and progress of each connection"/>
-    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}" Height="16" SnapsToDevicePixels="True"><Canvas x:Name="SegmentBar" ClipToBounds="True" SizeChanged="SegmentBar_SizeChanged"/></Border>
+    <Border x:Name="SegmentBarBorder" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}" Height="16" SnapsToDevicePixels="True"><Canvas x:Name="SegmentBar" ClipToBounds="True" SizeChanged="SegmentBar_SizeChanged"/></Border>
     <ListView x:Name="ConnectionList" Height="200" Margin="0,10,0,0" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" AutomationProperties.Name="Connections" SizeChanged="ConnectionList_SizeChanged">
       <ListView.View><GridView><GridViewColumn Header="N." Width="50" DisplayMemberBinding="{Binding Number}"/><GridViewColumn Header="Downloaded" Width="140" DisplayMemberBinding="{Binding Downloaded}"/><GridViewColumn Header="Info" Width="380" DisplayMemberBinding="{Binding Info}"/></GridView></ListView.View>
     </ListView>
