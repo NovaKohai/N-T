@@ -62,6 +62,7 @@ public sealed class TorrentService : IAsyncDisposable, IDisposable
             AutoSaveLoadFastResume = true,
             AutoSaveLoadDhtCache = options.EnableDht,
             AutoSaveLoadMagnetLinkMetadata = true,
+            DiskCacheBytes = 32 * 1024 * 1024,
         };
         ApplyEngine(b, options);
         _downGate.SetRate(options.MaxDownloadRate);

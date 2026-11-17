@@ -507,7 +507,17 @@ public sealed partial class DownloadManager : IDisposable
                         long downloaded;
                         lock (gate) downloaded = w.Segments.Sum(s => s.Done);
                         long remaining = Math.Max(0, probe.Length - downloaded);
-                        if (remaining > 0) EnsureDiskSpace(w.Job.FilePath, remaining);
+                        if (remaining > 0)
+                        {
+                            EnsureDiskSpace(w.Job.FilePath, remaining);
+                            var partDir = PartDirectory(w);
+                            var partRoot = Path.GetPathRoot(Path.GetFullPath(partDir));
+                            var destRoot = Path.GetPathRoot(Path.GetFullPath(w.Job.FilePath));
+                            if (!string.Equals(partRoot, destRoot, StringComparison.OrdinalIgnoreCase))
+                            {
+                                EnsureDiskSpace(partDir, remaining);
+                            }
+                        }
                     }
                     if (IsYoutube(w))
                     {
@@ -566,6 +576,10 @@ public sealed partial class DownloadManager : IDisposable
     private static string FormatDownloadError(Exception ex)
     {
         var msg = ex.Message;
+        if (ex is DiskSpaceException dse)
+            return dse.Message;
+        if (msg.Contains("not enough space", StringComparison.OrdinalIgnoreCase) || msg.Contains("disk is full", StringComparison.OrdinalIgnoreCase))
+            return "Disk space full. There is not enough free space on the disk to save this download or its temporary parts. Please free up disk space and resume.";
         if (ex is HttpRequestException hre)
         {
             if (hre.StatusCode == HttpStatusCode.Forbidden || msg.Contains("403"))
@@ -739,7 +753,8 @@ public sealed partial class DownloadManager : IDisposable
                 segment.Done = Math.Min(segment.Done, Math.Min(length, segment.Length));
                 if (File.Exists(path)) { using var file = new FileStream(path, FileMode.Open, FileAccess.Write); file.SetLength(segment.Done); }
             }
-            UpdateProgressLocked(w); SaveLocked();
+            UpdateProgressLocked(w);
+            try { SaveLocked(); } catch (Exception ex) { LastPersistenceError = ex.Message; }
         }
     }
 
@@ -779,12 +794,13 @@ public sealed partial class DownloadManager : IDisposable
         using var input = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
         await using var output = new FileStream(PartFile(w, segment.PartId!.Value), FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read, 1, FileOptions.Asynchronous);
         output.SetLength(segment.Done); output.Position = segment.Done;
-        var buffer = ArrayPool<byte>.Shared.Rent(65536);
+        int chunkSize = segment.Length > 10 * 1024 * 1024 ? 131072 : 65536;
+        var buffer = ArrayPool<byte>.Shared.Rent(chunkSize);
         try
         {
             while (segment.Done < segment.Length)
             {
-                var read = await ReadAsync(input, buffer.AsMemory(0, (int)Math.Min(65536, segment.Length - segment.Done)), token).ConfigureAwait(false);
+                var read = await ReadAsync(input, buffer.AsMemory(0, (int)Math.Min(chunkSize, segment.Length - segment.Done)), token).ConfigureAwait(false);
                 if (read == 0) throw new IOException("The server truncated a range response.");
                 await ThrottleAsync(w, read, token).ConfigureAwait(false);
                 await output.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
@@ -827,12 +843,13 @@ public sealed partial class DownloadManager : IDisposable
         }
         using var input = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
         await using var output = new FileStream(PartFile(w, 0), FileMode.Create, FileAccess.Write, FileShare.Read, 1, FileOptions.Asynchronous);
-        var buffer = ArrayPool<byte>.Shared.Rent(65536);
+        int chunkSize = (length != null && length.Value > 10 * 1024 * 1024) ? 131072 : 65536;
+        var buffer = ArrayPool<byte>.Shared.Rent(chunkSize);
         try
         {
             while (true)
             {
-                var read = await ReadAsync(input, buffer.AsMemory(0, 65536), token).ConfigureAwait(false);
+                var read = await ReadAsync(input, buffer.AsMemory(0, chunkSize), token).ConfigureAwait(false);
                 if (read == 0) break;
                 if (length != null && read > length.Value - segment.Done) throw new IOException("Server exceeded declared content length.");
                 await ThrottleAsync(w, read, token).ConfigureAwait(false);
@@ -1922,9 +1939,9 @@ public sealed partial class DownloadManager : IDisposable
             return "The stream could not be loaded (the server returned invalid data or an HTML webpage instead of video). The download link may have expired or requires browser session cookies.";
         }
 
-        if (cleanLines.Any(l => l.Contains("403 Forbidden", StringComparison.OrdinalIgnoreCase) || l.Contains("HTTP error 403", StringComparison.OrdinalIgnoreCase)))
+        if (exitCode == -1482175736 || cleanLines.Any(l => l.Contains("4XX Client Error", StringComparison.OrdinalIgnoreCase) || l.Contains("403 Forbidden", StringComparison.OrdinalIgnoreCase) || l.Contains("HTTP error 403", StringComparison.OrdinalIgnoreCase) || l.Contains("HTTP error 401", StringComparison.OrdinalIgnoreCase) || l.Contains("401 Unauthorized", StringComparison.OrdinalIgnoreCase)))
         {
-            return "Access forbidden (403 Forbidden). The video stream link or security signature has expired, or requires the webpage's Referer/session cookies. Refresh the page in your browser or click 'Refresh address'.";
+            return "Video stream link expired or access denied (HTTP 4XX). The temporary security token has expired or requires browser session cookies. Refresh the video page in your browser to get a new link, or right-click this download and choose 'Refresh address'.";
         }
 
         return $"{toolName} failed (exit code {exitCode}){(string.IsNullOrEmpty(details) ? "" : ": " + details)}";
@@ -2046,16 +2063,17 @@ public sealed partial class DownloadManager : IDisposable
                 var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
                 try
                 {
-                    await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous))
+                    await using (var output = new FileStream(staging, FileMode.Create, FileAccess.Write, FileShare.None, 1, FileOptions.Asynchronous | FileOptions.SequentialScan))
                     {
                         if (totalExpected > 0)
                         {
-                            output.SetLength(totalExpected);
+                            try { output.SetLength(totalExpected); }
+                            catch (IOException) { /* If disk is tight, avoid failing early; let file grow dynamically as parts are freed */ }
                         }
 
                         if (parts.Length > 1 && !File.Exists(parts[1]) && File.Exists(parts[0]))
                         {
-                            await using var input = new FileStream(parts[0], FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                            await using var input = new FileStream(parts[0], FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.Asynchronous | FileOptions.SequentialScan);
                             int read;
                             while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), token).ConfigureAwait(false)) > 0)
                             {
@@ -2073,7 +2091,7 @@ public sealed partial class DownloadManager : IDisposable
                                 var s = w.Segments[i];
                                 if (s.Done != s.Length) throw new IOException("Incomplete segment cannot be published.");
                                 var partPath = PartFile(w, s.PartId!.Value);
-                                await using (var input = new FileStream(partPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                                await using (var input = new FileStream(partPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.Asynchronous | FileOptions.SequentialScan))
                                 {
                                     if (input.Length != s.Length) throw new IOException("Partial file length changed.");
                                     int read;
@@ -2195,8 +2213,29 @@ public sealed partial class DownloadManager : IDisposable
             w.SampleAt = Stopwatch.GetTimestamp(); w.SampleBytes = 0;
         }
     }
-    private static void UpdateProgressLocked(Work w) { w.Job.TotalBytes = w.Total; w.Job.DownloadedBytes = w.Segments.Sum(s => s.Done); }
-    private string PartDirectory(Work w) => Path.Combine(state, w.Job.Id + ".parts");
+    private static void UpdateProgressLocked(Work w)
+    {
+        w.Job.TotalBytes = w.Total;
+        long sum = 0;
+        var segs = w.Segments;
+        for (int i = 0; i < segs.Count; i++) sum += segs[i].Done;
+        w.Job.DownloadedBytes = sum;
+    }
+    private string PartDirectory(Work w)
+    {
+        var legacyDir = Path.Combine(state, w.Job.Id + ".parts");
+        if (Directory.Exists(legacyDir)) return legacyDir;
+
+        var targetDir = Path.GetDirectoryName(w.Job.FilePath);
+        var baseDir = !string.IsNullOrEmpty(targetDir) ? targetDir : downloads;
+        var stateRoot = Path.GetPathRoot(Path.GetFullPath(state));
+        var targetRoot = Path.GetPathRoot(Path.GetFullPath(baseDir));
+        if (!string.IsNullOrEmpty(targetRoot) && !string.Equals(stateRoot, targetRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.Combine(StagingDirectory(w), w.Job.Id + ".parts");
+        }
+        return legacyDir;
+    }
     private string PartFile(Work w, int index) => Path.Combine(PartDirectory(w), index + ".part");
     private string StagingDirectory(Work w)
     {
@@ -2241,6 +2280,7 @@ public sealed partial class DownloadManager : IDisposable
                 throw new DiskSpaceException($"Not enough disk space on {drive.Name.TrimEnd('\\')} (needed {FormatBytes(requiredBytes)}, available {FormatBytes(drive.AvailableFreeSpace)}).");
             }
         }
+        catch (DiskSpaceException) { throw; }
         catch (ArgumentException) { }
         catch (NotSupportedException) { }
     }
@@ -2256,6 +2296,10 @@ public sealed partial class DownloadManager : IDisposable
     private void DeletePartial(Work w)
     {
         try { if (Directory.Exists(PartDirectory(w))) Directory.Delete(PartDirectory(w), true); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+        var legacyDir = Path.Combine(state, w.Job.Id + ".parts");
+        try { if (Directory.Exists(legacyDir)) Directory.Delete(legacyDir, true); }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
         try

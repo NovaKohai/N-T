@@ -35,7 +35,7 @@ public sealed class AppSettings
     public bool ShowProgressOnCompletion { get; set; } = true;
     public bool PlayCompletionSound { get; set; } = true;
     public bool AutoExtractZip { get; set; } = false;
-    public bool ShowSplashScreen { get; set; } = true;
+    public bool ShowSplashScreen { get; set; } = false;
     public bool ShowMiniWidget { get; set; } = false;
     public double? MiniWidgetLeft { get; set; }
     public double? MiniWidgetTop { get; set; }

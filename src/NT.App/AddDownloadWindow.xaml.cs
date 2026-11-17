@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -52,8 +53,12 @@ public partial class AddDownloadWindow : Window
         return all[0];
     }
 
-    public AddDownloadWindow(string initialUrl, int? currentConcurrency = null)
+    private readonly IEnumerable<DownloadJob>? _existingJobs;
+    private DownloadJob? _duplicateMatch;
+
+    public AddDownloadWindow(string initialUrl, int? currentConcurrency = null, IEnumerable<DownloadJob>? existingJobs = null)
     {
+        _existingJobs = existingJobs;
         InitializeComponent();
         UrlInput.Text = initialUrl;
         if (currentConcurrency.HasValue)
@@ -67,7 +72,75 @@ public partial class AddDownloadWindow : Window
                 }
             }
         }
+        CheckDuplicate(initialUrl);
         Loaded += (_, _) => { UrlInput.Focus(); UrlInput.SelectAll(); };
+    }
+
+    private void CheckDuplicate(string url)
+    {
+        if (DuplicateCard is null) return;
+        string trimmed = (url ?? "").Trim();
+        if (string.IsNullOrEmpty(trimmed) || _existingJobs is null)
+        {
+            _duplicateMatch = null;
+            DuplicateCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var matches = _existingJobs.Where(j => !string.IsNullOrEmpty(j.Url) && string.Equals(j.Url.Trim(), trimmed, StringComparison.OrdinalIgnoreCase)).ToList();
+        var match = matches.FirstOrDefault(j => j.Status == "Completed") ?? matches.FirstOrDefault();
+        _duplicateMatch = match;
+        if (match is not null)
+        {
+            DuplicateCard.Visibility = Visibility.Visible;
+            if (match.Status == "Completed")
+            {
+                DuplicateHeading.Text = "Already downloaded";
+                var sizeStr = match.TotalBytes > 0 ? DownloadRow.FormatBytes(match.TotalBytes) : (match.DownloadedBytes > 0 ? DownloadRow.FormatBytes(match.DownloadedBytes) : "");
+                var dateStr = match.AddedAt.HasValue ? match.AddedAt.Value.LocalDateTime.ToString("yyyy-MM-dd HH:mm") : "";
+                DuplicateDetails.Text = $"You already downloaded this file: {match.FileName}" +
+                    (string.IsNullOrEmpty(sizeStr) ? "" : $" ({sizeStr})") +
+                    (string.IsNullOrEmpty(dateStr) ? "" : $" · Completed on {dateStr}") +
+                    ". Proceeding will save a new duplicate copy.";
+                DuplicateOpenFileBtn.Visibility = File.Exists(match.FilePath) ? Visibility.Visible : Visibility.Collapsed;
+                DuplicateOpenFolderBtn.Visibility = File.Exists(match.FilePath) || (Path.GetDirectoryName(match.FilePath) is { } d && Directory.Exists(d)) ? Visibility.Visible : Visibility.Collapsed;
+            }
+            else
+            {
+                DuplicateHeading.Text = "Already in queue";
+                DuplicateDetails.Text = $"This download is currently in your list ({match.Status} · {match.Progress:F0}%).";
+                DuplicateOpenFileBtn.Visibility = Visibility.Collapsed;
+                DuplicateOpenFolderBtn.Visibility = Visibility.Collapsed;
+            }
+        }
+        else
+        {
+            DuplicateCard.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void DuplicateOpenFile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_duplicateMatch is { FilePath: var path } && File.Exists(path))
+        {
+            try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
+            catch { }
+        }
+    }
+
+    private void DuplicateOpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (_duplicateMatch is { FilePath: var path })
+        {
+            try
+            {
+                if (File.Exists(path))
+                    Process.Start("explorer.exe", $"/select,\"{path}\"");
+                else if (Path.GetDirectoryName(path) is { } dir && Directory.Exists(dir))
+                    Process.Start("explorer.exe", $"\"{dir}\"");
+            }
+            catch { }
+        }
     }
 
     /// <summary>The dialog opens compact; opening "More options" gives the extra fields room (within the screen) instead of a tiny scroll area.</summary>
@@ -106,6 +179,7 @@ public partial class AddDownloadWindow : Window
             return;
         }
         PatternHint.Visibility = Visibility.Collapsed;
+        CheckDuplicate(text);
     }
 
     private async void DownloadLater_Click(object sender, RoutedEventArgs e)
@@ -132,6 +206,17 @@ public partial class AddDownloadWindow : Window
                 DesiredConcurrency = conc;
 
             string url = UrlInput.Text.Trim();
+            if (_duplicateMatch?.Status == "Completed" && File.Exists(_duplicateMatch.FilePath) && _existingJobs != null)
+            {
+                var confirm = MessageBox.Show(this,
+                    $"This file was already downloaded and is saved on your computer:\n\n{_duplicateMatch.FileName}\nSaved at: {_duplicateMatch.FilePath}\n\nDo you want to download a new copy anyway?",
+                    "Duplicate download",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question,
+                    MessageBoxResult.No);
+                if (confirm != MessageBoxResult.Yes) return;
+            }
+
             if (url.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
             {
                 TorrentValidator.ParseMagnet(url);

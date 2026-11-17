@@ -713,10 +713,16 @@
       if (quality) msg.quality = quality;
       const r = await chrome.runtime.sendMessage(msg);
       const ok = r?.ok === true && typeof r.id === 'string' && r.id.trim().length > 0;
-      states.set(i.id, ok ? { ok: true, text: 'Accepted by N&T' } : { ok: false, text: r?.error || 'Not accepted by N&T' });
+      let errText = 'Not accepted by N&T';
+      if (r?.error) {
+        errText = /bridge disconnected|native messaging|could not reach|not running|host not found/i.test(r.error)
+          ? 'N&T is not running'
+          : r.error;
+      }
+      states.set(i.id, ok ? { ok: true, text: 'Accepted by N&T' } : { ok: false, text: errText });
     } catch (err) {
       if (/context invalidated/i.test(err?.message || '')) dispose();
-      states.set(i.id, { ok: false, text: 'N&T bridge unavailable' });
+      states.set(i.id, { ok: false, text: 'N&T unavailable (app not running)' });
     }
     sending.delete(i.id); render();
   }
@@ -727,8 +733,15 @@
     render();
   }
 
-  const schedule = () => {
+  const schedule = (mutations) => {
     if (!isAlive()) { dispose(); return; }
+    if (Array.isArray(mutations)) {
+      const onlySelf = mutations.length > 0 && mutations.every(m => {
+        const target = m.target;
+        return target && target.closest && (target.closest('#nt-media-ribbon') || target.closest('#neodm-ribbon'));
+      });
+      if (onlySelf) return;
+    }
     if (timer === null) timer = setTimeout(scanDom, SCAN_MS);
   };
 

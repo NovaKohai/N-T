@@ -1,6 +1,17 @@
 const $ = id => document.getElementById(id);
 /** One status line at the bottom of the popup. kind: 'ok' | 'err' | undefined (neutral). */
 const show = (text, kind) => { const el = $('status'); el.textContent = text; el.className = kind || ''; };
+
+function friendlyError(err) {
+  if (!err) return '';
+  const s = String(err);
+  if (/bridge disconnected|native messaging|could not reach|not running|host not found/i.test(s)) {
+    return 'N&T app is not running. Please open N&T on your computer.';
+  }
+  if (/timed out/i.test(s)) return 'N&T did not respond in time.';
+  return s;
+}
+
 const PAUSE_KEY = 'neodm.pause';
 let host = '';
 
@@ -14,12 +25,32 @@ async function renderPause() {
   $('pauseState').textContent = allOff ? 'N&T is paused on all sites until the browser closes.' : siteOff ? `N&T is paused on ${host} until the browser closes.` : 'N&T is active.';
 }
 const describe = NeoSniff.describeItem;
+let currentMediaFilter = 'all';
+let activeTab = null;
+
 async function renderMedia(tab) {
+  if (tab) activeTab = tab;
+  else tab = activeTab;
   const list = $('mediaList'); list.textContent = '';
   let items = [];
-  try { items = (await chrome.runtime.sendMessage({ action: 'popup-media', tabId: tab.id }))?.items || []; } catch {}
+  try { items = (await chrome.runtime.sendMessage({ action: 'popup-media', tabId: tab?.id }))?.items || []; } catch {}
   const tracks = items.filter(i => !i.info && NeoSniff.offeredQuality(i.quality));
-  const shown = tracks.length > 0 ? [...tracks, ...items.filter(i => i.info)] : items;
+  const baseItems = tracks.length > 0 ? [...tracks, ...items.filter(i => i.info)] : items;
+
+  const filterBar = $('mediaFilterBar');
+  if (filterBar) {
+    const hasVideo = items.some(i => !i.info && (i.kind === 'video' || /^\d+p$/i.test(i.quality) || i.mime?.startsWith('video/') || /video|mp4|webm|mkv/i.test(i.url)));
+    const hasAudio = items.some(i => !i.info && (i.kind === 'audio' || /audio/i.test(i.quality) || i.mime?.startsWith('audio/') || /m4a|mp3|aac|flac/i.test(i.url)));
+    filterBar.hidden = !(items.length > 1 && (hasVideo || hasAudio));
+  }
+
+  let shown = baseItems;
+  if (currentMediaFilter === 'video') {
+    shown = baseItems.filter(i => i.info || i.kind === 'video' || /^\d+p$/i.test(i.quality) || i.mime?.startsWith('video/') || /video|mp4|webm|mkv/i.test(i.url));
+  } else if (currentMediaFilter === 'audio') {
+    shown = baseItems.filter(i => i.info || i.kind === 'audio' || /audio/i.test(i.quality) || i.mime?.startsWith('audio/') || /m4a|mp3|aac|flac/i.test(i.url));
+  }
+
   $('mediaNone').hidden = shown.length > 0;
   for (const i of shown) {
     const li = document.createElement('li'), what = document.createElement('span'); what.className = 'what';
@@ -67,15 +98,44 @@ async function renderMedia(tab) {
     }
 
     what.title = (title ? title + '\n' : '') + i.url;
+    const actions = document.createElement('div');
+    actions.className = 'item-actions';
+
+    const copyBtn = document.createElement('span');
+    copyBtn.className = 'copy-action';
+    copyBtn.setAttribute('role', 'button');
+    copyBtn.setAttribute('tabindex', '0');
+    copyBtn.title = 'Copy direct stream link to clipboard';
+    copyBtn.setAttribute('aria-label', 'Copy stream link');
+    copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+
+    const copyUrl = async (e) => {
+      e?.stopPropagation?.();
+      let targetUrl = (i.isHls && i.rawUrl) ? i.rawUrl : i.url;
+      if (selectedQuality) {
+        const qStr = String(selectedQuality).trim();
+        if (qStr) targetUrl = (targetUrl.split('#')[0]) + (qStr.startsWith('#') ? qStr : '#' + qStr);
+      }
+      try {
+        await navigator.clipboard.writeText(targetUrl);
+        show('Link copied to clipboard.', 'ok');
+      } catch {
+        show('Could not copy link.', 'err');
+      }
+    };
+    copyBtn.onclick = copyUrl;
+    copyBtn.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyUrl(e); } };
+
     const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Download';
     b.setAttribute('aria-label', `Download ${title || meta} with N&T`);
     b.onclick = async () => {
       b.disabled = true; show('Sending to N&T…');
-      const r = await chrome.runtime.sendMessage({ action: 'popup-download', tab: { id: tab.id, url: tab.url, title: tab.title }, id: i.id, quality: selectedQuality }).catch(() => null);
-      if (r?.ok === true) show('Accepted by N&T.', 'ok'); else show(r?.error || 'N&T did not accept this media.', 'err');
+      const r = await chrome.runtime.sendMessage({ action: 'popup-download', tab: { id: tab?.id, url: tab?.url, title: tab?.title }, id: i.id, quality: selectedQuality }).catch(() => null);
+      if (r?.ok === true) show('Accepted by N&T.', 'ok'); else show(friendlyError(r?.error) || 'N&T did not accept this media.', 'err');
       b.disabled = false;
     };
-    li.append(what, b); list.append(li);
+    actions.append(copyBtn, b);
+    li.append(what, actions); list.append(li);
   }
 }
 async function setPause(scope, on) {
@@ -98,12 +158,12 @@ async function checkConnection() {
     } else {
       if (ind) ind.className = 'status-indicator offline';
       if (lbl) lbl.textContent = 'Offline';
-      show(r?.error || 'N&T did not respond. Is the app installed and running?', 'err');
+      show(friendlyError(r?.error) || 'N&T is not running. Please open N&T on your computer.', 'err');
     }
   } catch {
     if (ind) ind.className = 'status-indicator offline';
     if (lbl) lbl.textContent = 'Offline';
-    show('Could not reach N&T. Is the app installed and running?', 'err');
+    show('N&T is not running. Please open N&T on your computer.', 'err');
   }
   if (button) button.disabled = false;
 }
@@ -138,6 +198,15 @@ chrome.storage.local.get(['captureEnabled', 'cookiesEnabled', 'ribbonEnabled', '
 
 if ($('connectionStatus')) $('connectionStatus').onclick = checkConnection;
 if ($('test')) $('test').onclick = checkConnection;
+
+document.querySelectorAll('#mediaFilterBar .filter-chip').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('#mediaFilterBar .filter-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMediaFilter = btn.dataset.filter || 'all';
+    renderMedia();
+  };
+});
 
 $('ribbon').onchange = async () => {
   await chrome.storage.local.set({ ribbonEnabled: $('ribbon').checked });

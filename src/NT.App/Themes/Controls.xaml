@@ -23,6 +23,7 @@
   <Geometry x:Key="IconSearch">M7,3 a4,4 0 1,0 0.01,0 Z M10,10 L13,13</Geometry>
   <Geometry x:Key="IconLayers">M8,2.5 L13.5,5.5 L8,8.5 L2.5,5.5 Z M2.5,8.5 L8,11.5 L13.5,8.5</Geometry>
   <Geometry x:Key="IconPower">M8,2.5 V8 M5,4.5 a5,5 0 1,0 6,0</Geometry>
+  <Geometry x:Key="IconAlert">M8,2.5 L14.5,13.5 H1.5 Z M8,6 V9.5 M8,11.5 V12</Geometry>
   <Style TargetType="Window"><Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Background" Value="{DynamicResource CanvasBrush}"/></Style>
   <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style>
   <Style x:Key="Muted" TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/></Style>
@@ -107,6 +108,12 @@
   <!-- Status-bar setting: reads as text until hovered, opens a menu of choices. -->
   <Style x:Key="ChipButton" TargetType="Button" BasedOn="{StaticResource ToolButton}">
     <Setter Property="Padding" Value="8,2"/><Setter Property="MinHeight" Value="24"/><Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+  </Style>
+  <!-- Outlined secondary command, used in selection strips and alert cards. -->
+  <Style x:Key="StripCommand" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Padding" Value="{DynamicResource CommandPadding}"/>
+    <Setter Property="MinHeight" Value="{DynamicResource CommandMinHeight}"/>
+    <Setter Property="Margin" Value="6,0,0,0"/>
   </Style>
   <Style TargetType="TextBox"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="CaretBrush" Value="{DynamicResource InkBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10,8"/><Setter Property="MinHeight" Value="36"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox">

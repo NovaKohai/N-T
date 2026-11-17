@@ -25,6 +25,11 @@
 <main>
 <section id="mediaPanel" aria-labelledby="mediaHeading">
   <h2 id="mediaHeading">On this page</h2>
+  <div id="mediaFilterBar" class="media-filter-bar" hidden>
+    <button type="button" class="filter-chip active" data-filter="all">All</button>
+    <button type="button" class="filter-chip" data-filter="video">Video</button>
+    <button type="button" class="filter-chip" data-filter="audio">Audio</button>
+  </div>
   <ul id="mediaList"></ul>
   <div id="mediaNone" class="empty-media">
     <div class="empty-icon-wrap">

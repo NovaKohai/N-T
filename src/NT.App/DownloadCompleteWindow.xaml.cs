@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 using NT.Core;
 
@@ -21,11 +22,37 @@ public partial class DownloadCompleteWindow : Window
         this.job = job; this.settings = settings; this.saveSettings = saveSettings; this.stillPresent = stillPresent ?? (() => true);
         InitializeComponent();
         FileNameLabel.Text = job.FileName; PathLabel.Text = job.FilePath;
+        UpdateCategoryGlyph();
         DontShowAgain.IsChecked = !settings.ShowCompletionDialog; preferenceReady = true;
         timer = new DispatcherTimer(TimeSpan.FromMilliseconds(500), DispatcherPriority.Background, (_, _) => RefreshAvailability(), Dispatcher);
         Closed += (_, _) => timer.Stop();
         PreviewKeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) { e.Handled = true; Close(); } };
         RefreshAvailability();
+    }
+    private void UpdateCategoryGlyph()
+    {
+        if (FileCategoryGlyph == null) return;
+        var ext = Path.GetExtension(job.FilePath ?? "").ToLowerInvariant();
+        string cat = ext switch
+        {
+            ".mp4" or ".mkv" or ".webm" or ".avi" or ".mov" or ".flv" => "Video",
+            ".mp3" or ".flac" or ".m4a" or ".wav" or ".ogg" or ".aac" => "Music",
+            ".zip" or ".rar" or ".7z" or ".tar" or ".gz" or ".bz2" or ".iso" => "Compressed",
+            ".exe" or ".msi" or ".bat" or ".cmd" or ".apk" => "Programs",
+            ".pdf" or ".doc" or ".docx" or ".txt" or ".epub" or ".xlsx" => "Documents",
+            ".torrent" => "Torrent",
+            _ => "General"
+        };
+        FileCategoryGlyph.Data = cat switch
+        {
+            "Video" => (Geometry)FindResource("IconVideo"),
+            "Music" => (Geometry)FindResource("IconAudio"),
+            "Compressed" => (Geometry)FindResource("IconPackage"),
+            "Programs" => (Geometry)FindResource("IconApp"),
+            "Documents" => (Geometry)FindResource("IconFile"),
+            "Torrent" => (Geometry)FindResource("IconMagnet"),
+            _ => (Geometry)FindResource("IconFile")
+        };
     }
     public void RefreshAvailability()
     {
@@ -65,7 +92,14 @@ public partial class DownloadCompleteWindow : Window
     private void Open_Click(object sender, RoutedEventArgs e) { if (GuardOpen()) Act(() => DownloadFileActions.Open(job.FilePath)); }
     private void OpenWith_Click(object sender, RoutedEventArgs e) { if (GuardOpen()) Act(() => DownloadFileActions.OpenWith(this, job.FilePath)); }
     private void Folder_Click(object sender, RoutedEventArgs e) { RefreshAvailability(); if (FolderButton.IsEnabled) Act(() => DownloadFileActions.OpenFolder(job.FilePath)); }
-    private void Copy_Click(object sender, RoutedEventArgs e) => Act(() => Clipboard.SetText(job.FilePath));
+    private void Copy_Click(object sender, RoutedEventArgs e)
+    {
+        Act(() =>
+        {
+            Clipboard.SetText(job.FilePath);
+            Notice.Text = "File path copied to clipboard.";
+        });
+    }
     private void Extract_Click(object sender, RoutedEventArgs e)
     {
         if (!GuardOpen() || !ArchiveExtractor.IsZip(job.FilePath)) return;

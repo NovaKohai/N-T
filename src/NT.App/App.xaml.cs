@@ -78,20 +78,11 @@ public partial class App : Application
                     WindowTransitions.ApplyEntrance(window);
                 }
             }));
-        SplashScreenWindow? splash = null;
-        long splashStart = System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
             Directory.CreateDirectory(StateDirectory);
             Settings = AppSettings.Load(StateDirectory);
             ApplyTheme(Settings.Theme, Settings.AccentOverride);
-
-            if (!startup.Tray && !startup.NoSplash && Settings.ShowSplashScreen)
-            {
-                splash = new SplashScreenWindow();
-                splash.Show();
-                await Task.Yield();
-            }
 
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += (_, args) =>
             {
@@ -101,23 +92,14 @@ public partial class App : Application
             };
             Directory.CreateDirectory(Settings.DownloadDirectory);
 
-            splash?.SetStatus("Restoring download queue…");
-            if (splash != null) await Task.Yield();
-
             _manager = new DownloadManager(
                 Settings.DownloadDirectory, 
                 StateDirectory, 
                 OptionsHelper.CreateDownloadOptions(Settings),
                 fileName => CategoryHelper.GetDownloadPath(fileName, Settings));
 
-            splash?.SetStatus("Connecting torrent client…");
-            if (splash != null) await Task.Yield();
-
             _torrents = new TorrentController(Path.Combine(StateDirectory, "torrent"), Settings);
             _torrentFeature = new TorrentFeature(_torrents, Settings);
-
-            splash?.SetStatus("Preparing user interface…");
-            if (splash != null) await Task.Yield();
 
             var window = new MainWindow(_manager, Settings, () => Settings.Save(StateDirectory), enableTray: true, power: null, torrents: _torrentFeature);
             window.JobCompletion = new JobCompletionStore(Path.Combine(StateDirectory, "job-completion.json"));
@@ -130,27 +112,12 @@ public partial class App : Application
 
             if (startup.Tray)
             {
-                splash?.Close();
                 window.StartInTray();
             }
             else
             {
-                if (splash != null)
-                {
-                    splash.SetStatus("Ready");
-                    var elapsedMs = System.Diagnostics.Stopwatch.GetElapsedTime(splashStart).TotalMilliseconds;
-                    var remainingMs = Math.Max(0, 750 - elapsedMs);
-                    if (remainingMs > 0) await Task.Delay((int)remainingMs);
-                    var closeTask = splash.FadeOutAndCloseAsync(200);
-                    window.Show();
-                    await closeTask;
-                    window.BringToFront();
-                }
-                else
-                {
-                    window.Show();
-                    window.BringToFront();
-                }
+                window.Show();
+                window.BringToFront();
             }
 
             // The engine (and its listening socket) only exists once the user has torrents.
@@ -160,7 +127,6 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            splash?.Close();
             MessageBox.Show("N&T could not start. Check that your destination and state folders are writable.\n\n" + ex.Message, "N&T", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
@@ -247,7 +213,8 @@ public partial class App : Application
                 var dialog = new DownloadOptionsDialog(request.Url, request.FileName, request.Referer, request.Cookie, Settings.DownloadDirectory, request.Mime,
                     ct => manager.ProbeNameAsync(new DownloadRequest(request.Url, null, request.Referer, request.Cookie), ct),
                     fileName => CategoryHelper.GetDownloadPath(fileName, Settings),
-                    Settings.MaxConcurrentDownloads);
+                    Settings.MaxConcurrentDownloads,
+                    manager.Jobs);
                 // The wait for the user is unbounded; if the browser side goes away meanwhile the dialog says so and can no longer add a duplicate.
                 request.Gone.Register(() => Dispatcher.BeginInvoke(new Action(() => dialog.MarkExpired(
                     "The browser stopped waiting for N&T (the browser or its connection was closed), so it has restarted this download itself. " +

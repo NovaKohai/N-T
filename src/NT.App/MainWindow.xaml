@@ -11,12 +11,6 @@
       <Setter Property="MinHeight" Value="{DynamicResource CommandMinHeight}"/>
       <Setter Property="Margin" Value="0,0,6,0"/>
     </Style>
-    <!-- Outlined secondary command, used in the selection strip under the queue. -->
-    <Style x:Key="StripCommand" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Padding" Value="{DynamicResource CommandPadding}"/>
-      <Setter Property="MinHeight" Value="{DynamicResource CommandMinHeight}"/>
-      <Setter Property="Margin" Value="6,0,0,0"/>
-    </Style>
     <!-- Whole-queue action in the sidebar: a quiet, left-aligned row. -->
     <Style x:Key="SidebarCommand" TargetType="Button" BasedOn="{StaticResource ToolButton}">
       <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -255,14 +249,18 @@
           <StackPanel>
             <Grid>
               <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
               </Grid.ColumnDefinitions>
-              <StackPanel>
+              <Border x:Name="DetailCategoryBorder" Background="{DynamicResource AccentSoftBrush}" CornerRadius="{DynamicResource ControlRadius}" Width="32" Height="32" Margin="0,0,10,0" VerticalAlignment="Center">
+                <Path x:Name="DetailCategoryGlyph" Data="{StaticResource IconFile}" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
                 <TextBlock x:Name="DetailName" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                 <TextBlock x:Name="DetailPath" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
               </StackPanel>
-              <WrapPanel Grid.Column="1" Margin="4,0,0,0" VerticalAlignment="Center">
+              <WrapPanel Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center">
                 <Button x:Name="PauseButton" Content="Pause" Click="Pause_Click" Style="{StaticResource StripCommand}" AutomationProperties.Name="Pause selected download" ToolTip="Pause the selected download"/>
                 <Button x:Name="SpeedButton" Content="Speed limit…" Click="Speed_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconGauge}" AutomationProperties.Name="Set speed limit" ToolTip="Set speed limit for selected download"/>
                 <Button x:Name="OpenButton" Content="Open file" Click="Open_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconFile}" AutomationProperties.Name="Open file" ToolTip="Open the selected completed file"/>

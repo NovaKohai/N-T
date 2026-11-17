@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
+using System.Windows.Media;
 using System.Windows.Shell;
 using Hardcodet.Wpf.TaskbarNotification;
 using NT.Core;
@@ -30,6 +31,9 @@ public partial class MainWindow : Window
     private readonly ConcurrentQueue<IReadOnlyList<DownloadJob>> _stateSnapshots = new();
     private DownloadCompleteWindow? _completionWindow;
     private MiniWidgetWindow? _miniWidget;
+    private int _refreshPending;
+    private readonly HashSet<string> _reusableIds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _reusableSelectedIds = new(StringComparer.Ordinal);
 
     /// <summary>Per-download "Options on completion" choices; App swaps in the persisted store at startup.</summary>
     public JobCompletionStore JobCompletion { get; set; } = new();
@@ -234,7 +238,14 @@ public partial class MainWindow : Window
     private void ManagerChanged()
     {
         _stateSnapshots.Enqueue(_manager.Jobs);
-        Dispatcher.BeginInvoke(new Action(() => { if (!_closed) { _timer.Interval = TimeSpan.FromMilliseconds(500); Refresh(); } }));
+        if (!_closed && Interlocked.Exchange(ref _refreshPending, 1) == 0)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                Interlocked.Exchange(ref _refreshPending, 0);
+                if (!_closed) Refresh();
+            }));
+        }
     }
 
     private void PresentCompletion(DownloadJob job, Action acknowledged)
@@ -321,11 +332,13 @@ public partial class MainWindow : Window
             bool queueFinished = false;
             while (_stateSnapshots.TryDequeue(out var captured)) { _completion.Observe(captured); queueFinished |= ObserveFinish(captured); }
             var snapshot = _manager.Jobs.ToArray();
-            var selectedIds = SelectedRows.Select(r => r.Id).ToHashSet();
+            _reusableSelectedIds.Clear();
+            foreach (var r in SelectedRows) _reusableSelectedIds.Add(r.Id);
             bool filterChanged = forceView;
             bool sortChanged = false;
-            var ids = snapshot.Select(j => j.Id).ToHashSet();
-            _torrents.CollectRowIds(ids);
+            _reusableIds.Clear();
+            for (int i = 0; i < snapshot.Length; i++) _reusableIds.Add(snapshot[i].Id);
+            _torrents.CollectRowIds(_reusableIds);
             if (_rowLookup.Count != Rows.Count)
             {
                 _rowLookup.Clear();
@@ -335,7 +348,7 @@ public partial class MainWindow : Window
             for (int i = Rows.Count - 1; i >= 0; i--)
             {
                 var rId = Rows[i].Id;
-                if (!ids.Contains(rId))
+                if (!_reusableIds.Contains(rId))
                 {
                     JobCompletion.Remove(rId);
                     _rowLookup.Remove(rId);
@@ -363,7 +376,7 @@ public partial class MainWindow : Window
             if (filterChanged || (sortChanged && view.SortDescriptions.Count > 0)) view.Refresh();
             _completion.Observe(snapshot);
             queueFinished |= ObserveFinish(snapshot);
-            RestoreSelection(selectedIds);
+            RestoreSelection(_reusableSelectedIds);
             var visible = (view as CollectionView)?.Count ?? view.Cast<object>().Count();
             CountLabel.Text = $"{visible} {(visible == 1 ? "download" : "downloads")}";
             UpdateNavigationCounts();
@@ -542,6 +555,7 @@ public partial class MainWindow : Window
         var row = Selected;
         PauseButton.IsEnabled = row is not null && (row.CanPause || row.CanResume);
         PauseButton.Content = row?.CanResume == true ? "Resume" : "Pause";
+        Ui.SetIcon(PauseButton, (Geometry)FindResource(row?.CanResume == true ? "IconPlay" : "IconPause"));
         var selection = SelectedRows;
         ResumeButton.IsEnabled = selection.Any(r => r.CanResume);
         StopButton.IsEnabled = selection.Any(r => r.CanPause);
@@ -557,6 +571,30 @@ public partial class MainWindow : Window
         PauseAllButton.IsEnabled = Rows.Any(r => r.CanPause);
         ResumeAllButton.IsEnabled = Rows.Any(r => r.Status == "Paused");
         DetailsPanel.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
+        if (selection.Count > 1)
+        {
+            DetailCategoryGlyph.Data = (Geometry)FindResource("IconLayers");
+            DetailCategoryBorder.Visibility = Visibility.Visible;
+        }
+        else if (row is not null)
+        {
+            DetailCategoryGlyph.Data = row.IsTorrent
+                ? (Geometry)FindResource("IconMagnet")
+                : (row.Category switch
+                {
+                    "Video" => (Geometry)FindResource("IconVideo"),
+                    "Music" => (Geometry)FindResource("IconAudio"),
+                    "Compressed" => (Geometry)FindResource("IconPackage"),
+                    "Programs" => (Geometry)FindResource("IconApp"),
+                    "Documents" => (Geometry)FindResource("IconFile"),
+                    _ => (Geometry)FindResource("IconFile")
+                });
+            DetailCategoryBorder.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            DetailCategoryBorder.Visibility = Visibility.Collapsed;
+        }
         DetailName.Text = selection.Count > 1 ? $"{selection.Count} downloads selected" : row?.FileName ?? "";
         DetailPath.Text = selection.Count > 1 ? "Resume, Stop and Remove apply to all of them. The buttons on the right act on " + (row?.FileName ?? "the first one") + "." : row?.FilePath ?? "";
         DetailPath.ToolTip = row?.FilePath;

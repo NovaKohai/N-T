@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using Microsoft.Win32;
 using NT.Core;
 
@@ -23,6 +24,8 @@ public partial class DownloadOptionsDialog : Window
     private readonly string? _browserName, _browserMime;
     private readonly Func<CancellationToken, Task<NameProbeResult?>>? _probe;
     private readonly CancellationTokenSource _probeCancel = new();
+    private readonly IEnumerable<DownloadJob>? _existingJobs;
+    private DownloadJob? _duplicateMatch;
     private bool _programmatic, _nameEdited, _pathEdited, _categoryEdited;
     private NameProbeResult? _seen;
 
@@ -39,10 +42,11 @@ public partial class DownloadOptionsDialog : Window
     /// <param name="probe">Quick HEAD / ranged-GET look at the link; fills the name, size and type when it answers.</param>
     public DownloadOptionsDialog(string url, string? suggestedFileName, string? referer, string? cookie, string defaultDownloadDirectory,
         string? mime = null, Func<CancellationToken, Task<NameProbeResult?>>? probe = null, Func<string, string>? autoFolder = null,
-        int? currentConcurrency = null)
+        int? currentConcurrency = null, IEnumerable<DownloadJob>? existingJobs = null)
     {
         _autoFolder = autoFolder;
         _defaultDownloadDirectory = defaultDownloadDirectory;
+        _existingJobs = existingJobs;
         _uri = new Uri(url);
         _browserName = string.IsNullOrWhiteSpace(suggestedFileName) ? null : suggestedFileName;
         _browserMime = string.IsNullOrWhiteSpace(mime) ? null : mime;
@@ -50,6 +54,7 @@ public partial class DownloadOptionsDialog : Window
         InitializeComponent();
         
         UrlDisplay.Text = url;
+        CheckDuplicate(url);
         
         if (currentConcurrency.HasValue)
         {
@@ -86,6 +91,73 @@ public partial class DownloadOptionsDialog : Window
         }
     }
 
+    private void CheckDuplicate(string url)
+    {
+        if (DuplicateCard is null) return;
+        string trimmed = (url ?? "").Trim();
+        if (string.IsNullOrEmpty(trimmed) || _existingJobs is null)
+        {
+            _duplicateMatch = null;
+            DuplicateCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var matches = _existingJobs.Where(j => !string.IsNullOrEmpty(j.Url) && string.Equals(j.Url.Trim(), trimmed, StringComparison.OrdinalIgnoreCase)).ToList();
+        var match = matches.FirstOrDefault(j => j.Status == "Completed") ?? matches.FirstOrDefault();
+        _duplicateMatch = match;
+        if (match is not null)
+        {
+            DuplicateCard.Visibility = Visibility.Visible;
+            if (match.Status == "Completed")
+            {
+                DuplicateHeading.Text = "Already downloaded";
+                var sizeStr = match.TotalBytes > 0 ? DownloadRow.FormatBytes(match.TotalBytes) : (match.DownloadedBytes > 0 ? DownloadRow.FormatBytes(match.DownloadedBytes) : "");
+                var dateStr = match.AddedAt.HasValue ? match.AddedAt.Value.LocalDateTime.ToString("yyyy-MM-dd HH:mm") : "";
+                DuplicateDetails.Text = $"You already downloaded this file: {match.FileName}" +
+                    (string.IsNullOrEmpty(sizeStr) ? "" : $" ({sizeStr})") +
+                    (string.IsNullOrEmpty(dateStr) ? "" : $" · Completed on {dateStr}") +
+                    ". Starting this download will save a new duplicate copy.";
+                DuplicateOpenFileBtn.Visibility = File.Exists(match.FilePath) ? Visibility.Visible : Visibility.Collapsed;
+                DuplicateOpenFolderBtn.Visibility = File.Exists(match.FilePath) || (Path.GetDirectoryName(match.FilePath) is { } d && Directory.Exists(d)) ? Visibility.Visible : Visibility.Collapsed;
+            }
+            else
+            {
+                DuplicateHeading.Text = "Already in queue";
+                DuplicateDetails.Text = $"This download is currently in your list ({match.Status} · {match.Progress:F0}%).";
+                DuplicateOpenFileBtn.Visibility = Visibility.Collapsed;
+                DuplicateOpenFolderBtn.Visibility = Visibility.Collapsed;
+            }
+        }
+        else
+        {
+            DuplicateCard.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void DuplicateOpenFile_Click(object sender, RoutedEventArgs e)
+    {
+        if (_duplicateMatch is { FilePath: var path } && File.Exists(path))
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); }
+            catch { }
+        }
+    }
+
+    private void DuplicateOpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (_duplicateMatch is { FilePath: var path })
+        {
+            try
+            {
+                if (File.Exists(path))
+                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+                else if (Path.GetDirectoryName(path) is { } dir && Directory.Exists(dir))
+                    System.Diagnostics.Process.Start("explorer.exe", $"\"{dir}\"");
+            }
+            catch { }
+        }
+    }
+
     /// <summary>Sets the file name (and the category / folder that follow its extension) unless the user already edited those fields.</summary>
     private void SetName(string name)
     {
@@ -104,17 +176,35 @@ public partial class DownloadOptionsDialog : Window
                     PathInput.Text = path; SavePath = path;
                 }
             }
+            UpdateCategoryGlyph();
         }
         finally { _programmatic = false; }
+    }
+
+    private void UpdateCategoryGlyph()
+    {
+        if (FileCategoryGlyph == null) return;
+        FileCategoryGlyph.Data = Category switch
+        {
+            "Video" => (Geometry)FindResource("IconVideo"),
+            "Music" => (Geometry)FindResource("IconAudio"),
+            "Compressed" => (Geometry)FindResource("IconPackage"),
+            "Programs" => (Geometry)FindResource("IconApp"),
+            "Documents" => (Geometry)FindResource("IconFile"),
+            "Torrent" => (Geometry)FindResource("IconMagnet"),
+            _ => (Geometry)FindResource("IconFile")
+        };
     }
 
     private void OnCategoryChanged()
     {
         if (_programmatic) return;
         _categoryEdited = true;
+        Category = (CategoryDropdown.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string ?? Category;
+        UpdateCategoryGlyph();
         if (_pathEdited) return;
         _programmatic = true;
-        try { var path = GetCategoryPath(Category = (CategoryDropdown.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string ?? Category); PathInput.Text = path; SavePath = path; }
+        try { var path = GetCategoryPath(Category); PathInput.Text = path; SavePath = path; }
         finally { _programmatic = false; }
     }
 
@@ -235,6 +325,7 @@ public partial class DownloadOptionsDialog : Window
 
     private void Schedule_Click(object sender, RoutedEventArgs e)
     {
+        MoreOptions.IsExpanded = true;
         SchedulePanel.Visibility = Visibility.Visible;
         if (!ValidateAndPrepare())
             return;
@@ -271,6 +362,17 @@ public partial class DownloadOptionsDialog : Window
             
             string url = UrlDisplay.Text.Trim();
             NativeBridge.ValidateUrl(url);
+            
+            if (_duplicateMatch?.Status == "Completed" && File.Exists(_duplicateMatch.FilePath) && _existingJobs != null)
+            {
+                var confirm = MessageBox.Show(this,
+                    $"This file was already downloaded and is saved on your computer:\n\n{_duplicateMatch.FileName}\nSaved at: {_duplicateMatch.FilePath}\n\nDo you want to download a new copy anyway?",
+                    "Duplicate download",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question,
+                    MessageBoxResult.No);
+                if (confirm != MessageBoxResult.Yes) return false;
+            }
             
             string name = NameInput.Text.Trim();
             if (string.IsNullOrWhiteSpace(name))
