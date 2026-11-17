@@ -157,6 +157,16 @@
 
   const label = (i, video) => NeoSniff.describeItem(i, resolveQuality(i, video), estimateSizeFromVideo(i, video));
 
+  let rafScheduled = false;
+  function scheduleUpdatePositions() {
+    if (rafScheduled) return;
+    rafScheduled = true;
+    requestAnimationFrame(() => {
+      rafScheduled = false;
+      updatePositions();
+    });
+  }
+
   function updatePositions() {
     if (!root || !host) return;
     const bars = root.querySelectorAll('.bar');
@@ -353,7 +363,7 @@
 
     if (typeof ResizeObserver !== 'undefined') {
       if (resizeObs) { try { resizeObs.disconnect(); } catch {} }
-      resizeObs = new ResizeObserver(() => updatePositions());
+      resizeObs = new ResizeObserver(() => scheduleUpdatePositions());
       for (const v of currentVideos) {
         if (v) try { resizeObs.observe(v); } catch {}
       }
@@ -751,8 +761,8 @@
     for (const e of events) {
       try { document.removeEventListener(e, schedule, { capture: true, passive: true }); } catch {}
     }
-    try { window.removeEventListener('scroll', updatePositions, { capture: true }); } catch {}
-    try { window.removeEventListener('resize', updatePositions); } catch {}
+    try { window.removeEventListener('scroll', scheduleUpdatePositions, { capture: true }); } catch {}
+    try { window.removeEventListener('resize', scheduleUpdatePositions); } catch {}
     try { document.removeEventListener('fullscreenchange', onFullscreenChange); } catch {}
     try { document.removeEventListener('webkitfullscreenchange', onFullscreenChange); } catch {}
     disposeUi();
@@ -825,8 +835,8 @@
       for (const ytEvent of ['yt-navigate-finish', 'yt-player-updated', 'spfdone']) {
         try { window.addEventListener(ytEvent, schedule, { passive: true }); } catch {}
       }
-      window.addEventListener('scroll', updatePositions, { passive: true, capture: true });
-      window.addEventListener('resize', updatePositions, { passive: true });
+      window.addEventListener('scroll', scheduleUpdatePositions, { passive: true, capture: true });
+      window.addEventListener('resize', scheduleUpdatePositions, { passive: true });
       document.addEventListener('fullscreenchange', onFullscreenChange, { passive: true });
       document.addEventListener('webkitfullscreenchange', onFullscreenChange, { passive: true });
       window.addEventListener('click', (e) => {

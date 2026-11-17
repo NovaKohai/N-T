@@ -200,8 +200,10 @@
       return /(^|\.)googlevideo\.com$/i.test(u.hostname) && /^\/videoplayback\/?$/i.test(u.pathname);
     } catch { return false; }
   };
+  const NON_MEDIA_EXT = /\.(?:js|css|woff2?|ttf|eot|otf|wasm|map)(?:[?#]|$)/i;
   const isMediaResponse = details => {
     if (!details) return false;
+    if (details.url && NON_MEDIA_EXT.test(details.url)) return false;
     const type = header(details.responseHeaders, 'content-type').trim().toLowerCase();
     return /^(video|audio|image)\//i.test(type) || isHlsMime(type) || isHlsUrl(details.url) || isDashMime(type) || isDashUrl(details.url) || isSubtitleUrl(details.url) || isSubtitleMime(type) || isGoogleVideoUrl(details.url);
   };

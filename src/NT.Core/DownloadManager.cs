@@ -2146,7 +2146,7 @@ public sealed partial class DownloadManager : IDisposable
                         w.ChecksumVerified = false;
                         w.Job.Status = "Failed";
                         w.Job.Error = $"Integrity check failed: expected {expectedClean}, got {actualHash}";
-                        SaveLocked();
+                        try { SaveLocked(); } catch (Exception ex) { LastPersistenceError = ex.Message; }
                     }
                     Notify();
                     return;
@@ -2173,7 +2173,7 @@ public sealed partial class DownloadManager : IDisposable
                 w.Job.AssemblyProgress = 100;
                 w.Job.Status = "Completed"; w.Job.Error = null;
                 w.Job.ChecksumVerified = w.ChecksumVerified;
-                SaveLocked();
+                try { SaveLocked(); } catch (Exception ex) { LastPersistenceError = ex.Message; }
             }
             Notify();
         }
@@ -2345,10 +2345,18 @@ public sealed partial class DownloadManager : IDisposable
             FilePath = w.Job.FilePath, AddedAt = w.Job.AddedAt, ChecksumVerified = w.ChecksumVerified
         }).ToArray();
         var temporary = queuePath + ".tmp";
-        using (var file = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
-        { JsonSerializer.Serialize(file, records, JsonOptions); file.Flush(true); }
-        File.Move(temporary, queuePath, true);
-        lastSave = DateTimeOffset.UtcNow; LastPersistenceError = null;
+        try
+        {
+            using (var file = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
+            { JsonSerializer.Serialize(file, records, JsonOptions); file.Flush(true); }
+            File.Move(temporary, queuePath, true);
+            lastSave = DateTimeOffset.UtcNow; LastPersistenceError = null;
+        }
+        catch
+        {
+            try { if (File.Exists(temporary)) File.Delete(temporary); } catch { }
+            throw;
+        }
     }
     private void Restore()
     {

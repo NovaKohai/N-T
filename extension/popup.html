@@ -24,7 +24,10 @@
 </div>
 <main>
 <section id="mediaPanel" aria-labelledby="mediaHeading">
-  <h2 id="mediaHeading">On this page</h2>
+  <div class="panel-header-row">
+    <h2 id="mediaHeading">On this page</h2>
+    <button type="button" id="downloadAllBtn" class="download-all-btn" hidden aria-label="Download all items">Download all</button>
+  </div>
   <div id="mediaFilterBar" class="media-filter-bar" hidden>
     <button type="button" class="filter-chip active" data-filter="all">All</button>
     <button type="button" class="filter-chip" data-filter="video">Video</button>

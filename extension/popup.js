@@ -51,6 +51,25 @@ async function renderMedia(tab) {
     shown = baseItems.filter(i => i.info || i.kind === 'audio' || /audio/i.test(i.quality) || i.mime?.startsWith('audio/') || /m4a|mp3|aac|flac/i.test(i.url));
   }
 
+  const dlAll = $('downloadAllBtn');
+  if (dlAll) {
+    const downloadable = shown.filter(i => !i.info);
+    dlAll.hidden = downloadable.length < 2;
+    dlAll.onclick = async () => {
+      dlAll.disabled = true;
+      show(`Sending ${downloadable.length} downloads to N&T…`);
+      let sent = 0;
+      for (const item of downloadable) {
+        try {
+          const r = await chrome.runtime.sendMessage({ action: 'popup-download', tab: { id: tab?.id, url: tab?.url, title: tab?.title }, id: item.id });
+          if (r?.ok === true) sent++;
+        } catch {}
+      }
+      show(`Sent ${sent} of ${downloadable.length} downloads to N&T.`, sent > 0 ? 'ok' : 'err');
+      dlAll.disabled = false;
+    };
+  }
+
   $('mediaNone').hidden = shown.length > 0;
   for (const i of shown) {
     const li = document.createElement('li'), what = document.createElement('span'); what.className = 'what';

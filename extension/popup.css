@@ -1,13 +1,13 @@
 /* N&T popup. Same palette as the desktop app's Light and Dark themes; follows the browser's colour scheme. */
 :root {
-  --canvas: #f3f4f6; --surface: #ffffff; --hover: #eef1f4; --ink: #182127; --muted: #59656e; --border: #d8dee3;
-  --accent: #006c67; --accent-hover: #005954; --accent-soft: #dcefeb; --on-accent: #ffffff; --error: #b42332; --success: #19733f;
+  --canvas: #f8fafc; --surface: #ffffff; --hover: #f1f5f9; --ink: #0f172a; --muted: #475569; --border: #cbd5e1;
+  --accent: #0f766e; --accent-hover: #115e59; --accent-soft: #ccfbf1; --on-accent: #ffffff; --error: #b91c1c; --success: #15803d;
   --radius: 6px; color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: #171c20; --surface: #232a2f; --hover: #2c353b; --ink: #f3f5f6; --muted: #b0bdc6; --border: #3a454d;
-    --accent: #80d5c8; --accent-hover: #9be0d5; --accent-soft: #264640; --on-accent: #0f1f1c; --error: #ff8a94; --success: #7bd3a0;
+    --canvas: #090d11; --surface: #131920; --hover: #1c242e; --ink: #f1f5f9; --muted: #94a3b8; --border: #28333e;
+    --accent: #2dd4bf; --accent-hover: #5eead4; --accent-soft: #134e48; --on-accent: #042f2e; --error: #f87171; --success: #4ade80;
     color-scheme: dark;
   }
 }
@@ -54,6 +54,13 @@ details[open] > summary .chevron { transform: rotate(90deg); color: var(--accent
 details[open] > summary { margin-bottom: 8px; }
 .hint, .empty { font-size: 12px; color: var(--muted); }
 .hint { margin-top: 8px; }
+
+.panel-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.panel-header-row h2 { margin-bottom: 0; }
+.download-all-btn { all: unset; cursor: pointer; font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; line-height: 1.4; transition: background .12s, color .12s, opacity .12s; }
+.download-all-btn:hover { background: var(--accent); color: var(--on-accent); }
+.download-all-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.download-all-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* Empty state illustration */
 .media-filter-bar { display: flex; gap: 6px; margin: 4px 0 8px; }
