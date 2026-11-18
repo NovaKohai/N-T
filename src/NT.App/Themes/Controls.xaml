@@ -24,6 +24,20 @@
   <Geometry x:Key="IconLayers">M8,2.5 L13.5,5.5 L8,8.5 L2.5,5.5 Z M2.5,8.5 L8,11.5 L13.5,8.5</Geometry>
   <Geometry x:Key="IconPower">M8,2.5 V8 M5,4.5 a5,5 0 1,0 6,0</Geometry>
   <Geometry x:Key="IconAlert">M8,2.5 L14.5,13.5 H1.5 Z M8,6 V9.5 M8,11.5 V12</Geometry>
+  <Geometry x:Key="IconGear">M8,2.5 V4 M8,12 V13.5 M2.5,8 H4 M12,8 H13.5 M4.1,4.1 L5.2,5.2 M10.8,10.8 L11.9,11.9 M4.1,11.9 L5.2,10.8 M10.8,5.2 L11.9,4.1 M8,5.4 A2.6,2.6 0 1,0 8.01,5.4 Z</Geometry>
+  <Geometry x:Key="IconPalette">M8,2.5 C4.5,2.5 2.5,5 2.5,8.5 C2.5,11.5 5,13.5 8,13.5 C9.2,13.5 10,12.8 10,12 C10,11.2 9.5,10.8 9.5,10 C9.5,9.2 10.2,8.5 11,8.5 H12 C13,8.5 13.5,7.5 13.5,6 C13.5,4 11.5,2.5 8,2.5 Z M5.2,6 H5.21 M8,5 H8.01 M10.8,6.5 H10.81 M6.8,10.8 H6.81</Geometry>
+  <Geometry x:Key="IconFolderDownload">M2.5,4.5 H6.5 L8,6 H13.5 V12.5 H2.5 Z M8,7.2 V10.8 M6.3,9.3 L8,10.8 L9.7,9.3</Geometry>
+  <Geometry x:Key="IconGlobe">M8,2.5 a5.5,5.5 0 1,0 0.01,0 Z M2.5,8 H13.5 M8,2.5 C5.6,4.5 5.6,11.5 8,13.5 M8,2.5 C10.4,4.5 10.4,11.5 8,13.5</Geometry>
+  <Geometry x:Key="IconLink">M6.5,9.5 L5,11 A2.5,2.5 0 0,1 1.5,7.5 L3,6 A2.5,2.5 0 0,1 6.5,6 M9.5,6.5 L11,5 A2.5,2.5 0 0,1 14.5,8.5 L13,10 A2.5,2.5 0 0,1 9.5,10 M6,10 L10,6</Geometry>
+  <Geometry x:Key="IconRefresh">M13.5,8 A5.5,5.5 0 0,0 3.5,5.5 M3.5,2.5 V5.5 H6.5 M2.5,8 A5.5,5.5 0 0,0 12.5,10.5 M12.5,13.5 V10.5 H9.5</Geometry>
+  <Geometry x:Key="IconInfo">M8,2.5 a5.5,5.5 0 1,0 0.01,0 Z M8,5.2 H8.01 M8,7.5 V11</Geometry>
+  <Geometry x:Key="IconQuestion">M8,2.5 a5.5,5.5 0 1,0 0.01,0 Z M6.2,6 C6.2,5 7,4.2 8,4.2 C9,4.2 9.8,5 9.8,5.8 C9.8,6.8 8,7.4 8,8.6 M8,11 H8.01</Geometry>
+  <Geometry x:Key="IconArrowUp">M8,12.5 V3.5 M4.5,7 L8,3.5 L11.5,7</Geometry>
+  <Geometry x:Key="IconArrowDown">M8,3.5 V12.5 M4.5,9 L8,12.5 L11.5,9</Geometry>
+  <Geometry x:Key="IconExternal">M7,3.5 H3.5 V12.5 H12.5 V9 M9,3.5 H12.5 V7 M7,9 L12.5,3.5</Geometry>
+  <Geometry x:Key="IconCopy">M5.5,4.5 H12.5 V13.5 H5.5 Z M3.5,11.5 H3 V2.5 H10 V3.5</Geometry>
+  <Geometry x:Key="IconTray">M2.5,9.5 L4.5,12.5 H11.5 L13.5,9.5 M2.5,9.5 H5.5 L6.5,11 H9.5 L10.5,9.5 H13.5 M8,3.5 V8.5 M6,6.5 L8,8.5 L10,6.5</Geometry>
+  <Geometry x:Key="IconDeleteDisk">M3,4.5 H13 M6.5,4.5 V3 H9.5 V4.5 M4.5,4.5 L5.2,13 H10.8 L11.5,4.5 M6.5,7 L9.5,10.5 M9.5,7 L6.5,10.5</Geometry>
   <Style TargetType="Window"><Setter Property="FontFamily" Value="Segoe UI"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Background" Value="{DynamicResource CanvasBrush}"/></Style>
   <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Style>
   <Style x:Key="Muted" TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/></Style>
@@ -158,10 +172,14 @@
       <Border x:Name="HoverOverlay" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="{DynamicResource ControlRadius}" Opacity="0" IsHitTestVisible="False"/>
       <Border x:Name="SelectedOverlay" Background="{DynamicResource AccentSoftBrush}" CornerRadius="{DynamicResource ControlRadius}" Opacity="0" IsHitTestVisible="False"/>
       <Border x:Name="Nav" Background="Transparent" CornerRadius="{DynamicResource ControlRadius}" Padding="{TemplateBinding Padding}">
-        <ContentPresenter TextElement.Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+        <DockPanel LastChildFill="True">
+          <Path x:Name="NavGlyph" DockPanel.Dock="Left" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          <ContentPresenter TextElement.Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+        </DockPanel>
       </Border>
     </Grid>
     <ControlTemplate.Triggers>
+      <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="NavGlyph" Property="Visibility" Value="Collapsed"/></Trigger>
       <Trigger Property="IsMouseOver" Value="True">
         <Trigger.EnterActions>
           <BeginStoryboard>
@@ -223,17 +241,29 @@
   <ControlTemplate x:Key="TopLevelItemTemplate" TargetType="MenuItem"><Border x:Name="Box" Background="Transparent" Padding="{TemplateBinding Padding}" CornerRadius="4" SnapsToDevicePixels="True"><ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/></Border>
     <ControlTemplate.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Box" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/></Trigger></ControlTemplate.Triggers></ControlTemplate>
   <ControlTemplate x:Key="SubmenuItemTemplate" TargetType="MenuItem"><Border x:Name="Box" Background="Transparent" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="26" SharedSizeGroup="MenuIcon"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" SharedSizeGroup="MenuGesture"/><ColumnDefinition Width="22"/></Grid.ColumnDefinitions>
+    <Path x:Name="MenuGlyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
     <Path x:Name="Check" Data="{StaticResource CheckGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.8" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" Margin="2,0,16,0"/>
     <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" Margin="12,0,0,0"/></Grid></Border>
-    <ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="Check" Property="Visibility" Value="Visible"/></Trigger><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Box" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/><Setter TargetName="Box" Property="Background" Value="Transparent"/></Trigger></ControlTemplate.Triggers></ControlTemplate>
+    <ControlTemplate.Triggers>
+      <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="MenuGlyph" Property="Visibility" Value="Collapsed"/></Trigger>
+      <Trigger Property="IsChecked" Value="True"><Setter TargetName="Check" Property="Visibility" Value="Visible"/><Setter TargetName="MenuGlyph" Property="Visibility" Value="Collapsed"/></Trigger>
+      <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Box" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/><Setter TargetName="Box" Property="Background" Value="Transparent"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate>
   <ControlTemplate x:Key="SubmenuHeaderTemplate" TargetType="MenuItem"><Border x:Name="Box" Background="Transparent" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="26" SharedSizeGroup="MenuIcon"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" SharedSizeGroup="MenuGesture"/><ColumnDefinition Width="22"/></Grid.ColumnDefinitions>
+    <Path x:Name="MenuGlyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
     <Path x:Name="Check" Data="{StaticResource CheckGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.8" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" Margin="2,0,16,0"/>
     <Path Grid.Column="3" Data="{StaticResource ArrowGeometry}" Fill="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="-2" IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}" AllowsTransparency="False" Focusable="False" PopupAnimation="None">
       <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="0,4" MinWidth="180" TextElement.Foreground="{DynamicResource InkBrush}"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" Grid.IsSharedSizeScope="True"/></Border></Popup></Grid></Border>
-    <ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="Check" Property="Visibility" Value="Visible"/></Trigger><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Box" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/></Trigger></ControlTemplate.Triggers></ControlTemplate>
+    <ControlTemplate.Triggers>
+      <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="MenuGlyph" Property="Visibility" Value="Collapsed"/></Trigger>
+      <Trigger Property="IsChecked" Value="True"><Setter TargetName="Check" Property="Visibility" Value="Visible"/><Setter TargetName="MenuGlyph" Property="Visibility" Value="Collapsed"/></Trigger>
+      <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Box" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/></Trigger>
+    </ControlTemplate.Triggers></ControlTemplate>
   <Style TargetType="MenuItem"><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter Property="Background" Value="Transparent"/><Setter Property="OverridesDefaultStyle" Value="True"/><Setter Property="SnapsToDevicePixels" Value="True"/><Setter Property="Padding" Value="4,7"/><Setter Property="Template" Value="{StaticResource SubmenuItemTemplate}"/>
     <Style.Triggers>
       <Trigger Property="Role" Value="TopLevelHeader"><Setter Property="Padding" Value="10,5"/><Setter Property="Template" Value="{StaticResource TopLevelHeaderTemplate}"/></Trigger>
@@ -277,9 +307,15 @@
   <Style x:Key="TabFocusRing" TargetType="Control"><Setter Property="Template"><Setter.Value><ControlTemplate><Border BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" CornerRadius="6,6,0,0" Margin="1"/></ControlTemplate></Setter.Value></Setter></Style>
   <Style TargetType="TabItem"><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="Padding" Value="14,8"/><Setter Property="Margin" Value="0,0,2,0"/><Setter Property="OverridesDefaultStyle" Value="True"/><Setter Property="SnapsToDevicePixels" Value="True"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{StaticResource TabFocusRing}"/>
     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem"><Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="{TemplateBinding Padding}">
-      <Grid><ContentPresenter x:Name="HeaderText" ContentSource="Header" RecognizesAccessKey="True" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"><ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}"/></Style></ContentPresenter.Resources></ContentPresenter>
-        <Border x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="-14,0,-14,-8" Background="{DynamicResource AccentBrush}" Visibility="Collapsed"/></Grid></Border>
+      <Grid>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Path x:Name="TabGlyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          <ContentPresenter x:Name="HeaderText" ContentSource="Header" RecognizesAccessKey="True" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"><ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}"/></Style></ContentPresenter.Resources></ContentPresenter>
+        </StackPanel>
+        <Border x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="-14,0,-14,-8" Background="{DynamicResource AccentBrush}" Visibility="Collapsed"/>
+      </Grid></Border>
       <ControlTemplate.Triggers>
+        <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="TabGlyph" Property="Visibility" Value="Collapsed"/></Trigger>
         <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Trigger>
         <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter TargetName="Underline" Property="Visibility" Value="Visible"/></Trigger>
         <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>

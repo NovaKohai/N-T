@@ -172,12 +172,14 @@ public partial class MiniWidgetWindow : Window
         var menu = new ContextMenu();
 
         var openItem = new MenuItem { Header = "Open N&T" };
+        Ui.SetIcon(openItem, TryFindResource("IconApp") as System.Windows.Media.Geometry);
         openItem.Click += (_, _) => _options.RestoreMainWindow();
         menu.Items.Add(openItem);
 
         if (_options.OnAddUrl != null)
         {
             var addItem = new MenuItem { Header = "Add download…" };
+            Ui.SetIcon(addItem, TryFindResource("IconPlus") as System.Windows.Media.Geometry);
             addItem.Click += (_, _) => _options.OnAddUrl();
             menu.Items.Add(addItem);
         }
@@ -187,6 +189,7 @@ public partial class MiniWidgetWindow : Window
         if (_options.OnPauseAll != null)
         {
             var pauseItem = new MenuItem { Header = "Pause all" };
+            Ui.SetIcon(pauseItem, TryFindResource("IconPause") as System.Windows.Media.Geometry);
             pauseItem.Click += (_, _) => _options.OnPauseAll();
             menu.Items.Add(pauseItem);
         }
@@ -194,6 +197,7 @@ public partial class MiniWidgetWindow : Window
         if (_options.OnResumeAll != null)
         {
             var resumeItem = new MenuItem { Header = "Resume all" };
+            Ui.SetIcon(resumeItem, TryFindResource("IconPlay") as System.Windows.Media.Geometry);
             resumeItem.Click += (_, _) => _options.OnResumeAll();
             menu.Items.Add(resumeItem);
         }
@@ -214,6 +218,7 @@ public partial class MiniWidgetWindow : Window
         }
 
         var hideItem = new MenuItem { Header = "Hide widget" };
+        Ui.SetIcon(hideItem, TryFindResource("IconTray") as System.Windows.Media.Geometry);
         hideItem.Click += (_, _) => AnimateClose();
         menu.Items.Add(hideItem);
 

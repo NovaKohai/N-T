@@ -11,6 +11,7 @@ public static class Ui
         DependencyProperty.RegisterAttached("Icon", typeof(Geometry), typeof(Ui), new FrameworkPropertyMetadata(null));
     public static Geometry? GetIcon(DependencyObject element) => (Geometry?)element.GetValue(IconProperty);
     public static void SetIcon(DependencyObject element, Geometry? value) => element.SetValue(IconProperty, value);
+    public static bool HasIcon(DependencyObject element) => GetIcon(element) != null;
 
     /// <summary>Reading direction of a line of text, decided by its first letter (the Unicode paragraph rule), so Arabic or
     /// Hebrew release notes are right-aligned with their bullets on the right while English ones stay as they are.</summary>

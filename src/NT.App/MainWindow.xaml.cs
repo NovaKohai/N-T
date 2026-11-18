@@ -163,11 +163,14 @@ public partial class MainWindow : Window
             TrayWindows.Changed += UpdateTrayVisibility;
             var trayMenu = new System.Windows.Controls.ContextMenu();
             var showItem = new MenuItem { Header = "Show" };
+            Ui.SetIcon(showItem, TryFindResource("IconApp") as System.Windows.Media.Geometry);
             showItem.Click += (_, _) => RestoreFromTray();
             var exitItem = new MenuItem { Header = "Exit" };
+            Ui.SetIcon(exitItem, TryFindResource("IconPower") as System.Windows.Media.Geometry);
             exitItem.Click += (_, _) => ExitFromTray();
             trayMenu.Items.Add(showItem);
             var trayFinish = new MenuItem { Header = "When downloads finish" };
+            Ui.SetIcon(trayFinish, TryFindResource("IconPower") as System.Windows.Media.Geometry);
             CompletionMenu.Fill(trayFinish, () => FinishActions.Current, FinishActions.Choose);
             _finishMenus.Add(trayFinish);
             trayMenu.Items.Add(trayFinish);

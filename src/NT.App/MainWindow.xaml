@@ -74,61 +74,61 @@
   <DockPanel>
     <Menu x:Name="MainMenu" DockPanel.Dock="Top" Padding="4,2" AutomationProperties.Name="Main menu">
       <MenuItem Header="_Tasks">
-        <MenuItem Header="_Add URL…" Click="Add_Click" InputGestureText="Ctrl+N"/>
-        <MenuItem Header="Add _torrent file…" Click="AddTorrentFile_Click" Tag="torrent"/>
-        <MenuItem Header="_Import URLs…" Click="Bulk_Click"/>
-        <MenuItem Header="_Host link generator…" Click="LinkGenerator_Click"/>
+        <MenuItem Header="_Add URL…" Click="Add_Click" InputGestureText="Ctrl+N" local:Ui.Icon="{StaticResource IconPlus}"/>
+        <MenuItem Header="Add _torrent file…" Click="AddTorrentFile_Click" Tag="torrent" local:Ui.Icon="{StaticResource IconMagnet}"/>
+        <MenuItem Header="_Import URLs…" Click="Bulk_Click" local:Ui.Icon="{StaticResource IconList}"/>
+        <MenuItem Header="_Host link generator…" Click="LinkGenerator_Click" local:Ui.Icon="{StaticResource IconLink}"/>
         <Separator/>
-        <MenuItem Header="Start _queue" Click="StartQueue_Click"/>
-        <MenuItem Header="Stop q_ueue" Click="StopQueue_Click"/>
+        <MenuItem Header="Start _queue" Click="StartQueue_Click" local:Ui.Icon="{StaticResource IconQueueStart}"/>
+        <MenuItem Header="Stop q_ueue" Click="StopQueue_Click" local:Ui.Icon="{StaticResource IconQueueStop}"/>
         <Separator/>
-        <MenuItem Header="_Scheduler…" Click="Schedule_Click" IsEnabled="{Binding IsEnabled, ElementName=ScheduleButton}"/>
-        <MenuItem Header="Remove _completed" Click="RemoveCompleted_Click"/>
+        <MenuItem Header="_Scheduler…" Click="Schedule_Click" IsEnabled="{Binding IsEnabled, ElementName=ScheduleButton}" local:Ui.Icon="{StaticResource IconClock}"/>
+        <MenuItem Header="Remove _completed" Click="RemoveCompleted_Click" local:Ui.Icon="{StaticResource IconCheckCircle}"/>
       </MenuItem>
       <MenuItem Header="_File">
-        <MenuItem Header="_Open file…" Click="Open_Click" IsEnabled="{Binding IsEnabled, ElementName=OpenButton}"/>
-        <MenuItem Header="Open _folder" Click="Folder_Click" IsEnabled="{Binding IsEnabled, ElementName=FolderButton}"/>
+        <MenuItem Header="_Open file…" Click="Open_Click" IsEnabled="{Binding IsEnabled, ElementName=OpenButton}" local:Ui.Icon="{StaticResource IconFile}"/>
+        <MenuItem Header="Open _folder" Click="Folder_Click" IsEnabled="{Binding IsEnabled, ElementName=FolderButton}" local:Ui.Icon="{StaticResource IconFolder}"/>
         <Separator/>
-        <MenuItem Header="_Minimize to tray" Click="MinimizeToTray_Click"/>
-        <MenuItem Header="E_xit" Click="Exit_Click"/>
+        <MenuItem Header="_Minimize to tray" Click="MinimizeToTray_Click" local:Ui.Icon="{StaticResource IconTray}"/>
+        <MenuItem Header="E_xit" Click="Exit_Click" local:Ui.Icon="{StaticResource IconPower}"/>
       </MenuItem>
       <MenuItem Header="_Downloads">
-        <MenuItem Header="_Resume" Click="Resume_Click" IsEnabled="{Binding IsEnabled, ElementName=ResumeButton}"/>
-        <MenuItem Header="_Stop" Click="Stop_Click" IsEnabled="{Binding IsEnabled, ElementName=StopButton}"/>
-        <MenuItem Header="Re_move…" Click="Remove_Click" IsEnabled="{Binding IsEnabled, ElementName=RemoveButton}" InputGestureText="Del"/>
+        <MenuItem Header="_Resume" Click="Resume_Click" IsEnabled="{Binding IsEnabled, ElementName=ResumeButton}" local:Ui.Icon="{StaticResource IconPlay}"/>
+        <MenuItem Header="_Stop" Click="Stop_Click" IsEnabled="{Binding IsEnabled, ElementName=StopButton}" local:Ui.Icon="{StaticResource IconPause}"/>
+        <MenuItem Header="Re_move…" Click="Remove_Click" IsEnabled="{Binding IsEnabled, ElementName=RemoveButton}" InputGestureText="Del" local:Ui.Icon="{StaticResource IconTrash}"/>
         <Separator/>
-        <MenuItem Header="Resume all _paused" Click="ResumeAll_Click" IsEnabled="{Binding IsEnabled, ElementName=ResumeAllButton}"/>
-        <MenuItem Header="Stop _all" Click="PauseAll_Click" IsEnabled="{Binding IsEnabled, ElementName=PauseAllButton}"/>
+        <MenuItem Header="Resume all _paused" Click="ResumeAll_Click" IsEnabled="{Binding IsEnabled, ElementName=ResumeAllButton}" local:Ui.Icon="{StaticResource IconPlay}"/>
+        <MenuItem Header="Stop _all" Click="PauseAll_Click" IsEnabled="{Binding IsEnabled, ElementName=PauseAllButton}" local:Ui.Icon="{StaticResource IconPause}"/>
         <Separator/>
-        <MenuItem x:Name="ProgressMenu" Header="Pro_gress…" Click="Progress_Click"/>
-        <MenuItem x:Name="MenuSendToTray" Header="Download in _background (tray)" Click="ContextSendToTray_Click"/>
-        <MenuItem Header="Speed _limit…" Click="Speed_Click" IsEnabled="{Binding IsEnabled, ElementName=SpeedButton}"/>
+        <MenuItem x:Name="ProgressMenu" Header="Pro_gress…" Click="Progress_Click" local:Ui.Icon="{StaticResource IconGauge}"/>
+        <MenuItem x:Name="MenuSendToTray" Header="Download in _background (tray)" Click="ContextSendToTray_Click" local:Ui.Icon="{StaticResource IconTray}"/>
+        <MenuItem Header="Speed _limit…" Click="Speed_Click" IsEnabled="{Binding IsEnabled, ElementName=SpeedButton}" local:Ui.Icon="{StaticResource IconGauge}"/>
         <Separator/>
         <MenuItem x:Name="MenuClipboardMonitor" Header="Monitor _clipboard" IsCheckable="True" Click="MenuClipboardMonitor_Click"/>
-        <MenuItem x:Name="FinishMenu" Header="When downloads _finish"/>
-        <MenuItem Header="_Options…" Click="Settings_Click"/>
+        <MenuItem x:Name="FinishMenu" Header="When downloads _finish" local:Ui.Icon="{StaticResource IconPower}"/>
+        <MenuItem Header="_Options…" Click="Settings_Click" local:Ui.Icon="{StaticResource IconSliders}"/>
       </MenuItem>
       <MenuItem Header="_View">
-        <MenuItem Header="_All downloads" Click="ViewFilter_Click" Tag="All"/>
-        <MenuItem Header="_Downloading" Click="ViewFilter_Click" Tag="Downloading"/>
-        <MenuItem Header="_Paused" Click="ViewFilter_Click" Tag="Paused"/>
-        <MenuItem Header="_Completed" Click="ViewFilter_Click" Tag="Completed"/>
-        <MenuItem Header="_Failed" Click="ViewFilter_Click" Tag="Failed"/>
+        <MenuItem Header="_All downloads" Click="ViewFilter_Click" Tag="All" local:Ui.Icon="{StaticResource IconList}"/>
+        <MenuItem Header="_Downloading" Click="ViewFilter_Click" Tag="Downloading" local:Ui.Icon="{StaticResource IconDownload}"/>
+        <MenuItem Header="_Paused" Click="ViewFilter_Click" Tag="Paused" local:Ui.Icon="{StaticResource IconPause}"/>
+        <MenuItem Header="_Completed" Click="ViewFilter_Click" Tag="Completed" local:Ui.Icon="{StaticResource IconCheckCircle}"/>
+        <MenuItem Header="_Failed" Click="ViewFilter_Click" Tag="Failed" local:Ui.Icon="{StaticResource IconAlert}"/>
         <Separator Tag="torrent"/>
-        <MenuItem Header="All _torrents" Click="ViewFilter_Click" Tag="T:All"/>
-        <MenuItem Header="Torrents downloading" Click="ViewFilter_Click" Tag="T:Downloading"/>
-        <MenuItem Header="Torrents _seeding" Click="ViewFilter_Click" Tag="T:Seeding"/>
-        <MenuItem Header="Torrents completed" Click="ViewFilter_Click" Tag="T:Completed"/>
+        <MenuItem Header="All _torrents" Click="ViewFilter_Click" Tag="T:All" local:Ui.Icon="{StaticResource IconMagnet}"/>
+        <MenuItem Header="Torrents downloading" Click="ViewFilter_Click" Tag="T:Downloading" local:Ui.Icon="{StaticResource IconDownload}"/>
+        <MenuItem Header="Torrents _seeding" Click="ViewFilter_Click" Tag="T:Seeding" local:Ui.Icon="{StaticResource IconArrowUp}"/>
+        <MenuItem Header="Torrents completed" Click="ViewFilter_Click" Tag="T:Completed" local:Ui.Icon="{StaticResource IconCheckCircle}"/>
         <Separator Tag="torrent"/>
-        <MenuItem Header="_Find" Click="Find_Click" InputGestureText="Ctrl+F"/>
-        <MenuItem Header="_Refresh" Click="Refresh_Click" InputGestureText="F5"/>
+        <MenuItem Header="_Find" Click="Find_Click" InputGestureText="Ctrl+F" local:Ui.Icon="{StaticResource IconSearch}"/>
+        <MenuItem Header="_Refresh" Click="Refresh_Click" InputGestureText="F5" local:Ui.Icon="{StaticResource IconRefresh}"/>
         <Separator/>
         <MenuItem x:Name="ViewMiniWidget" Header="Mini _speed widget" IsCheckable="True" Click="ViewMiniWidget_Click"/>
       </MenuItem>
       <MenuItem Header="_Help">
-        <MenuItem Header="Keyboard _shortcuts" Click="Help_Click"/>
-        <MenuItem Header="_Check for updates…" Click="CheckUpdates_Click"/>
-        <MenuItem Header="_About N&amp;T" Click="About_Click"/>
+        <MenuItem Header="Keyboard _shortcuts" Click="Help_Click" local:Ui.Icon="{StaticResource IconQuestion}"/>
+        <MenuItem Header="_Check for updates…" Click="CheckUpdates_Click" local:Ui.Icon="{StaticResource IconRefresh}"/>
+        <MenuItem Header="_About N&amp;T" Click="About_Click" local:Ui.Icon="{StaticResource IconInfo}"/>
       </MenuItem>
     </Menu>
     <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1" Padding="8,6" Background="{DynamicResource SidebarBrush}">
@@ -179,40 +179,40 @@
             <Button x:Name="RemoveCompletedButton" Content="Remove completed" Click="RemoveCompleted_Click" Style="{StaticResource SidebarCommand}" local:Ui.Icon="{StaticResource IconCheckCircle}" AutomationProperties.Name="Remove completed" ToolTip="Clear finished downloads from the list; the files stay on disk"/>
           </StackPanel>
           <ListBox x:Name="Navigation" SelectionChanged="FilterChanged" ItemContainerStyle="{StaticResource NavItem}" AutomationProperties.Name="Download status filters">
-            <ListBoxItem Tag="All" IsSelected="True">
+            <ListBoxItem Tag="All" IsSelected="True" local:Ui.Icon="{StaticResource IconList}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="All downloads" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Downloading">
+            <ListBoxItem Tag="Downloading" local:Ui.Icon="{StaticResource IconDownload}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Downloading" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Paused">
+            <ListBoxItem Tag="Paused" local:Ui.Icon="{StaticResource IconPause}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Paused" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Completed">
+            <ListBoxItem Tag="Completed" local:Ui.Icon="{StaticResource IconCheckCircle}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Completed" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Failed">
+            <ListBoxItem Tag="Failed" local:Ui.Icon="{StaticResource IconAlert}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Failed" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Queued">
+            <ListBoxItem Tag="Queued" local:Ui.Icon="{StaticResource IconLayers}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Queued" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Scheduled">
+            <ListBoxItem Tag="Scheduled" local:Ui.Icon="{StaticResource IconClock}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Scheduled" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
             <ListBoxItem Tag="header" x:Name="TorrentsHeader" Focusable="False" IsHitTestVisible="False" AutomationProperties.Name="Torrents section">
               <TextBlock Text="TORRENTS" Style="{StaticResource SectionCaption}" Margin="0,10,0,0"/>
             </ListBoxItem>
-            <ListBoxItem Tag="T:All">
+            <ListBoxItem Tag="T:All" local:Ui.Icon="{StaticResource IconMagnet}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="All torrents" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="T:Downloading">
+            <ListBoxItem Tag="T:Downloading" local:Ui.Icon="{StaticResource IconDownload}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Downloading" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="T:Seeding">
+            <ListBoxItem Tag="T:Seeding" local:Ui.Icon="{StaticResource IconArrowUp}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Seeding" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="T:Completed">
+            <ListBoxItem Tag="T:Completed" local:Ui.Icon="{StaticResource IconCheckCircle}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Completed" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
           </ListBox>
@@ -261,7 +261,7 @@
                 <TextBlock x:Name="DetailPath" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
               </StackPanel>
               <WrapPanel Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center">
-                <Button x:Name="PauseButton" Content="Pause" Click="Pause_Click" Style="{StaticResource StripCommand}" AutomationProperties.Name="Pause selected download" ToolTip="Pause the selected download"/>
+                <Button x:Name="PauseButton" Content="Pause" Click="Pause_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconPause}" AutomationProperties.Name="Pause selected download" ToolTip="Pause the selected download"/>
                 <Button x:Name="SpeedButton" Content="Speed limit…" Click="Speed_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconGauge}" AutomationProperties.Name="Set speed limit" ToolTip="Set speed limit for selected download"/>
                 <Button x:Name="OpenButton" Content="Open file" Click="Open_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconFile}" AutomationProperties.Name="Open file" ToolTip="Open the selected completed file"/>
                 <Button x:Name="FolderButton" Content="Open folder" Click="Folder_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconFolder}" AutomationProperties.Name="Open folder" ToolTip="Open containing folder"/>
@@ -275,33 +275,33 @@
           <ListView x:Name="DownloadList" ItemsSource="{Binding Rows}" SelectionChanged="SelectionChanged" MouseDoubleClick="List_DoubleClick" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel" VirtualizingPanel.CacheLength="2" VirtualizingPanel.CacheLengthUnit="Page" ScrollViewer.CanContentScroll="True" AutomationProperties.Name="Download queue">
             <ListView.ContextMenu>
               <ContextMenu>
-                <MenuItem x:Name="CtxOpen" Header="_Open" Click="ContextOpen_Click"/>
-                <MenuItem x:Name="CtxOpenWith" Header="Open _with…" Click="ContextOpenWith_Click"/>
-                <MenuItem x:Name="CtxFolder" Header="Open _folder" Click="ContextFolder_Click"/>
-                <MenuItem x:Name="CtxExtract" Header="E_xtract archive…" Click="ContextExtract_Click"/>
+                <MenuItem x:Name="CtxOpen" Header="_Open" Click="ContextOpen_Click" local:Ui.Icon="{StaticResource IconFile}"/>
+                <MenuItem x:Name="CtxOpenWith" Header="Open _with…" Click="ContextOpenWith_Click" local:Ui.Icon="{StaticResource IconExternal}"/>
+                <MenuItem x:Name="CtxFolder" Header="Open _folder" Click="ContextFolder_Click" local:Ui.Icon="{StaticResource IconFolder}"/>
+                <MenuItem x:Name="CtxExtract" Header="E_xtract archive…" Click="ContextExtract_Click" local:Ui.Icon="{StaticResource IconPackage}"/>
                 <Separator/>
-                <MenuItem x:Name="CtxCopyUrl" Header="Copy _URL (address)" Click="ContextCopyUrl_Click"/>
-                <MenuItem x:Name="CtxCopyPath" Header="Copy file _path" Click="ContextCopyPath_Click"/>
-                <MenuItem x:Name="CtxMagnet" Header="Copy _magnet link" Click="ContextCopyMagnet_Click"/>
-                <MenuItem x:Name="CtxMove" Header="Move / _Rename…" Click="ContextMove_Click"/>
-                <MenuItem x:Name="CtxProperties" Header="Propert_ies…" Click="ContextProperties_Click"/>
-                <MenuItem x:Name="CtxDetails" Header="Torrent _details…" Click="ContextDetails_Click"/>
+                <MenuItem x:Name="CtxCopyUrl" Header="Copy _URL (address)" Click="ContextCopyUrl_Click" local:Ui.Icon="{StaticResource IconLink}"/>
+                <MenuItem x:Name="CtxCopyPath" Header="Copy file _path" Click="ContextCopyPath_Click" local:Ui.Icon="{StaticResource IconCopy}"/>
+                <MenuItem x:Name="CtxMagnet" Header="Copy _magnet link" Click="ContextCopyMagnet_Click" local:Ui.Icon="{StaticResource IconMagnet}"/>
+                <MenuItem x:Name="CtxMove" Header="Move / _Rename…" Click="ContextMove_Click" local:Ui.Icon="{StaticResource IconFolder}"/>
+                <MenuItem x:Name="CtxProperties" Header="Propert_ies…" Click="ContextProperties_Click" local:Ui.Icon="{StaticResource IconInfo}"/>
+                <MenuItem x:Name="CtxDetails" Header="Torrent _details…" Click="ContextDetails_Click" local:Ui.Icon="{StaticResource IconSliders}"/>
                 <MenuItem x:Name="CtxSequential" Header="Download in se_quential order" IsCheckable="True" Click="ContextSequential_Click"/>
                 <Separator/>
-                <MenuItem x:Name="CtxResume" Header="Resu_me" Click="ContextResume_Click"/>
-                <MenuItem x:Name="CtxStop" Header="S_top (pause)" Click="ContextStop_Click"/>
-                <MenuItem x:Name="CtxSendToTray" Header="Download in _background (tray)" Click="ContextSendToTray_Click"/>
-                <MenuItem x:Name="CtxRefreshUrl" Header="Re_fresh address…" Click="ContextRefreshUrl_Click"/>
-                <MenuItem x:Name="CtxRedownload" Header="Redo_wnload" Click="ContextRedownload_Click"/>
+                <MenuItem x:Name="CtxResume" Header="Resu_me" Click="ContextResume_Click" local:Ui.Icon="{StaticResource IconPlay}"/>
+                <MenuItem x:Name="CtxStop" Header="S_top (pause)" Click="ContextStop_Click" local:Ui.Icon="{StaticResource IconPause}"/>
+                <MenuItem x:Name="CtxSendToTray" Header="Download in _background (tray)" Click="ContextSendToTray_Click" local:Ui.Icon="{StaticResource IconTray}"/>
+                <MenuItem x:Name="CtxRefreshUrl" Header="Re_fresh address…" Click="ContextRefreshUrl_Click" local:Ui.Icon="{StaticResource IconRefresh}"/>
+                <MenuItem x:Name="CtxRedownload" Header="Redo_wnload" Click="ContextRedownload_Click" local:Ui.Icon="{StaticResource IconRefresh}"/>
                 <Separator/>
-                <MenuItem x:Name="CtxMoveUp" Header="Move _up in queue" Click="MoveUp_Click" InputGestureText="Alt+Up"/>
-                <MenuItem x:Name="CtxMoveDown" Header="Move do_wn in queue" Click="MoveDown_Click" InputGestureText="Alt+Down"/>
+                <MenuItem x:Name="CtxMoveUp" Header="Move _up in queue" Click="MoveUp_Click" InputGestureText="Alt+Up" local:Ui.Icon="{StaticResource IconArrowUp}"/>
+                <MenuItem x:Name="CtxMoveDown" Header="Move do_wn in queue" Click="MoveDown_Click" InputGestureText="Alt+Down" local:Ui.Icon="{StaticResource IconArrowDown}"/>
                 <Separator/>
-                <MenuItem x:Name="CtxSpeed" Header="Set speed _limit…" Click="Speed_Click"/>
-                <MenuItem x:Name="CtxSchedule" Header="Sc_hedule…" Click="Schedule_Click"/>
+                <MenuItem x:Name="CtxSpeed" Header="Set speed _limit…" Click="Speed_Click" local:Ui.Icon="{StaticResource IconGauge}"/>
+                <MenuItem x:Name="CtxSchedule" Header="Sc_hedule…" Click="Schedule_Click" local:Ui.Icon="{StaticResource IconClock}"/>
                 <Separator/>
-                <MenuItem x:Name="CtxRemove" Header="_Remove…" Click="ContextRemove_Click" InputGestureText="Del"/>
-                <MenuItem x:Name="CtxDelete" Header="_Delete from disk…" Click="ContextDelete_Click"/>
+                <MenuItem x:Name="CtxRemove" Header="_Remove…" Click="ContextRemove_Click" InputGestureText="Del" local:Ui.Icon="{StaticResource IconTrash}"/>
+                <MenuItem x:Name="CtxDelete" Header="_Delete from disk…" Click="ContextDelete_Click" local:Ui.Icon="{StaticResource IconDeleteDisk}"/>
               </ContextMenu>
             </ListView.ContextMenu>
             <ListView.View>

@@ -60,8 +60,8 @@
     </StackPanel></ScrollViewer>
     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
       <Button Content="Cancel" IsCancel="True" MinWidth="84" Margin="0,0,8,0"/>
-      <Button x:Name="DownloadLaterButton" Content="Download _later" Click="DownloadLater_Click" MinWidth="110" Margin="0,0,8,0"/>
-      <Button x:Name="AcceptButton" Content="Add download" IsDefault="True" Click="Accept_Click" Style="{StaticResource PrimaryButton}" MinWidth="120"/>
+      <Button x:Name="DownloadLaterButton" Content="Download _later" Click="DownloadLater_Click" MinWidth="110" Margin="0,0,8,0" local:Ui.Icon="{StaticResource IconClock}"/>
+      <Button x:Name="AcceptButton" Content="Add download" IsDefault="True" Click="Accept_Click" Style="{StaticResource PrimaryButton}" MinWidth="120" local:Ui.Icon="{StaticResource IconDownload}"/>
     </StackPanel>
   </Grid>
 </Window>
