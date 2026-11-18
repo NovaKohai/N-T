@@ -57,10 +57,11 @@ details[open] > summary { margin-bottom: 8px; }
 
 .panel-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .panel-header-row h2 { margin-bottom: 0; }
-.download-all-btn { all: unset; cursor: pointer; font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; line-height: 1.4; transition: background .12s, color .12s, opacity .12s; }
-.download-all-btn:hover { background: var(--accent); color: var(--on-accent); }
+.download-all-btn { all: unset; cursor: pointer; font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; line-height: 1.4; transition: background .15s, color .15s, opacity .15s, transform .15s, box-shadow .15s; }
+.download-all-btn:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
 .download-all-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .download-all-btn:disabled { opacity: 0.5; cursor: default; }
+.download-all-btn.btn-success, #mediaList button.btn-success { background: var(--success) !important; border-color: var(--success) !important; color: #ffffff !important; transform: scale(1.02); box-shadow: 0 0 8px rgba(21, 128, 61, 0.35); }
 
 /* Empty state illustration */
 .media-filter-bar { display: flex; gap: 6px; margin: 4px 0 8px; }
@@ -112,9 +113,10 @@ button:focus-visible, input:focus-visible, summary:focus-visible, select:focus-v
 #mediaList .item-title { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #mediaList .item-meta { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 #mediaList .item-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.copy-action { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; flex-shrink: 0; transition: background .15s, border-color .15s, color .15s; }
+.copy-action { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; flex-shrink: 0; transition: background .15s, border-color .15s, color .15s, transform .15s; }
 .copy-action:hover { background: var(--hover); border-color: var(--accent); color: var(--ink); }
 .copy-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.copy-action.copied { color: var(--success); border-color: var(--success); background: var(--hover); transform: scale(1.08); }
 
 /* Quality Badges */
 .q-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; line-height: 1; padding: 2px 5.5px; border-radius: 4px; letter-spacing: 0.3px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0; }

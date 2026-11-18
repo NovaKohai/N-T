@@ -39,9 +39,19 @@ async function renderMedia(tab) {
 
   const filterBar = $('mediaFilterBar');
   if (filterBar) {
-    const hasVideo = items.some(i => !i.info && (i.kind === 'video' || /^\d+p$/i.test(i.quality) || i.mime?.startsWith('video/') || /video|mp4|webm|mkv/i.test(i.url)));
-    const hasAudio = items.some(i => !i.info && (i.kind === 'audio' || /audio/i.test(i.quality) || i.mime?.startsWith('audio/') || /m4a|mp3|aac|flac/i.test(i.url)));
-    filterBar.hidden = !(items.length > 1 && (hasVideo || hasAudio));
+    const videoCount = baseItems.filter(i => !i.info && (i.kind === 'video' || /^\d+p$/i.test(i.quality) || i.mime?.startsWith('video/') || /video|mp4|webm|mkv/i.test(i.url))).length;
+    const audioCount = baseItems.filter(i => !i.info && (i.kind === 'audio' || /audio/i.test(i.quality) || i.mime?.startsWith('audio/') || /m4a|mp3|aac|flac/i.test(i.url))).length;
+    const totalDownloadable = baseItems.filter(i => !i.info).length;
+    const shouldShow = totalDownloadable > 1 && (videoCount > 0 && audioCount > 0);
+    filterBar.hidden = !shouldShow;
+    if (shouldShow) {
+      const allBtn = filterBar.querySelector('[data-filter="all"]');
+      const vBtn = filterBar.querySelector('[data-filter="video"]');
+      const aBtn = filterBar.querySelector('[data-filter="audio"]');
+      if (allBtn) allBtn.textContent = `All (${totalDownloadable})`;
+      if (vBtn) vBtn.textContent = `Video (${videoCount})`;
+      if (aBtn) aBtn.textContent = `Audio (${audioCount})`;
+    }
   }
 
   let shown = baseItems;
@@ -57,6 +67,7 @@ async function renderMedia(tab) {
     dlAll.hidden = downloadable.length < 2;
     dlAll.onclick = async () => {
       dlAll.disabled = true;
+      dlAll.textContent = 'Sending…';
       show(`Sending ${downloadable.length} downloads to N&T…`);
       let sent = 0;
       for (const item of downloadable) {
@@ -65,8 +76,20 @@ async function renderMedia(tab) {
           if (r?.ok === true) sent++;
         } catch {}
       }
-      show(`Sent ${sent} of ${downloadable.length} downloads to N&T.`, sent > 0 ? 'ok' : 'err');
-      dlAll.disabled = false;
+      if (sent > 0) {
+        dlAll.textContent = 'Sent all ✓';
+        dlAll.classList.add('btn-success');
+        show(`Sent ${sent} of ${downloadable.length} downloads to N&T.`, 'ok');
+        setTimeout(() => {
+          dlAll.textContent = 'Download all';
+          dlAll.classList.remove('btn-success');
+          dlAll.disabled = false;
+        }, 1800);
+      } else {
+        dlAll.textContent = 'Download all';
+        show(`Could not send downloads to N&T.`, 'err');
+        dlAll.disabled = false;
+      }
     };
   }
 
@@ -137,7 +160,15 @@ async function renderMedia(tab) {
       }
       try {
         await navigator.clipboard.writeText(targetUrl);
-        show('Link copied to clipboard.', 'ok');
+        copyBtn.classList.add('copied');
+        copyBtn.title = 'Copied to clipboard!';
+        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        show('Link copied to clipboard ✓', 'ok');
+        setTimeout(() => {
+          copyBtn.classList.remove('copied');
+          copyBtn.title = 'Copy direct stream link to clipboard';
+          copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+        }, 1500);
       } catch {
         show('Could not copy link.', 'err');
       }
@@ -148,14 +179,41 @@ async function renderMedia(tab) {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Download';
     b.setAttribute('aria-label', `Download ${title || meta} with N&T`);
     b.onclick = async () => {
-      b.disabled = true; show('Sending to N&T…');
+      b.disabled = true;
+      b.textContent = 'Sending…';
+      show('Sending to N&T…');
       const r = await chrome.runtime.sendMessage({ action: 'popup-download', tab: { id: tab?.id, url: tab?.url, title: tab?.title }, id: i.id, quality: selectedQuality }).catch(() => null);
-      if (r?.ok === true) show('Accepted by N&T.', 'ok'); else show(friendlyError(r?.error) || 'N&T did not accept this media.', 'err');
-      b.disabled = false;
+      if (r?.ok === true) {
+        b.textContent = 'Sent ✓';
+        b.classList.add('btn-success');
+        show('Accepted by N&T ✓', 'ok');
+        setTimeout(() => {
+          b.textContent = 'Download';
+          b.classList.remove('btn-success');
+          b.disabled = false;
+        }, 1800);
+      } else {
+        b.textContent = 'Download';
+        show(friendlyError(r?.error) || 'N&T did not accept this media.', 'err');
+        b.disabled = false;
+      }
     };
     actions.append(copyBtn, b);
     li.append(what, actions); list.append(li);
   }
+
+  // Keyboard navigation across media items (ArrowUp / ArrowDown)
+  list.onkeydown = (e) => {
+    const buttons = Array.from(list.querySelectorAll('button:not(:disabled)'));
+    const idx = buttons.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' && idx < buttons.length - 1) {
+      e.preventDefault();
+      buttons[idx + 1].focus();
+    } else if (e.key === 'ArrowUp' && idx > 0) {
+      e.preventDefault();
+      buttons[idx - 1].focus();
+    }
+  };
 }
 async function setPause(scope, on) {
   await chrome.runtime.sendMessage({ action: 'pause-set', scope, host, on });
