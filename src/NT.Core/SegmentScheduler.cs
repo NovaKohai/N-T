@@ -98,7 +98,7 @@ public sealed partial class DownloadManager
                             }
                             w.Segments.Sort((a, b) => a.Start.CompareTo(b.Start));
                             if (!ValidSegments(w)) throw new IOException("Invalid split coverage.");
-                            try { SaveLocked(); } catch (Exception ex) { LastPersistenceError = ex.Message; }
+                            DebounceSaveLocked(TimeSpan.FromSeconds(1.5));
                         }
                     }
                     continue;

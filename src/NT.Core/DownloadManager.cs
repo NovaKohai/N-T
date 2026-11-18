@@ -2295,7 +2295,12 @@ public sealed partial class DownloadManager : IDisposable
     }
     private void DeletePartial(Work w)
     {
-        try { if (Directory.Exists(PartDirectory(w))) Directory.Delete(PartDirectory(w), true); }
+        try
+        {
+            var partDir = PartDirectory(w);
+            if (Directory.Exists(partDir)) Directory.Delete(partDir, true);
+            TryCleanupStagingDirectory(Path.GetDirectoryName(partDir));
+        }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
         var legacyDir = Path.Combine(state, w.Job.Id + ".parts");
@@ -2335,6 +2340,16 @@ public sealed partial class DownloadManager : IDisposable
         if (request.Referer != null && (!Uri.TryCreate(request.Referer, UriKind.Absolute, out var referer) || referer.Scheme is not ("http" or "https"))) throw new ArgumentException("Invalid HTTP(S) referer.");
         if ((request.Cookie?.IndexOfAny(new[] { '\r', '\n' }) ?? -1) >= 0 || (request.Referer?.IndexOfAny(new[] { '\r', '\n' }) ?? -1) >= 0) throw new ArgumentException("Header values cannot contain newlines.");
     }
+    private void DebounceSaveLocked(TimeSpan minInterval)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (now - lastSave >= minInterval)
+        {
+            try { SaveLocked(); }
+            catch (Exception ex) { LastPersistenceError = ex.Message; }
+        }
+    }
+
     private void SaveLocked()
     {
         var records = jobs.Select(w => new SavedWork
