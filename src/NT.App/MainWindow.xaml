@@ -4,12 +4,18 @@
   </Window.TaskbarItemInfo>
   <Window.Resources>
     <Style x:Key="Command" TargetType="Button" BasedOn="{StaticResource ToolButton}">
-      <Setter Property="Margin" Value="0,0,2,0"/>
+      <Setter Property="Margin" Value="0,0,3,0"/>
+      <Setter Property="Padding" Value="6,3,10,3"/>
+      <Setter Property="MinHeight" Value="34"/>
+      <Setter Property="FontWeight" Value="Medium"/>
+      <Setter Property="FontSize" Value="12.5"/>
     </Style>
     <Style x:Key="PrimaryCommand" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
-      <Setter Property="Padding" Value="{DynamicResource CommandPadding}"/>
-      <Setter Property="MinHeight" Value="{DynamicResource CommandMinHeight}"/>
+      <Setter Property="Padding" Value="10,3,14,3"/>
+      <Setter Property="MinHeight" Value="34"/>
       <Setter Property="Margin" Value="0,0,6,0"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="12.5"/>
     </Style>
     <!-- Whole-queue action in the sidebar: a quiet, left-aligned row. -->
     <Style x:Key="SidebarCommand" TargetType="Button" BasedOn="{StaticResource ToolButton}">
@@ -131,20 +137,20 @@
         <MenuItem Header="_About N&amp;T" Click="About_Click" local:Ui.Icon="{StaticResource IconInfo}"/>
       </MenuItem>
     </Menu>
-    <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1" Padding="8,6" Background="{DynamicResource SidebarBrush}">
+    <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1" Padding="8,5" Background="{DynamicResource SidebarBrush}">
       <DockPanel>
-        <Button DockPanel.Dock="Right" Content="Options…" Click="Settings_Click" Style="{StaticResource Command}" Margin="8,0,0,0" VerticalAlignment="Top" local:Ui.Icon="{StaticResource IconSliders}" AutomationProperties.Name="Options" ToolTip="Application options and settings"/>
-        <WrapPanel>
-          <Button Content="Add _URL…" Click="Add_Click" Style="{StaticResource PrimaryCommand}" local:Ui.Icon="{StaticResource IconPlus}" AutomationProperties.Name="Add URL" ToolTip="Add a download from a link (Ctrl+N)"/>
-          <Button x:Name="AddTorrentButton" Content="Add _torrent…" Click="AddTorrentFile_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconMagnet}" AutomationProperties.Name="Add torrent" ToolTip="Open and add a torrent file"/>
+        <Button DockPanel.Dock="Right" Content="Options…" Click="Settings_Click" Style="{StaticResource Command}" Margin="8,0,0,0" VerticalAlignment="Center" local:Ui.Icon="{StaticResource IconSliders}" local:Ui.IconBrush="{DynamicResource AccentBrush}" local:Ui.IconBadge="{DynamicResource AccentBrush}" AutomationProperties.Name="Options" ToolTip="Application options and settings"/>
+        <WrapPanel VerticalAlignment="Center">
+          <Button Content="Add _URL…" Click="Add_Click" Style="{StaticResource PrimaryCommand}" local:Ui.Icon="{StaticResource IconPlus}" local:Ui.IconBrush="{DynamicResource OnAccentBrush}" AutomationProperties.Name="Add URL" ToolTip="Add a download from a link (Ctrl+N)"/>
+          <Button x:Name="AddTorrentButton" Content="Add _torrent…" Click="AddTorrentFile_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconMagnet}" local:Ui.IconBrush="{DynamicResource AccentBrush}" local:Ui.IconBadge="{DynamicResource AccentBrush}" AutomationProperties.Name="Add torrent" ToolTip="Open and add a torrent file"/>
           <Border Style="{StaticResource CommandSeparator}"/>
-          <Button x:Name="ResumeButton" Content="Resume" Click="Resume_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconPlay}" AutomationProperties.Name="Resume" ToolTip="Resume the selected download"/>
-          <Button x:Name="StopButton" Content="Stop" Click="Stop_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconPause}" AutomationProperties.Name="Stop" ToolTip="Pause the selected download; it can be resumed later"/>
-          <Button x:Name="RemoveButton" Content="Remove" Click="Remove_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconTrash}" AutomationProperties.Name="Remove" ToolTip="Remove the selected download (Delete)"/>
-          <Button x:Name="ScheduleButton" Content="Scheduler…" Click="Schedule_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconClock}" AutomationProperties.Name="Scheduler" ToolTip="Schedule the selected download for later"/>
+          <Button x:Name="ResumeButton" Content="Resume" Click="Resume_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconPlay}" local:Ui.IconBrush="{DynamicResource SuccessBrush}" local:Ui.IconBadge="{DynamicResource SuccessBrush}" local:Ui.IconFill="{DynamicResource SuccessBrush}" AutomationProperties.Name="Resume" ToolTip="Resume the selected download"/>
+          <Button x:Name="StopButton" Content="Stop" Click="Stop_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconPause}" local:Ui.IconBrush="{DynamicResource WarningBrush}" local:Ui.IconBadge="{DynamicResource WarningBrush}" local:Ui.IconFill="{DynamicResource WarningBrush}" AutomationProperties.Name="Stop" ToolTip="Pause the selected download; it can be resumed later"/>
+          <Button x:Name="RemoveButton" Content="Remove" Click="Remove_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconTrash}" local:Ui.IconBrush="{DynamicResource ErrorBrush}" local:Ui.IconBadge="{DynamicResource ErrorBrush}" AutomationProperties.Name="Remove" ToolTip="Remove the selected download (Delete)"/>
+          <Button x:Name="ScheduleButton" Content="Scheduler…" Click="Schedule_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconClock}" local:Ui.IconBrush="{DynamicResource AccentBrush}" local:Ui.IconBadge="{DynamicResource AccentBrush}" AutomationProperties.Name="Scheduler" ToolTip="Schedule the selected download for later"/>
           <Border Style="{StaticResource CommandSeparator}"/>
-          <Button x:Name="StartQueueButton" Content="Start queue" Click="StartQueue_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconQueueStart}" AutomationProperties.Name="Start queue" ToolTip="Start downloading queued items"/>
-          <Button x:Name="StopQueueButton" Content="Stop queue" Click="StopQueue_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconQueueStop}" AutomationProperties.Name="Stop queue" ToolTip="Stop the queue and pause its active downloads"/>
+          <Button x:Name="StartQueueButton" Content="Start queue" Click="StartQueue_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconQueueStart}" local:Ui.IconBrush="{DynamicResource SuccessBrush}" local:Ui.IconBadge="{DynamicResource SuccessBrush}" local:Ui.IconFill="{DynamicResource SuccessBrush}" AutomationProperties.Name="Start queue" ToolTip="Start downloading queued items"/>
+          <Button x:Name="StopQueueButton" Content="Stop queue" Click="StopQueue_Click" Style="{StaticResource Command}" local:Ui.Icon="{StaticResource IconQueueStop}" local:Ui.IconBrush="{DynamicResource ErrorBrush}" local:Ui.IconBadge="{DynamicResource ErrorBrush}" local:Ui.IconFill="{DynamicResource ErrorBrush}" AutomationProperties.Name="Stop queue" ToolTip="Stop the queue and pause its active downloads"/>
         </WrapPanel>
       </DockPanel>
     </Border>
@@ -182,37 +188,37 @@
             <ListBoxItem Tag="All" IsSelected="True" local:Ui.Icon="{StaticResource IconList}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="All downloads" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Downloading" local:Ui.Icon="{StaticResource IconDownload}">
+            <ListBoxItem Tag="Downloading" local:Ui.Icon="{StaticResource IconDownload}" local:Ui.IconBrush="{DynamicResource AccentBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Downloading" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Paused" local:Ui.Icon="{StaticResource IconPause}">
+            <ListBoxItem Tag="Paused" local:Ui.Icon="{StaticResource IconPause}" local:Ui.IconBrush="{DynamicResource WarningBrush}" local:Ui.IconFill="{DynamicResource WarningBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Paused" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Completed" local:Ui.Icon="{StaticResource IconCheckCircle}">
+            <ListBoxItem Tag="Completed" local:Ui.Icon="{StaticResource IconCheckCircle}" local:Ui.IconBrush="{DynamicResource SuccessBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Completed" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Failed" local:Ui.Icon="{StaticResource IconAlert}">
+            <ListBoxItem Tag="Failed" local:Ui.Icon="{StaticResource IconAlert}" local:Ui.IconBrush="{DynamicResource ErrorBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Failed" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Queued" local:Ui.Icon="{StaticResource IconLayers}">
+            <ListBoxItem Tag="Queued" local:Ui.Icon="{StaticResource IconLayers}" local:Ui.IconBrush="{DynamicResource AccentBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Queued" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="Scheduled" local:Ui.Icon="{StaticResource IconClock}">
+            <ListBoxItem Tag="Scheduled" local:Ui.Icon="{StaticResource IconClock}" local:Ui.IconBrush="{DynamicResource AccentBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Scheduled" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
             <ListBoxItem Tag="header" x:Name="TorrentsHeader" Focusable="False" IsHitTestVisible="False" AutomationProperties.Name="Torrents section">
               <TextBlock Text="TORRENTS" Style="{StaticResource SectionCaption}" Margin="0,10,0,0"/>
             </ListBoxItem>
-            <ListBoxItem Tag="T:All" local:Ui.Icon="{StaticResource IconMagnet}">
+            <ListBoxItem Tag="T:All" local:Ui.Icon="{StaticResource IconMagnet}" local:Ui.IconBrush="{DynamicResource AccentBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="All torrents" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="T:Downloading" local:Ui.Icon="{StaticResource IconDownload}">
+            <ListBoxItem Tag="T:Downloading" local:Ui.Icon="{StaticResource IconDownload}" local:Ui.IconBrush="{DynamicResource AccentBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Downloading" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="T:Seeding" local:Ui.Icon="{StaticResource IconArrowUp}">
+            <ListBoxItem Tag="T:Seeding" local:Ui.Icon="{StaticResource IconArrowUp}" local:Ui.IconBrush="{DynamicResource SuccessBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Seeding" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
-            <ListBoxItem Tag="T:Completed" local:Ui.Icon="{StaticResource IconCheckCircle}">
+            <ListBoxItem Tag="T:Completed" local:Ui.Icon="{StaticResource IconCheckCircle}" local:Ui.IconBrush="{DynamicResource SuccessBrush}">
               <DockPanel><TextBlock DockPanel.Dock="Right" Style="{StaticResource NavCount}"/><TextBlock Text="Completed" TextTrimming="CharacterEllipsis"/></DockPanel>
             </ListBoxItem>
           </ListBox>

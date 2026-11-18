@@ -3,7 +3,7 @@
   <!-- ===== Icons: original 16x16 stroke glyphs, drawn for this app. Shown by any Button through local:Ui.Icon. ===== -->
   <Geometry x:Key="IconPlus">M8,3 V13 M3,8 H13</Geometry>
   <Geometry x:Key="IconPlay">M5,3.5 L12.5,8 L5,12.5 Z</Geometry>
-  <Geometry x:Key="IconPause">M5.5,3.5 V12.5 M10.5,3.5 V12.5</Geometry>
+  <Geometry x:Key="IconPause">M5,3.5 H7.5 V12.5 H5 Z M8.5,3.5 H11 V12.5 H8.5 Z</Geometry>
   <Geometry x:Key="IconTrash">M3,4.5 H13 M6.5,4.5 V3 H9.5 V4.5 M4.5,4.5 L5.2,13 H10.8 L11.5,4.5</Geometry>
   <Geometry x:Key="IconSliders">M2.5,5 H7 M10,5 H13.5 M2.5,11 H6 M9,11 H13.5 M7,5 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 M6,11 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0</Geometry>
   <Geometry x:Key="IconClock">M8,2.5 a5.5,5.5 0 1,0 0.01,0 Z M8,5 V8 L10,9.5</Geometry>
@@ -52,7 +52,10 @@
         <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{DynamicResource ControlRadius}"/>
         <Border x:Name="HoverOverlay" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="{DynamicResource ControlRadius}" Opacity="0" IsHitTestVisible="False"/>
         <StackPanel x:Name="Body" Orientation="Horizontal" Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center">
-          <Path x:Name="Glyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          <Grid x:Name="GlyphContainer" VerticalAlignment="Center" Margin="0,0,7,0">
+            <Border x:Name="BadgeBorder" Background="{Binding Path=(local:Ui.IconBadge), RelativeSource={RelativeSource TemplatedParent}}" Opacity="0.18" CornerRadius="6" Width="26" Height="26"/>
+            <Path x:Name="Glyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{Binding Path=(local:Ui.IconBrush), RelativeSource={RelativeSource TemplatedParent}}" Fill="{Binding Path=(local:Ui.IconFill), RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          </Grid>
           <!-- The application-wide TextBlock style would otherwise win over the button's own Foreground for plain-text content. -->
           <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"><ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/></Style></ContentPresenter.Resources></ContentPresenter>
         </StackPanel>
@@ -74,7 +77,9 @@
             </BeginStoryboard>
           </Trigger.ExitActions>
         </Trigger>
-        <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="Glyph" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="GlyphContainer" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="local:Ui.IconBadge" Value="{x:Null}"><Setter TargetName="BadgeBorder" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="local:Ui.IconBrush" Value="{x:Null}"><Setter TargetName="Glyph" Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"/></Trigger>
         <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.75"/></Trigger>
         <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
       </ControlTemplate.Triggers>
@@ -86,7 +91,10 @@
         <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{DynamicResource ControlRadius}"/>
         <Border x:Name="HoverOverlay" Background="{DynamicResource AccentHoverBrush}" CornerRadius="{DynamicResource ControlRadius}" Opacity="0" IsHitTestVisible="False"/>
         <StackPanel x:Name="Body" Orientation="Horizontal" Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center">
-          <Path x:Name="Glyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          <Grid x:Name="GlyphContainer" VerticalAlignment="Center" Margin="0,0,7,0">
+            <Border x:Name="BadgeBorder" Background="{Binding Path=(local:Ui.IconBadge), RelativeSource={RelativeSource TemplatedParent}}" Opacity="0.18" CornerRadius="6" Width="26" Height="26"/>
+            <Path x:Name="Glyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{Binding Path=(local:Ui.IconBrush), RelativeSource={RelativeSource TemplatedParent}}" Fill="{Binding Path=(local:Ui.IconFill), RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          </Grid>
           <!-- The application-wide TextBlock style would otherwise win over the button's own Foreground for plain-text content. -->
           <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"><ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/></Style></ContentPresenter.Resources></ContentPresenter>
         </StackPanel>
@@ -108,7 +116,9 @@
             </BeginStoryboard>
           </Trigger.ExitActions>
         </Trigger>
-        <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="Glyph" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="GlyphContainer" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="local:Ui.IconBadge" Value="{x:Null}"><Setter TargetName="BadgeBorder" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="local:Ui.IconBrush" Value="{x:Null}"><Setter TargetName="Glyph" Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"/></Trigger>
         <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.75"/></Trigger>
         <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.4"/><Setter TargetName="Body" Property="Opacity" Value="0.6"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
       </ControlTemplate.Triggers>
@@ -173,13 +183,14 @@
       <Border x:Name="SelectedOverlay" Background="{DynamicResource AccentSoftBrush}" CornerRadius="{DynamicResource ControlRadius}" Opacity="0" IsHitTestVisible="False"/>
       <Border x:Name="Nav" Background="Transparent" CornerRadius="{DynamicResource ControlRadius}" Padding="{TemplateBinding Padding}">
         <DockPanel LastChildFill="True">
-          <Path x:Name="NavGlyph" DockPanel.Dock="Left" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          <Path x:Name="NavGlyph" DockPanel.Dock="Left" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{Binding Path=(local:Ui.IconBrush), RelativeSource={RelativeSource TemplatedParent}}" Fill="{Binding Path=(local:Ui.IconFill), RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
           <ContentPresenter TextElement.Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
         </DockPanel>
       </Border>
     </Grid>
     <ControlTemplate.Triggers>
       <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="NavGlyph" Property="Visibility" Value="Collapsed"/></Trigger>
+      <Trigger Property="local:Ui.IconBrush" Value="{x:Null}"><Setter TargetName="NavGlyph" Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"/></Trigger>
       <Trigger Property="IsMouseOver" Value="True">
         <Trigger.EnterActions>
           <BeginStoryboard>
@@ -309,13 +320,14 @@
     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem"><Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="{TemplateBinding Padding}">
       <Grid>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-          <Path x:Name="TabGlyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,7,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
+          <Path x:Name="TabGlyph" Data="{Binding Path=(local:Ui.Icon), RelativeSource={RelativeSource TemplatedParent}}" Stroke="{Binding Path=(local:Ui.IconBrush), RelativeSource={RelativeSource TemplatedParent}}" Fill="{Binding Path=(local:Ui.IconFill), RelativeSource={RelativeSource TemplatedParent}}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center" SnapsToDevicePixels="False"/>
           <ContentPresenter x:Name="HeaderText" ContentSource="Header" RecognizesAccessKey="True" HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"><ContentPresenter.Resources><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}"/></Style></ContentPresenter.Resources></ContentPresenter>
         </StackPanel>
         <Border x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="-14,0,-14,-8" Background="{DynamicResource AccentBrush}" Visibility="Collapsed"/>
       </Grid></Border>
       <ControlTemplate.Triggers>
         <Trigger Property="local:Ui.Icon" Value="{x:Null}"><Setter TargetName="TabGlyph" Property="Visibility" Value="Collapsed"/></Trigger>
+        <Trigger Property="local:Ui.IconBrush" Value="{x:Null}"><Setter TargetName="TabGlyph" Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"/></Trigger>
         <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/></Trigger>
         <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/><Setter Property="Foreground" Value="{DynamicResource InkBrush}"/><Setter TargetName="Underline" Property="Visibility" Value="Visible"/></Trigger>
         <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledInkBrush}"/><Setter Property="Background" Value="{DynamicResource SidebarBrush}"/><Setter Property="Cursor" Value="Arrow"/></Trigger>

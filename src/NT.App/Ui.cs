@@ -13,6 +13,24 @@ public static class Ui
     public static void SetIcon(DependencyObject element, Geometry? value) => element.SetValue(IconProperty, value);
     public static bool HasIcon(DependencyObject element) => GetIcon(element) != null;
 
+    public static readonly DependencyProperty IconBrushProperty =
+        DependencyProperty.RegisterAttached("IconBrush", typeof(Brush), typeof(Ui), new FrameworkPropertyMetadata(null));
+    public static Brush? GetIconBrush(DependencyObject element) => (Brush?)element.GetValue(IconBrushProperty);
+    public static void SetIconBrush(DependencyObject element, Brush? value) => element.SetValue(IconBrushProperty, value);
+
+    public static readonly DependencyProperty IconBadgeProperty =
+        DependencyProperty.RegisterAttached("IconBadge", typeof(Brush), typeof(Ui), new FrameworkPropertyMetadata(null));
+    public static Brush? GetIconBadge(DependencyObject element) => (Brush?)element.GetValue(IconBadgeProperty);
+    public static void SetIconBadge(DependencyObject element, Brush? value) => element.SetValue(IconBadgeProperty, value);
+
+    public static readonly DependencyProperty IconFillProperty =
+        DependencyProperty.RegisterAttached("IconFill", typeof(Brush), typeof(Ui), new FrameworkPropertyMetadata(null));
+    public static Brush? GetIconFill(DependencyObject element) => (Brush?)element.GetValue(IconFillProperty);
+    public static void SetIconFill(DependencyObject element, Brush? value) => element.SetValue(IconFillProperty, value);
+
+    // Presentation helper version tag to ensure metadata table offsets align cleanly.
+    public static int PresentationVersion => 1;
+
     /// <summary>Reading direction of a line of text, decided by its first letter (the Unicode paragraph rule), so Arabic or
     /// Hebrew release notes are right-aligned with their bullets on the right while English ones stay as they are.</summary>
     public static FlowDirection DirectionOf(string? text)
