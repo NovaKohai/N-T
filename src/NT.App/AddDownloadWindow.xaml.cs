@@ -54,13 +54,27 @@ public partial class AddDownloadWindow : Window
     }
 
     private readonly IEnumerable<DownloadJob>? _existingJobs;
+    private readonly string _defaultDownloadDirectory;
+    private readonly Func<string, string>? _pathResolver;
+    private bool _pathEdited;
+    private bool _programmatic;
     private DownloadJob? _duplicateMatch;
 
-    public AddDownloadWindow(string initialUrl, int? currentConcurrency = null, IEnumerable<DownloadJob>? existingJobs = null)
+    public AddDownloadWindow(
+        string initialUrl,
+        int? currentConcurrency = null,
+        IEnumerable<DownloadJob>? existingJobs = null,
+        string? defaultDownloadDirectory = null,
+        Func<string, string>? pathResolver = null)
     {
         _existingJobs = existingJobs;
+        _defaultDownloadDirectory = !string.IsNullOrWhiteSpace(defaultDownloadDirectory)
+            ? defaultDownloadDirectory
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+        _pathResolver = pathResolver;
         InitializeComponent();
         UrlInput.Text = initialUrl;
+        UpdateDefaultPath();
         if (currentConcurrency.HasValue)
         {
             foreach (ComboBoxItem item in ConcurrentInput.Items)
@@ -73,7 +87,70 @@ public partial class AddDownloadWindow : Window
             }
         }
         CheckDuplicate(initialUrl);
+        NameInput.TextChanged += (_, _) =>
+        {
+            if (!_programmatic)
+                UpdateDefaultPath();
+        };
+        PathInput.TextChanged += (_, _) =>
+        {
+            if (!_programmatic)
+                _pathEdited = true;
+        };
         Loaded += (_, _) => { UrlInput.Focus(); UrlInput.SelectAll(); };
+    }
+
+    private void UpdateDefaultPath()
+    {
+        if (_pathEdited || PathInput is null) return;
+        _programmatic = true;
+        try
+        {
+            string candidateName = NameInput?.Text?.Trim() ?? "";
+            if (string.IsNullOrEmpty(candidateName) && !string.IsNullOrWhiteSpace(UrlInput?.Text))
+            {
+                try
+                {
+                    string rawUrl = UrlInput.Text.Trim();
+                    if (rawUrl.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) ||
+                        rawUrl.Contains("youtu.be", StringComparison.OrdinalIgnoreCase))
+                    {
+                        candidateName = "video.mp4";
+                    }
+                    else
+                    {
+                        var uri = new Uri(rawUrl);
+                        candidateName = Path.GetFileName(uri.LocalPath);
+                    }
+                }
+                catch { }
+            }
+            string folder = _pathResolver is not null && !string.IsNullOrEmpty(candidateName)
+                ? _pathResolver(candidateName)
+                : _defaultDownloadDirectory;
+            PathInput.Text = folder;
+        }
+        finally
+        {
+            _programmatic = false;
+        }
+    }
+
+    private void Browse_Click(object sender, RoutedEventArgs e)
+    {
+        string initial = !string.IsNullOrWhiteSpace(PathInput.Text) && Directory.Exists(PathInput.Text.Trim())
+            ? PathInput.Text.Trim()
+            : _defaultDownloadDirectory;
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Select download folder",
+            InitialDirectory = initial
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            PathInput.Text = dialog.FolderName;
+            _pathEdited = true;
+        }
     }
 
     private void CheckDuplicate(string url)
@@ -154,6 +231,7 @@ public partial class AddDownloadWindow : Window
 
     private void UrlInput_TextChanged(object sender, TextChangedEventArgs e)
     {
+        UpdateDefaultPath();
         if (PatternHint is null) return;
         string text = UrlInput.Text.Trim();
         if (UrlPatternExpander.HasPattern(text))
@@ -239,7 +317,17 @@ public partial class AddDownloadWindow : Window
                     ScheduledAt = ScheduleEnabled.IsChecked == true ? DownloadDialogValidation.ParseSchedule(ScheduleInput.Text) : null;
                     SpeedLimit = DownloadDialogValidation.ParseSpeed(SpeedInput.Text);
                     inOptions = false;
-                    BatchRequests = expanded.Select(u => new DownloadRequest(u)).ToList();
+                    string batchSave = PathInput.Text.Trim();
+                    if (string.IsNullOrWhiteSpace(batchSave))
+                        throw new FormatException("Save location cannot be empty.");
+                    if (!Path.IsPathFullyQualified(batchSave))
+                        throw new FormatException("Save location must be a full path.");
+                    try { batchSave = DownloadManager.EnsureWritableFolder(batchSave); }
+                    catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
+                    {
+                        throw new FormatException("The save folder cannot be used: " + ex.Message);
+                    }
+                    BatchRequests = expanded.Select(u => new DownloadRequest(u, TargetDirectory: _pathEdited ? batchSave : null)).ToList();
                     Request = BatchRequests[0];
                     Finish();
                     return;
@@ -267,13 +355,23 @@ public partial class AddDownloadWindow : Window
             string name = NameInput.Text.Trim();
             if (name.Length > 0 && (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name is "." or ".." || name.EndsWith('.') || name.EndsWith(' ')))
                 throw new FormatException("Use a file name without folder paths or invalid characters.");
+            string savePath = PathInput.Text.Trim();
+            if (string.IsNullOrWhiteSpace(savePath))
+                throw new FormatException("Save location cannot be empty.");
+            if (!Path.IsPathFullyQualified(savePath))
+                throw new FormatException("Save location must be a full path.");
+            try { savePath = DownloadManager.EnsureWritableFolder(savePath); }
+            catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
+            {
+                throw new FormatException("The save folder cannot be used: " + ex.Message);
+            }
             inOptions = true;
             ScheduledAt = ScheduleEnabled.IsChecked == true ? DownloadDialogValidation.ParseSchedule(ScheduleInput.Text) : null;
             SpeedLimit = DownloadDialogValidation.ParseSpeed(SpeedInput.Text);
             inOptions = false;
             string? expectedHash = ChecksumInput is not null && !string.IsNullOrWhiteSpace(ChecksumInput.Text) ? ChecksumInput.Text.Trim() : null;
             string? hashAlgo = ChecksumAlgo?.SelectedItem is ComboBoxItem algoItem && algoItem.Tag is string a ? a : "SHA256";
-            Request = new DownloadRequest(url, name.Length == 0 ? null : name, ExpectedHash: expectedHash, HashAlgorithm: hashAlgo);
+            Request = new DownloadRequest(url, name.Length == 0 ? null : name, ExpectedHash: expectedHash, HashAlgorithm: hashAlgo, TargetDirectory: _pathEdited ? savePath : null);
             Finish();
         }
         catch (TorrentRejectedException ex) { ValidationError.Text = ex.Message; UpdateLayout(); ValidationError.BringIntoView(); }

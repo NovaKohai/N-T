@@ -26,7 +26,7 @@ public partial class MainWindow
         _adding = true;
         try
         {
-            var dialog = new AddDownloadWindow(initialUrl, _settings.MaxConcurrentDownloads, _manager.Jobs) { Owner = this };
+            var dialog = new AddDownloadWindow(initialUrl, _settings.MaxConcurrentDownloads, _manager.Jobs, _settings.DownloadDirectory, fileName => CategoryHelper.GetDownloadPath(fileName, _settings)) { Owner = this };
             if (dialog.ShowDialog() != true) return;
             if (dialog.DesiredConcurrency.HasValue && dialog.DesiredConcurrency.Value != _settings.MaxConcurrentDownloads)
             {
