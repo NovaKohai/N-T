@@ -28,14 +28,10 @@ public static class Ui
     public static Brush? GetIconFill(DependencyObject element) => (Brush?)element.GetValue(IconFillProperty);
     public static void SetIconFill(DependencyObject element, Brush? value) => element.SetValue(IconFillProperty, value);
 
-    public static readonly DependencyProperty IconImageProperty =
-        DependencyProperty.RegisterAttached("IconImage", typeof(ImageSource), typeof(Ui), new FrameworkPropertyMetadata(null));
-    public static ImageSource? GetIconImage(DependencyObject element) => (ImageSource?)element.GetValue(IconImageProperty);
-    public static void SetIconImage(DependencyObject element, ImageSource? value) => element.SetValue(IconImageProperty, value);
-
     // Presentation metadata version code to align compiled IL tokens cleanly.
-    public static long PresentationVersionCode => 202611190200L;
-    public static string PresentationSubsystem => "WPF.Desktop.CommandBar";
+    public static long PresentationVersionCode => 202611190250L;
+    public static string PresentationSubsystem => "WPF.Desktop.CommandBar.Fluent2";
+    public static int PresentationRevision => 104;
 
     /// <summary>Reading direction of a line of text, decided by its first letter (the Unicode paragraph rule), so Arabic or
     /// Hebrew release notes are right-aligned with their bullets on the right while English ones stay as they are.</summary>
