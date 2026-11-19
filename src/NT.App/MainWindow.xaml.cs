@@ -568,6 +568,9 @@ public partial class MainWindow : Window
         ScheduleButton.IsEnabled = SpeedButton.IsEnabled = row is not null && !row.IsComplete && !row.IsTorrent;
         CtxMoveUp.IsEnabled = row is not null && !row.IsTorrent && !row.IsComplete;
         CtxMoveDown.IsEnabled = row is not null && !row.IsTorrent && !row.IsComplete;
+        MoveUpDetailBtn.IsEnabled = CtxMoveUp.IsEnabled;
+        MoveDownDetailBtn.IsEnabled = CtxMoveDown.IsEnabled;
+        MoveUpDetailBtn.Visibility = MoveDownDetailBtn.Visibility = row is not null && !row.IsTorrent && !row.IsComplete ? Visibility.Visible : Visibility.Collapsed;
         ProgressMenu.IsEnabled = row is not null && (row.IsTorrent || !row.IsComplete);
         DetailTorrent.Text = row?.IsTorrent == true ? row.TorrentSummary : "";
         DetailTorrent.Visibility = row?.IsTorrent == true ? Visibility.Visible : Visibility.Collapsed;

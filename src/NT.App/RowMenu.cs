@@ -6,7 +6,7 @@ namespace NT.App;
 public readonly record struct RowMenuState(
     bool Open, bool OpenWith, bool OpenFolder, bool CopyUrl, bool CopyPath, bool MoveRename, bool Properties,
     bool Resume, bool Stop, bool RefreshAddress, bool Redownload, bool SpeedLimit, bool Schedule, bool Remove, bool DeleteFromDisk,
-    bool CopyMagnet, bool TorrentDetails, bool Sequential = false);
+    bool CopyMagnet, bool TorrentDetails, bool Sequential = false, bool Queue = false);
 
 public static class RowMenu
 {
@@ -43,6 +43,7 @@ public static class RowMenu
             DeleteFromDisk: rows.Any(r => r.IsTorrent || FileOk(r)),
             CopyMagnet: single && first.IsTorrent,
             TorrentDetails: single && first.IsTorrent,
-            Sequential: single && first.IsTorrent && !first.IsComplete);
+            Sequential: single && first.IsTorrent && !first.IsComplete,
+            Queue: rows.Any(r => r.CanResume));
     }
 }

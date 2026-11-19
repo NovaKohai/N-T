@@ -355,6 +355,8 @@
                 <TextBlock x:Name="DetailPath" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
               </StackPanel>
               <WrapPanel Grid.Column="2" Margin="4,0,0,0" VerticalAlignment="Center">
+                <Button x:Name="MoveUpDetailBtn" Content="Move up" Click="MoveUp_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconArrowUp}" ToolTip="Move up in queue (Alt+Up)"/>
+                <Button x:Name="MoveDownDetailBtn" Content="Move down" Click="MoveDown_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconArrowDown}" ToolTip="Move down in queue (Alt+Down)"/>
                 <Button x:Name="PauseButton" Content="Pause" Click="Pause_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconPause}" AutomationProperties.Name="Pause selected download" ToolTip="Pause the selected download"/>
                 <Button x:Name="SpeedButton" Content="Speed limit…" Click="Speed_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconGauge}" AutomationProperties.Name="Set speed limit" ToolTip="Set speed limit for selected download"/>
                 <Button x:Name="OpenButton" Content="Open file" Click="Open_Click" Style="{StaticResource StripCommand}" local:Ui.Icon="{StaticResource IconFile}" AutomationProperties.Name="Open file" ToolTip="Open the selected completed file"/>
@@ -366,7 +368,7 @@
           </StackPanel>
         </Border>
         <Grid>
-          <ListView x:Name="DownloadList" ItemsSource="{Binding Rows}" SelectionChanged="SelectionChanged" MouseDoubleClick="List_DoubleClick" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel" VirtualizingPanel.CacheLength="2" VirtualizingPanel.CacheLengthUnit="Page" ScrollViewer.CanContentScroll="True" AutomationProperties.Name="Download queue">
+          <ListView x:Name="DownloadList" ItemsSource="{Binding Rows}" SelectionChanged="SelectionChanged" MouseDoubleClick="List_DoubleClick" PreviewMouseLeftButtonDown="DownloadList_PreviewMouseLeftButtonDown" PreviewMouseMove="DownloadList_PreviewMouseMove" DragOver="DownloadList_DragOver" Drop="DownloadList_Drop" AllowDrop="True" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource InkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel" VirtualizingPanel.CacheLength="2" VirtualizingPanel.CacheLengthUnit="Page" ScrollViewer.CanContentScroll="True" AutomationProperties.Name="Download queue">
             <ListView.ContextMenu>
               <ContextMenu>
                 <MenuItem x:Name="CtxOpen" Header="_Open" Click="ContextOpen_Click" local:Ui.Icon="{StaticResource IconFile}"/>
@@ -383,6 +385,7 @@
                 <MenuItem x:Name="CtxSequential" Header="Download in se_quential order" IsCheckable="True" Click="ContextSequential_Click"/>
                 <Separator/>
                 <MenuItem x:Name="CtxResume" Header="Resu_me" Click="ContextResume_Click" local:Ui.Icon="{StaticResource IconPlay}"/>
+                <MenuItem x:Name="CtxQueue" Header="Add to _queue" Click="ContextQueue_Click" local:Ui.Icon="{StaticResource IconQueueStart}" ToolTip="Queue this download to start when a slot is available"/>
                 <MenuItem x:Name="CtxStop" Header="S_top (pause)" Click="ContextStop_Click" local:Ui.Icon="{StaticResource IconPause}"/>
                 <MenuItem x:Name="CtxSendToTray" Header="Download in _background (tray)" Click="ContextSendToTray_Click" local:Ui.Icon="{StaticResource IconTray}"/>
                 <MenuItem x:Name="CtxRefreshUrl" Header="Re_fresh address…" Click="ContextRefreshUrl_Click" local:Ui.Icon="{StaticResource IconRefresh}"/>
@@ -447,7 +450,7 @@
                   </GridViewColumn.Header>
                   <GridViewColumn.CellTemplate>
                     <DataTemplate>
-                      <StackPanel Orientation="Horizontal">
+                      <StackPanel Orientation="Horizontal" ToolTip="{Binding StatusToolTip}">
                         <Ellipse x:Name="Dot" Width="7" Height="7" Margin="0,1,7,0" VerticalAlignment="Center" Fill="{DynamicResource MutedBrush}"/>
                         <TextBlock x:Name="StatusLabel" Text="{Binding DisplayStatus}" TextTrimming="CharacterEllipsis"/>
                       </StackPanel>
@@ -455,6 +458,7 @@
                         <DataTrigger Binding="{Binding Status}" Value="Downloading"><Setter TargetName="Dot" Property="Fill" Value="{DynamicResource AccentBrush}"/></DataTrigger>
                         <DataTrigger Binding="{Binding Status}" Value="Connecting"><Setter TargetName="Dot" Property="Fill" Value="{DynamicResource AccentBrush}"/></DataTrigger>
                         <DataTrigger Binding="{Binding Status}" Value="Checking"><Setter TargetName="Dot" Property="Fill" Value="{DynamicResource AccentBrush}"/></DataTrigger>
+                        <DataTrigger Binding="{Binding Status}" Value="Queued"><Setter TargetName="Dot" Property="Fill" Value="{DynamicResource WarningBrush}"/></DataTrigger>
                         <DataTrigger Binding="{Binding Status}" Value="Completed"><Setter TargetName="Dot" Property="Fill" Value="{DynamicResource SuccessBrush}"/></DataTrigger>
                         <DataTrigger Binding="{Binding Status}" Value="Seeding"><Setter TargetName="Dot" Property="Fill" Value="{DynamicResource SuccessBrush}"/></DataTrigger>
                         <DataTrigger Binding="{Binding Status}" Value="Scheduled"><Setter TargetName="Dot" Property="Fill" Value="{DynamicResource WarningBrush}"/></DataTrigger>

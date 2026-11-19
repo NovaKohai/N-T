@@ -46,8 +46,8 @@ public partial class MainWindow
             }
             else
             {
-                job = await dialog.AddToAsync(_manager, startPaused: true);
-                Notice.Text = "Download added to queue (paused).";
+                job = await dialog.AddToAsync(_manager, startPaused: false);
+                Notice.Text = "Download added to queue.";
             }
             Search.Clear();
             Navigation.SelectedIndex = 0;
@@ -553,6 +553,107 @@ public partial class MainWindow
         else if (e.Key == Key.Delete && DownloadList.IsKeyboardFocusWithin) { e.Handled = true; Remove_Click(this, new RoutedEventArgs()); }
     }
 
+    private Point _dragStartPoint;
+    private DownloadRow? _draggedRow;
+
+    private static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        while (child is not null)
+        {
+            if (child is T parent) return parent;
+            child = System.Windows.Media.VisualTreeHelper.GetParent(child);
+        }
+        return null;
+    }
+
+    private void DownloadList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _draggedRow = null;
+        var element = e.OriginalSource as DependencyObject;
+        if (FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(element) is not null ||
+            FindVisualParent<GridViewColumnHeader>(element) is not null ||
+            FindVisualParent<System.Windows.Controls.Primitives.ButtonBase>(element) is not null)
+        {
+            return;
+        }
+
+        var item = FindVisualParent<ListViewItem>(element);
+        if (item?.DataContext is DownloadRow row && !row.IsTorrent && !row.IsComplete)
+        {
+            _draggedRow = row;
+            _dragStartPoint = e.GetPosition(DownloadList);
+        }
+    }
+
+    private void DownloadList_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _draggedRow is null)
+        {
+            _draggedRow = null;
+            return;
+        }
+
+        Point currentPoint = e.GetPosition(DownloadList);
+        Vector diff = _dragStartPoint - currentPoint;
+        if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+            Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+        {
+            var row = _draggedRow;
+            _draggedRow = null;
+            var data = new DataObject("NeoDM_RowReorder", row);
+            DragDrop.DoDragDrop(DownloadList, data, DragDropEffects.Move);
+        }
+    }
+
+    private void DownloadList_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent("NeoDM_RowReorder"))
+        {
+            e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+        }
+    }
+
+    private void DownloadList_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent("NeoDM_RowReorder")) return;
+        e.Handled = true;
+        if (e.Data.GetData("NeoDM_RowReorder") is not DownloadRow sourceRow) return;
+
+        var targetItem = FindVisualParent<ListViewItem>(e.OriginalSource as DependencyObject);
+        var targetRow = targetItem?.DataContext as DownloadRow;
+        if (targetRow is null || targetRow == sourceRow)
+        {
+            return;
+        }
+
+        var allJobs = _manager.Jobs;
+        int sourceJobIdx = -1, targetJobIdx = -1;
+        for (int i = 0; i < allJobs.Count; i++)
+        {
+            if (allJobs[i].Id == sourceRow.Id) sourceJobIdx = i;
+            if (allJobs[i].Id == targetRow.Id) targetJobIdx = i;
+        }
+
+        if (sourceJobIdx >= 0 && targetJobIdx >= 0 && sourceJobIdx != targetJobIdx)
+        {
+            int delta = targetJobIdx - sourceJobIdx;
+            if (_manager.MoveJob(sourceRow.Id, delta))
+            {
+                int sIdx = Rows.IndexOf(sourceRow);
+                int tIdx = Rows.IndexOf(targetRow);
+                if (sIdx >= 0 && tIdx >= 0 && sIdx != tIdx)
+                {
+                    Rows.Move(sIdx, tIdx);
+                }
+                DownloadList.SelectedItem = sourceRow;
+                DownloadList.ScrollIntoView(sourceRow);
+                Refresh();
+                Notice.Text = $"Moved \"{sourceRow.FileName}\" in queue.";
+            }
+        }
+    }
+
     private void DownloadList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         for (var source = e.OriginalSource as DependencyObject; source is not null; source = System.Windows.Media.VisualTreeHelper.GetParent(source))
@@ -570,7 +671,7 @@ public partial class MainWindow
         CtxExtract.Visibility = Selected is { IsComplete: true } && ArchiveExtractor.IsZip(Selected.FilePath) ? Visibility.Visible : Visibility.Collapsed;
         CtxSequential.Visibility = Selected is { IsTorrent: true } ? Visibility.Visible : Visibility.Collapsed;
         CtxSequential.IsChecked = Selected is { IsTorrent: true, IsSequential: true };
-        CtxResume.IsEnabled = state.Resume; CtxStop.IsEnabled = state.Stop; CtxRefreshUrl.IsEnabled = state.RefreshAddress; CtxRedownload.IsEnabled = state.Redownload;
+        CtxResume.IsEnabled = state.Resume; CtxQueue.IsEnabled = state.Queue; CtxStop.IsEnabled = state.Stop; CtxRefreshUrl.IsEnabled = state.RefreshAddress; CtxRedownload.IsEnabled = state.Redownload;
         CtxSendToTray.IsEnabled = rows.Any(r => r.Status == "Downloading" || r.CanPause);
         CtxSpeed.IsEnabled = state.SpeedLimit; CtxSchedule.IsEnabled = state.Schedule;
         CtxRemove.IsEnabled = state.Remove; CtxDelete.IsEnabled = state.DeleteFromDisk;
@@ -653,6 +754,14 @@ public partial class MainWindow
     private async void ContextResume_Click(object sender, RoutedEventArgs e)
     {
         foreach (var row in SelectedRows.Where(r => r.CanResume).ToArray()) await PerformAsync(() => ResumeRow(row), "Download resumed.");
+    }
+
+    private async void ContextQueue_Click(object sender, RoutedEventArgs e)
+    {
+        var rows = SelectedRows.Where(r => r.CanResume).ToArray();
+        if (rows.Length == 0) return;
+        foreach (var row in rows) await PerformAsync(() => ResumeRow(row), "Added to queue.");
+        Notice.Text = rows.Length == 1 ? "Download added to queue." : $"{rows.Length} downloads added to queue.";
     }
 
     private async void ContextStop_Click(object sender, RoutedEventArgs e)

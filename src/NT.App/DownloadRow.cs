@@ -26,6 +26,20 @@ public sealed partial class DownloadRow : INotifyPropertyChanged
     public bool IsAssembling { get; private set; }
     public double AssemblyProgress { get; private set; }
     public string DisplayStatus => IsAssembling ? "Assembling" : Status;
+    public string StatusToolTip => Status switch
+    {
+        "Queued" => "In queue — waiting for an available download slot",
+        "Paused" => "Paused — will not start automatically until resumed or added to queue",
+        "Downloading" => "Downloading actively",
+        "Connecting" => "Connecting to server…",
+        "Scheduled" => ScheduledAt.HasValue ? $"Scheduled to start at {ScheduledAt.Value.ToLocalTime():yyyy-MM-dd HH:mm}" : "Scheduled",
+        "Completed" => "Download completed",
+        "Failed" => !string.IsNullOrEmpty(Error) ? $"Failed: {Error}" : "Download failed",
+        "Canceled" => "Canceled",
+        "Checking" => "Checking file integrity…",
+        "Seeding" => "Seeding torrent",
+        _ => Status
+    };
     public int ActiveConnectionCount { get; private set; }
     public int ConnectionLimit { get; private set; }
     public long? SpeedLimit { get; private set; }
