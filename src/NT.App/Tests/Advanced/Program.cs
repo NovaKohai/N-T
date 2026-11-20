@@ -202,6 +202,15 @@ internal static class AdvancedTests
             Capture(window, Path.Combine(root, "main-minimum.png"));
             add = new AddDownloadWindow("") { Owner = window }; add.Show(); Pump(50);
             Capture(add, Path.Combine(root, "add-options.png")); add.Close();
+            string? shotDir = Environment.GetEnvironmentVariable("NEODM_SHOT_DIR");
+            if (!string.IsNullOrEmpty(shotDir) && Directory.Exists(shotDir))
+            {
+                app.ApplyTheme("Paper"); Pump(50);
+                var paperWin = new AddDownloadWindow("https://www.youtube.com/watch?v=8Oomlu5JJwQ", null, null, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"), fileName => CategoryHelper.GetDownloadPath(fileName, new AppSettings())) { Owner = window };
+                paperWin.Show(); Pump(100);
+                Capture(paperWin, Path.Combine(shotDir, "add_download_paper.png"));
+                paperWin.Close();
+            }
             Console.WriteLine($"ALL {checks} ADVANCED WPF CHECKS PASSED");
             return 0;
         }

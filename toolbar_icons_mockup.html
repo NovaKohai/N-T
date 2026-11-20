@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>N&T Precise Toolbar - Monochrome 36px / 2.8px</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Segoe+UI:wght@400;600&display=swap');
+    
+    :root {
+      font-family: 'Segoe UI', 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Crisp geometric vector rendering */
+    svg {
+      shape-rendering: geometricPrecision;
+    }
+    
+    svg path, svg circle, svg rect, svg line, svg ellipse {
+      vector-effect: non-scaling-stroke;
+    }
+
+    /* Button hover & active states */
+    .tb-btn {
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+    .tb-btn:hover {
+      background-color: rgba(255, 255, 255, 0.09);
+    }
+    .tb-btn:active {
+      transform: scale(0.96);
+      background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(150, 150, 150, 0.35);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(150, 150, 150, 0.55);
+    }
+  </style>
+</head>
+<body class="bg-[#121214] text-[#E0E0E0] min-h-screen p-3 md:p-6 select-none">
+
+  <!-- SVG Global Gradients (for switching modes) -->
+  <svg width="0" height="0" class="absolute block">
+    <defs>
+      <linearGradient id="grad-add-authentic" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#4ECCA3" />
+        <stop offset="100%" stop-color="#38B28D" />
+      </linearGradient>
+      <linearGradient id="grad-slate-authentic" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#A0AEC0" />
+        <stop offset="100%" stop-color="#718096" />
+      </linearGradient>
+      <linearGradient id="grad-delcomp-authentic" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#F472B6" />
+        <stop offset="100%" stop-color="#A855F7" />
+      </linearGradient>
+      <linearGradient id="grad-options-authentic" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#C084FC" />
+        <stop offset="100%" stop-color="#8B5CF6" />
+      </linearGradient>
+      <linearGradient id="grad-scheduler-authentic" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FB7185" />
+        <stop offset="100%" stop-color="#FBBF24" />
+      </linearGradient>
+      <linearGradient id="grad-startqueue-authentic" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#38BDF8" />
+        <stop offset="100%" stop-color="#2DD4BF" />
+      </linearGradient>
+      <linearGradient id="grad-stopqueue-authentic" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#F472B6" />
+        <stop offset="100%" stop-color="#C084FC" />
+      </linearGradient>
+      <linearGradient id="grad-grabber-authentic" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#C084FC" />
+        <stop offset="100%" stop-color="#F59E0B" />
+      </linearGradient>
+      <linearGradient id="grad-about-authentic" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#818CF8" />
+        <stop offset="100%" stop-color="#6366F1" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <!-- Top Info Header -->
+  <header class="max-w-6xl mx-auto mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2A2A2E]">
+    <div>
+      <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-mono font-bold mb-1.5">
+        <span>✓ QUIET MONOCHROME</span> &bull; <span>36px ICONS</span> &bull; <span>2.8px STROKE</span>
+      </div>
+      <h1 class="text-xl md:text-2xl font-bold text-white tracking-wide">
+        شريط الأدوات الأحادي الهادئ (Adaptive Monochrome Toolbar)
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">
+        تصميم أحادي نقي ومتناسق بحجم 36px وسُمك 2.8px يتكيف تلقائياً مع خلفية وألوان أي ثيم تختاره.
+      </p>
+    </div>
+
+    <!-- Style Mode Selector -->
+    <div class="flex items-center gap-2 bg-[#1A1A1E] border border-[#2D2D35] p-1.5 rounded-xl text-xs">
+      <button onclick="setColorMode('mono')" id="btnMono" class="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/40 font-semibold">
+        أحادي هادئ (المختار حالياً)
+      </button>
+      <button onclick="setColorMode('authentic')" id="btnAuth" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white font-semibold">
+        ألوان الصورة الأصلية
+      </button>
+      <button onclick="setColorMode('vibrant')" id="btnVibrant" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white font-semibold">
+        تدرجات نيون
+      </button>
+    </div>
+  </header>
+
+  <!-- Interactive Controls Bar -->
+  <div class="max-w-6xl mx-auto mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs bg-[#1A1A1E] border border-[#26262B] p-3 rounded-xl">
+    <!-- Size Selector -->
+    <div>
+      <span class="text-slate-400 block mb-1">الحجم (Icon Size):</span>
+      <div class="flex gap-1.5 font-mono">
+        <button onclick="setSize(28)" class="sz-btn px-2 py-0.5 rounded bg-[#2A2A30] hover:bg-[#333] text-slate-300">28px</button>
+        <button onclick="setSize(32)" class="sz-btn px-2 py-0.5 rounded bg-[#2A2A30] hover:bg-[#333] text-slate-300">32px</button>
+        <button onclick="setSize(36)" class="sz-btn px-2 py-0.5 rounded bg-blue-500/30 text-blue-300 font-bold border border-blue-500/50">36px (مختار)</button>
+        <button onclick="setSize(40)" class="sz-btn px-2 py-0.5 rounded bg-[#2A2A30] hover:bg-[#333] text-slate-300">40px</button>
+      </div>
+    </div>
+
+    <!-- Stroke Width -->
+    <div>
+      <span class="text-slate-400 block mb-1">سُمك الخط (Stroke):</span>
+      <div class="flex gap-1.5 font-mono">
+        <button onclick="setStroke(2.0)" class="st-btn px-2 py-0.5 rounded bg-[#2A2A30] hover:bg-[#333] text-slate-300">2.0px</button>
+        <button onclick="setStroke(2.4)" class="st-btn px-2 py-0.5 rounded bg-[#2A2A30] hover:bg-[#333] text-slate-300">2.4px</button>
+        <button onclick="setStroke(2.8)" class="st-btn px-2 py-0.5 rounded bg-blue-500/30 text-blue-300 font-bold border border-blue-500/50">2.8px (مختار)</button>
+      </div>
+    </div>
+
+    <!-- Language -->
+    <div>
+      <span class="text-slate-400 block mb-1">لغة النصوص:</span>
+      <button onclick="toggleLanguage()" id="langToggle" class="px-2.5 py-1 rounded bg-[#2A2A30] hover:bg-[#333] font-semibold text-slate-200">
+        English (كما في الصورة)
+      </button>
+    </div>
+
+    <!-- Theme Palette Selector (All 8 Themes) -->
+    <div>
+      <span class="text-slate-400 block mb-1">اختر ثيم البرنامج (يتغير الشريط معه):</span>
+      <div class="flex gap-1.5 items-center flex-wrap pt-0.5">
+        <button onclick="setTheme('paper')" class="w-6 h-6 rounded-full bg-[#F7F2EA] border-2 border-amber-600 shadow-sm" title="Paper (الورقي الطبيعي)"></button>
+        <button onclick="setTheme('dark')" class="w-6 h-6 rounded-full bg-[#252526] border border-slate-600" title="Dark (الداكن الكلاسيكي)"></button>
+        <button onclick="setTheme('midnight')" class="w-6 h-6 rounded-full bg-[#131B2B] border border-blue-800" title="Midnight (أزرق ليلي)"></button>
+        <button onclick="setTheme('graphite')" class="w-6 h-6 rounded-full bg-[#202023] border border-zinc-700" title="Graphite (رمادي تيتانيوم)"></button>
+        <button onclick="setTheme('ocean')" class="w-6 h-6 rounded-full bg-[#112533] border border-teal-800" title="Ocean (محيطي)"></button>
+        <button onclick="setTheme('forest')" class="w-6 h-6 rounded-full bg-[#132B20] border border-emerald-800" title="Forest (زمردي غابي)"></button>
+        <button onclick="setTheme('rose')" class="w-6 h-6 rounded-full bg-[#2C1720] border border-rose-900" title="Rose (عنابي)"></button>
+        <button onclick="setTheme('light')" class="w-6 h-6 rounded-full bg-[#FFFFFF] border border-slate-300 shadow-sm" title="Light (نهاري ناصع)"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- The Real Mockup Window (Dynamic Theme Background) -->
+  <main class="max-w-6xl mx-auto space-y-6">
+    
+    <div id="windowFrame" class="rounded-xl border border-[#D6CEBE] overflow-hidden shadow-2xl transition-all duration-200">
+      
+      <!-- Window Title Bar -->
+      <div id="windowHeader" class="bg-[#EFE8DA] px-3.5 py-2 text-[11.5px] font-semibold text-[#382F24] flex items-center justify-between border-b border-black/10 transition-colors">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+          <span id="windowTitleText">N&T Download Manager - [Paper Theme Active]</span>
+        </div>
+        <div class="flex items-center gap-1.5 opacity-60">
+          <div class="w-3 h-3 rounded-full bg-current"></div>
+          <div class="w-3 h-3 rounded-full bg-current"></div>
+          <div class="w-3 h-3 rounded-full bg-current"></div>
+        </div>
+      </div>
+
+      <!-- Action Toolbar (Dynamic Background according to theme) -->
+      <div id="toolbarRoot" class="bg-[#F7F2EA] p-2.5 overflow-x-auto transition-colors duration-200">
+        <div id="toolbarItems" class="flex items-center gap-1 min-w-max">
+
+          <!-- 1. Add URL (Hollow Outline Plus Sign) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[68px]" title="Add URL">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <path d="M 13.5 5 C 13.5 4.17 14.17 3.5 15 3.5 L 17 3.5 C 17.83 3.5 18.5 4.17 18.5 5 L 18.5 13.5 L 27 13.5 C 27.83 13.5 28.5 14.17 28.5 15 L 28.5 17 C 28.5 17.83 27.83 18.5 27 18.5 L 18.5 18.5 L 18.5 27 C 18.5 27.83 17.83 28.5 17 28.5 L 15 28.5 C 14.17 28.5 13.5 27.83 13.5 27 L 13.5 18.5 L 5 18.5 C 4.17 18.5 3.5 17.83 3.5 17 L 3.5 15 C 3.5 14.17 4.17 13.5 5 13.5 L 13.5 13.5 Z" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Add URL" data-ar="إضافة رابط">Add URL</span>
+          </button>
+
+          <!-- 2. Resume (Circle with Down Arrow) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[68px]" title="Resume">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="16" r="11.5" class="glyph-stroke" stroke="#382F24" stroke-width="2.8"/>
+                <path d="M 16 10 L 16 21 M 11.5 16.5 L 16 21 L 20.5 16.5" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Resume" data-ar="استئناف">Resume</span>
+          </button>
+
+          <!-- 3. Stop (Circle with Square) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[68px]" title="Stop">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="16" r="11.5" class="glyph-stroke" stroke="#382F24" stroke-width="2.8"/>
+                <rect x="12" y="12" width="8" height="8" rx="1.5" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Stop" data-ar="إيقاف">Stop</span>
+          </button>
+
+          <!-- 4. Stop All (Raised Palm Hand) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[68px]" title="Stop All">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <path d="M 10 25.5 L 10 17 C 10 15.8 8.8 15 7.8 15.5 C 7 15.9 6.5 16.8 6.5 17.5 L 6.5 18 C 6.5 22.5 10 26 14.5 26 C 19 26 22.5 22.5 22.5 18 L 22.5 12 C 22.5 11.2 21.8 10.5 21 10.5 C 20.2 10.5 19.5 11.2 19.5 12 L 19.5 9 C 19.5 8.2 18.8 7.5 18 7.5 C 17.2 7.5 16.5 8.2 16.5 9 L 16.5 7 C 16.5 6.2 15.8 5.5 15 5.5 C 14.2 5.5 13.5 6.2 13.5 7 L 13.5 10 C 13.5 9.2 12.8 8.5 12 8.5 C 11.2 8.5 10.5 9.2 10.5 10 L 10.5 25.5" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Stop All" data-ar="إيقاف الكل">Stop All</span>
+          </button>
+
+          <!-- 5. Delete (Trash Can) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[68px]" title="Delete">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <path d="M 7.5 9 L 24.5 9 M 13 9 L 13 6.5 C 13 5.7 13.7 5 14.5 5 L 17.5 5 C 18.3 5 19 5.7 19 6.5 L 19 9" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M 9.5 11 L 11 24.5 C 11.1 25.4 11.8 26 12.7 26 L 19.3 26 C 20.2 26 20.9 25.4 21 24.5 L 22.5 11" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="14" y1="14" x2="14" y2="21" class="glyph-stroke" stroke="#382F24" stroke-width="2.6" stroke-linecap="round"/>
+                <line x1="18" y1="14" x2="18" y2="21" class="glyph-stroke" stroke="#382F24" stroke-width="2.6" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Delete" data-ar="حذف">Delete</span>
+          </button>
+
+          <!-- 6. Delete Completed (Trash Can with Checkmark) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[72px]" title="Delete Completed">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <path d="M 7.5 9 L 24.5 9 M 13 9 L 13 6.5 C 13 5.7 13.7 5 14.5 5 L 17.5 5 C 18.3 5 19 5.7 19 6.5 L 19 9" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M 9.5 11 L 11 24.5 C 11.1 25.4 11.8 26 12.7 26 L 19.3 26 C 20.2 26 20.9 25.4 21 24.5 L 22.5 11" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M 12.5 17.5 L 15 20.5 L 19.5 14.5" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Delete Co..." data-ar="حذف المكتمل">Delete Co...</span>
+          </button>
+
+          <!-- Divider -->
+          <div id="toolbarDivider" class="w-px h-11 bg-black/15 mx-1 self-center"></div>
+
+          <!-- 7. Options (10-tooth Scalloped Gear) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[68px]" title="Options">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <path d="M 16 3.5 C 17.5 3.5 18 5 19.5 5.5 C 21 6 22 4.8 23.3 5.5 C 24.6 6.2 24.5 7.8 25.5 8.8 C 26.5 9.8 28.1 9.7 28.8 11 C 29.5 12.3 28.3 13.3 28.8 14.8 C 29.3 16.3 30.5 17 30.5 18.5 C 30.5 20 29.3 20.7 28.8 22.2 C 28.3 23.7 29.5 24.7 28.8 26 C 28.1 27.3 26.5 27.2 25.5 28.2 C 24.5 29.2 24.6 30.8 23.3 31.5 C 22 32.2 21 31 19.5 31.5 C 18 32 17.5 33.5 16 33.5 C 14.5 33.5 14 32 12.5 31.5 C 11 31 10 32.2 8.7 31.5 C 7.4 30.8 7.5 29.2 6.5 28.2 C 5.5 27.2 3.9 27.3 3.2 26 C 2.5 24.7 3.7 23.7 3.2 22.2 C 2.7 20.7 1.5 20 1.5 18.5 C 1.5 17 2.7 16.3 3.2 14.8 C 3.7 13.3 2.5 12.3 3.2 11 C 3.9 9.7 5.5 9.8 6.5 8.8 C 7.5 7.8 7.4 6.2 8.7 5.5 C 10 4.8 11 6 12.5 5.5 C 14 5 14.5 3.5 16 3.5 Z" 
+                      transform="scale(0.85) translate(2.8, 0)"
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linejoin="round"/>
+                <circle cx="16" cy="16" r="4.2" class="glyph-stroke" stroke="#382F24" stroke-width="2.8"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Options" data-ar="الإعدادات">Options</span>
+          </button>
+
+          <!-- 8. Scheduler (Alarm Clock) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[68px]" title="Scheduler">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="17" r="9.5" class="glyph-stroke" stroke="#382F24" stroke-width="2.8"/>
+                <path d="M 16 11.5 L 16 17 L 19.5 19" class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M 7.5 8.5 C 8.5 7 10 7.5 10.5 8.5 M 24.5 8.5 C 23.5 7 22 7.5 21.5 8.5" class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M 10 25.5 L 8 28 M 22 25.5 L 24 28" class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Scheduler" data-ar="الجدولة">Scheduler</span>
+          </button>
+
+          <!-- 9. Start Queue (Stacked Cards + Arrow + Chevron) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-2.5 rounded-md text-center min-w-[72px]" title="Start Queue">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <div class="flex items-center gap-1">
+                <svg class="icon-svg" width="32" height="36" viewBox="0 0 28 32" fill="none">
+                  <path d="M 10 8 L 21 8 C 22.1 8 23 8.9 23 10 L 23 21 C 23 22.1 22.1 23 21 23" 
+                        class="glyph-stroke" stroke="#382F24" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="5" y="11" width="13" height="15" rx="2" 
+                        class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linejoin="round"/>
+                  <path d="M 11.5 14.5 L 11.5 22.5 M 8.5 19.5 L 11.5 22.5 L 14.5 19.5" 
+                        class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <svg width="8" height="6" viewBox="0 0 7 6" fill="none" class="opacity-70 group-hover:opacity-100">
+                  <path d="M 0.5 1 L 3.5 4.5 L 6.5 1" class="chevron-stroke" stroke="#382F24" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Start Qu..." data-ar="بدء الطابور">Start Qu...</span>
+          </button>
+
+          <!-- 10. Stop Queue (Stacked Cards + Square + Chevron) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-2.5 rounded-md text-center min-w-[72px]" title="Stop Queue">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <div class="flex items-center gap-1">
+                <svg class="icon-svg" width="32" height="36" viewBox="0 0 28 32" fill="none">
+                  <path d="M 10 8 L 21 8 C 22.1 8 23 8.9 23 10 L 23 21 C 23 22.1 22.1 23 21 23" 
+                        class="glyph-stroke" stroke="#382F24" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="5" y="11" width="13" height="15" rx="2" 
+                        class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linejoin="round"/>
+                  <rect x="9" y="16" width="5" height="5" rx="1" 
+                        class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linejoin="round"/>
+                </svg>
+                <svg width="8" height="6" viewBox="0 0 7 6" fill="none" class="opacity-70 group-hover:opacity-100">
+                  <path d="M 0.5 1 L 3.5 4.5 L 6.5 1" class="chevron-stroke" stroke="#382F24" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Stop Qu..." data-ar="إيقاف الطابور">Stop Qu...</span>
+          </button>
+
+          <!-- Divider -->
+          <div id="toolbarDivider2" class="w-px h-11 bg-black/15 mx-1 self-center"></div>
+
+          <!-- 11. Grabber (Globe + Connected Nodes) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[68px]" title="Grabber">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <circle cx="17" cy="11.5" r="7.5" class="glyph-stroke" stroke="#382F24" stroke-width="2.6"/>
+                <ellipse cx="17" cy="11.5" rx="3.5" ry="7.5" class="glyph-stroke" stroke="#382F24" stroke-width="2.2"/>
+                <line x1="9.5" y1="11.5" x2="24.5" y2="11.5" class="glyph-stroke" stroke="#382F24" stroke-width="2.2"/>
+                <path d="M 7 24 L 11 19.5 L 15 24 M 14 24 L 18 19.5 L 22 24" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Grabber" data-ar="الملتقط">Grabber</span>
+          </button>
+
+          <!-- 12. Tell a Friend (Thumbs Up) -->
+          <button class="tb-btn group flex flex-col items-center justify-center py-2 px-3 rounded-md text-center min-w-[70px]" title="Tell a Friend">
+            <div class="icon-box mb-1.5 flex items-center justify-center">
+              <svg class="icon-svg" width="36" height="36" viewBox="0 0 32 32" fill="none">
+                <path d="M 9.5 14 L 9.5 24.5 M 9.5 15.5 L 6.5 15.5 C 5.4 15.5 4.5 16.4 4.5 17.5 L 4.5 22.5 C 4.5 23.6 5.4 24.5 6.5 24.5 L 9.5 24.5 M 9.5 24.5 L 18.5 24.5 C 20.2 24.5 21.6 23.3 22 21.7 L 23.3 15.8 C 23.7 14.1 22.4 12.5 20.7 12.5 L 16.5 12.5 L 17.8 7.5 C 18.1 6.5 17.3 5.5 16.2 5.5 C 15.5 5.5 14.8 5.9 14.4 6.6 L 11 13.5 L 9.5 14" 
+                      class="glyph-stroke" stroke="#382F24" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="tb-label text-[11.5px] text-[#382F24] font-medium" data-en="Tell a Friend" data-ar="عن البرنامج">Tell a Friend</span>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Categories & Queue Preview (Matches the selected theme) -->
+      <div id="tablePreviewArea" class="grid grid-cols-12 border-t border-black/10 bg-[#FAF6EE] text-xs font-mono text-[#4A3E31]">
+        <!-- Sidebar -->
+        <div id="sidebarArea" class="col-span-3 border-r border-black/10 p-3.5 space-y-2 bg-[#F0EAE0]">
+          <div class="flex items-center justify-between text-[11px] font-bold text-current pb-1 border-b border-black/10">
+            <span>Categories</span>
+            <span class="opacity-60 cursor-pointer">&times;</span>
+          </div>
+          <div class="text-[11.5px] font-bold text-amber-800">&bull; All Downloads (14)</div>
+          <div class="text-[11px] opacity-75 pl-2">Compressed (3)</div>
+          <div class="text-[11px] opacity-75 pl-2">Video (6)</div>
+          <div class="text-[11px] opacity-75 pl-2">Programs (2)</div>
+        </div>
+        <!-- Table Body -->
+        <div class="col-span-9 p-5 flex flex-col justify-center items-center text-center opacity-70">
+          <div class="text-sm font-semibold">Download Queue Ready (Monochrome 36px / 2.8px)</div>
+          <div class="text-[11px] mt-1">خلفية الشريط تتكيف فورياً مع أي ثيم تختاره بالأعلى، والأيقونات موحدة بلون الحبر الهادئ</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Live XAML Code Inspector -->
+    <section class="bg-[#18181C] border border-[#2B2B32] rounded-xl p-4 shadow-lg">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-xs font-bold text-white flex items-center gap-2">
+          <span>📐 كود XAML المباشر بالحجم والسُمك المختار (36px / 2.8px Monochrome)</span>
+        </h2>
+        <span class="text-[10px] font-mono text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">
+          Adaptive DynamicResource InkBrush
+        </span>
+      </div>
+      <pre class="bg-[#101012] border border-[#222226] rounded-lg p-3 font-mono text-xs text-blue-300/90 overflow-x-auto leading-relaxed" id="codeViewer">&lt;!-- زر Add URL بحجم 36px وسُمك 2.8px بنمط أحادي هادئ مرتبط بلون ثيم التطبيق --&gt;
+&lt;Path Data="M 13.5 5 C 13.5 4.17 14.17 3.5 15 3.5 L 17 3.5 C 17.83 3.5 18.5 4.17 18.5 5 L 18.5 13.5 L 27 13.5 C 27.83 13.5 28.5 14.17 28.5 15 L 28.5 17 C 28.5 17.83 27.83 18.5 27 18.5 L 18.5 18.5 L 18.5 27 C 18.5 27.83 17.83 28.5 17 28.5 L 15 28.5 C 14.17 28.5 13.5 27.83 13.5 27 L 13.5 18.5 L 5 18.5 C 4.17 18.5 3.5 17.83 3.5 17 L 3.5 15 C 3.5 14.17 4.17 13.5 5 13.5 L 13.5 13.5 Z"
+      Width="36" Height="36"
+      Stroke="{DynamicResource InkBrush}"
+      StrokeThickness="2.8"
+      StrokeLineJoin="Round"
+      StrokeStartLineCap="Round"
+      StrokeEndLineCap="Round"/&gt;</pre>
+    </section>
+
+  </main>
+
+  <script>
+    // Theme Definitions matching N&T Theming Architecture
+    const themes = {
+      paper: {
+        name: 'Paper Theme',
+        frameBorder: '#D6CEBE',
+        headerBg: '#EFE8DA',
+        headerText: '#382F24',
+        toolbarBg: '#F7F2EA',
+        ink: '#382F24',
+        sidebarBg: '#F0EAE0',
+        tableBg: '#FAF6EE',
+        divider: 'rgba(0,0,0,0.15)'
+      },
+      dark: {
+        name: 'Dark Theme',
+        frameBorder: '#38383D',
+        headerBg: '#1E1E1E',
+        headerText: '#E2E8F0',
+        toolbarBg: '#252526',
+        ink: '#E2E8F0',
+        sidebarBg: '#202022',
+        tableBg: '#18181A',
+        divider: 'rgba(255,255,255,0.15)'
+      },
+      midnight: {
+        name: 'Midnight Theme',
+        frameBorder: '#1F293D',
+        headerBg: '#0B101A',
+        headerText: '#F1F5F9',
+        toolbarBg: '#131B2B',
+        ink: '#E0E7FF',
+        sidebarBg: '#0F1624',
+        tableBg: '#0B101A',
+        divider: 'rgba(255,255,255,0.15)'
+      },
+      graphite: {
+        name: 'Graphite Theme',
+        frameBorder: '#2E2E33',
+        headerBg: '#18181B',
+        headerText: '#FAFAFA',
+        toolbarBg: '#202023',
+        ink: '#FAFAFA',
+        sidebarBg: '#1C1C1F',
+        tableBg: '#141416',
+        divider: 'rgba(255,255,255,0.15)'
+      },
+      ocean: {
+        name: 'Ocean Theme',
+        frameBorder: '#1A384D',
+        headerBg: '#0C1A24',
+        headerText: '#E0F2FE',
+        toolbarBg: '#112533',
+        ink: '#E0F2FE',
+        sidebarBg: '#0E202C',
+        tableBg: '#09141C',
+        divider: 'rgba(255,255,255,0.15)'
+      },
+      forest: {
+        name: 'Forest Theme',
+        frameBorder: '#1D4030',
+        headerBg: '#0D1E16',
+        headerText: '#ECFDF5',
+        toolbarBg: '#132B20',
+        ink: '#ECFDF5',
+        sidebarBg: '#10251C',
+        tableBg: '#0A1711',
+        divider: 'rgba(255,255,255,0.15)'
+      },
+      rose: {
+        name: 'Rose Theme',
+        frameBorder: '#422330',
+        headerBg: '#201017',
+        headerText: '#FFF1F2',
+        toolbarBg: '#2C1720',
+        ink: '#FFF1F2',
+        sidebarBg: '#26131B',
+        tableBg: '#1A0C13',
+        divider: 'rgba(255,255,255,0.15)'
+      },
+      light: {
+        name: 'Light Theme',
+        frameBorder: '#CBD5E1',
+        headerBg: '#F1F5F9',
+        headerText: '#0F172A',
+        toolbarBg: '#FFFFFF',
+        ink: '#0F172A',
+        sidebarBg: '#F8FAFC',
+        tableBg: '#FFFFFF',
+        divider: 'rgba(0,0,0,0.12)'
+      }
+    };
+
+    let activeThemeKey = 'paper';
+    let activeMode = 'mono';
+    let activeSize = 36;
+    let activeStroke = 2.8;
+    let currentLang = 'en';
+
+    function setTheme(key) {
+      activeThemeKey = key;
+      const t = themes[key];
+      if (!t) return;
+
+      document.getElementById('windowFrame').style.borderColor = t.frameBorder;
+      document.getElementById('windowHeader').style.backgroundColor = t.headerBg;
+      document.getElementById('windowHeader').style.color = t.headerText;
+      document.getElementById('windowTitleText').textContent = `N&T Download Manager - [${t.name} Active]`;
+      
+      // Toolbar Background strictly follows the selected theme
+      document.getElementById('toolbarRoot').style.backgroundColor = t.toolbarBg;
+      document.getElementById('toolbarDivider').style.backgroundColor = t.divider;
+      document.getElementById('toolbarDivider2').style.backgroundColor = t.divider;
+
+      // Sidebar & Table Preview follow theme
+      document.getElementById('sidebarArea').style.backgroundColor = t.sidebarBg;
+      document.getElementById('sidebarArea').style.color = t.ink;
+      document.getElementById('tablePreviewArea').style.backgroundColor = t.tableBg;
+      document.getElementById('tablePreviewArea').style.color = t.ink;
+
+      // Update monochrome icon and label colors to match theme ink
+      if (activeMode === 'mono') {
+        document.querySelectorAll('.glyph-stroke').forEach(el => el.setAttribute('stroke', t.ink));
+        document.querySelectorAll('.chevron-stroke').forEach(el => el.setAttribute('stroke', t.ink));
+        document.querySelectorAll('.tb-label').forEach(el => el.style.color = t.ink);
+      }
+    }
+
+    function setSize(px) {
+      activeSize = px;
+      document.querySelectorAll('.icon-svg').forEach(el => {
+        el.setAttribute('width', px);
+        el.setAttribute('height', px);
+      });
+      document.querySelectorAll('.sz-btn').forEach(btn => {
+        if (btn.textContent.includes(px + 'px')) {
+          btn.className = "sz-btn px-2 py-0.5 rounded bg-blue-500/30 text-blue-300 font-bold border border-blue-500/50";
+        } else {
+          btn.className = "sz-btn px-2 py-0.5 rounded bg-[#2A2A30] hover:bg-[#333] text-slate-300";
+        }
+      });
+    }
+
+    function setStroke(sw) {
+      activeStroke = sw;
+      document.querySelectorAll('.glyph-stroke').forEach(el => {
+        el.setAttribute('stroke-width', sw);
+      });
+      document.querySelectorAll('.st-btn').forEach(btn => {
+        if (btn.textContent.includes(sw + 'px')) {
+          btn.className = "st-btn px-2 py-0.5 rounded bg-blue-500/30 text-blue-300 font-bold border border-blue-500/50";
+        } else {
+          btn.className = "st-btn px-2 py-0.5 rounded bg-[#2A2A30] hover:bg-[#333] text-slate-300";
+        }
+      });
+    }
+
+    function setColorMode(mode) {
+      activeMode = mode;
+      const btnA = document.getElementById('btnAuth');
+      const btnV = document.getElementById('btnVibrant');
+      const btnM = document.getElementById('btnMono');
+      [btnA, btnV, btnM].forEach(b => {
+        b.className = "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white font-semibold";
+      });
+
+      const currentInk = themes[activeThemeKey].ink;
+
+      if (mode === 'mono') {
+        btnM.className = "px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/40 font-semibold";
+        document.querySelectorAll('.glyph-stroke').forEach(el => el.setAttribute('stroke', currentInk));
+        document.querySelectorAll('.chevron-stroke').forEach(el => el.setAttribute('stroke', currentInk));
+        document.querySelectorAll('.tb-label').forEach(el => el.style.color = currentInk);
+      } else if (mode === 'authentic') {
+        btnA.className = "px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold";
+        document.querySelectorAll('button[title="Add URL"] .glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-add-authentic)'));
+        document.querySelectorAll('button[title="Resume"] .glyph-stroke, button[title="Stop"] .glyph-stroke, button[title="Stop All"] .glyph-stroke, button[title="Delete"] .glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-slate-authentic)'));
+        document.querySelectorAll('button[title="Delete Completed"] .glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-delcomp-authentic)'));
+        document.querySelectorAll('button[title="Options"] .glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-options-authentic)'));
+        document.querySelectorAll('button[title="Scheduler"] .glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-scheduler-authentic)'));
+        document.querySelectorAll('button[title="Start Queue"] .glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-startqueue-authentic)'));
+        document.querySelectorAll('button[title="Stop Queue"] .glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-stopqueue-authentic)'));
+        document.querySelectorAll('button[title="Grabber"] .glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-grabber-authentic)'));
+        document.querySelectorAll('button[title="Tell a Friend"] .glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-about-authentic)'));
+      } else if (mode === 'vibrant') {
+        btnV.className = "px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 font-semibold";
+        document.querySelectorAll('.glyph-stroke').forEach(el => el.setAttribute('stroke', 'url(#grad-options-authentic)'));
+      }
+    }
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'en' ? 'ar' : 'en';
+      document.querySelectorAll('.tb-label').forEach(el => {
+        el.textContent = el.getAttribute('data-' + currentLang);
+      });
+      document.getElementById('langToggle').textContent = currentLang === 'en' ? 'English (كما في الصورة)' : 'عربي';
+    }
+
+    // Inspect buttons click
+    document.querySelectorAll('.tb-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const title = btn.getAttribute('title');
+        const svgCode = btn.querySelector('.icon-svg').outerHTML;
+        document.getElementById('codeViewer').textContent = `<!-- كود زر ${title} بمقاس ${activeSize}px وسُمك ${activeStroke}px بنمط أحادي هادئ -->\n` + svgCode;
+      });
+    });
+
+    // Initialize with requested Paper theme, 36px, 2.8px, Monochrome
+    setTheme('paper');
+    setSize(36);
+    setStroke(2.8);
+    setColorMode('mono');
+  </script>
+</body>
+</html>

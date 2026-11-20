@@ -1,12 +1,12 @@
 {
-    "body":  "## [1.4.3] - 2026-11-19\r\n\r\n### Added\r\n- **تحديد مسار الحفظ في نافذة إضافة الرابط**: إضافة حقل مسار الحفظ الصريح (`Save to`) مع زر استعراض المجلدات (`Browse…`) داخل نافذة إضافة التنزيل (`AddDownloadWindow`)، مع اقتراح تلقائي ذكي لمجلد الفئة (مثل مجلد Video لروابط اليوتيوب والفيديو) وإمكانية حفظ الملف في أي مجلد أو قرص يختاره المستخدم.\r\n- **إعادة ترتيب الطابور بالسحب والإفلات (Drag & Drop Reordering)**: إمكانية سحب أي صف بالماوس مباشرة للأعلى أو للأسفل لتغيير أولوية التنزيل في الطابور فورياً مع أزرار مساعدة في الشريط السفلي.\r\n- **خيار صريح لضم الملفات للطابور (Add to queue)**: عنصر قائمة صريح لتحويل أي ملف موقوف أو فاشل إلى وضع الانتظار في الطابور، مع تمييز بصري كهرماني لحالة الانتظار وزر مخصص في نافذة الإضافة.",
-    "name":  "N&T 1.4.3",
-    "published_at":  "2026-11-19T22:49:44Z",
+    "body":  "## [1.4.5] - 2026-11-20\r\n\r\n### Added\r\n- **شريط الأدوات الكلاسيكي الأحادي الهادئ (Classic Monochrome 36px/2.8px Toolbar)**: ترقية كاملة لشريط الأوامر العلوي مع أيقونات فيكتورية دقيقة بحجم 36px وسُمك خط 2.8px بنمط أحادي هادئ يتكيف تلقائياً مع لون خلفية أي ثيم مختار (سواء Paper أو Dark أو Midnight أو غيرها)، مع 12 أيقونة كلاسيكية متناسقة بدقة رياضية متناهية (Add URL, Resume, Stop, Stop All, Delete, Delete Completed, Options, Scheduler, Start Queue, Stop Queue, Grabber, Tell a Friend).",
+    "name":  "N&T 1.4.5",
+    "published_at":  "2026-11-20T01:11:28Z",
     "assets":  [
                    {
-                       "browser_download_url":  "/updates/N&T-Setup-1.4.3.msi",
-                       "name":  "N&T-Setup-1.4.3.msi",
-                       "size":  93444177
+                       "browser_download_url":  "/updates/N&T-Setup-1.4.5.msi",
+                       "name":  "N&T-Setup-1.4.5.msi",
+                       "size":  93456465
                    },
                    {
                        "browser_download_url":  "/updates/SHA256SUMS.txt",
@@ -14,6 +14,6 @@
                        "size":  508
                    }
                ],
-    "tag_name":  "v1.4.3",
-    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.4.3"
+    "tag_name":  "v1.4.5",
+    "html_url":  "https://github.com/NovaKohai/N-T/releases/tag/v1.4.5"
 }

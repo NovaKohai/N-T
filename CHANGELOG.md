@@ -2,6 +2,11 @@
 
 كل التغييرات والتحسينات في برنامج N&T متسجلة هنا أولاً بأول.
 
+## [1.4.5] - 2026-11-20
+
+### Added
+- **شريط الأدوات الكلاسيكي الأحادي الهادئ (Classic Monochrome 36px/2.8px Toolbar)**: ترقية كاملة لشريط الأوامر العلوي مع أيقونات فيكتورية دقيقة بحجم 36px وسُمك خط 2.8px بنمط أحادي هادئ يتكيف تلقائياً مع لون خلفية أي ثيم مختار (سواء Paper أو Dark أو Midnight أو غيرها)، مع 12 أيقونة كلاسيكية متناسقة بدقة رياضية متناهية (Add URL, Resume, Stop, Stop All, Delete, Delete Completed, Options, Scheduler, Start Queue, Stop Queue, Grabber, Tell a Friend).
+
 ## [1.4.3] - 2026-11-19
 
 ### Added
